@@ -1,0 +1,135 @@
+{
+  "screen": {
+    "id": "faq-board",
+    "title": "FAQ Board",
+    "purpose": "View frequently asked questions with category tabs and search",
+    "route": "/app/faq",
+    "layout": "main-layout"
+  },
+  "states": {
+    "loading": {
+      "components": [
+        {
+          "id": "faq-loading",
+          "type": "div",
+          "props": { "className": "p-6 space-y-4" },
+          "children": [
+            { "id": "search-skel", "type": "Skeleton", "props": { "className": "h-10 w-96" } },
+            { "id": "tabs-skel", "type": "Skeleton", "props": { "className": "h-10 w-full" } },
+            { "id": "list-skel-1", "type": "Skeleton", "props": { "className": "h-14 w-full" } },
+            { "id": "list-skel-2", "type": "Skeleton", "props": { "className": "h-14 w-full" } },
+            { "id": "list-skel-3", "type": "Skeleton", "props": { "className": "h-14 w-full" } }
+          ]
+        }
+      ]
+    },
+    "empty": {
+      "components": [
+        {
+          "id": "faq-empty",
+          "type": "Card",
+          "props": { "className": "max-w-md mx-auto mt-20 p-6 text-center" },
+          "children": [
+            { "id": "empty-title", "type": "text", "element": "h2", "content": "No FAQs Found" },
+            { "id": "empty-desc", "type": "text", "element": "p", "content": "No frequently asked questions match your search." }
+          ]
+        }
+      ]
+    },
+    "error": {
+      "components": [
+        {
+          "id": "faq-error",
+          "type": "Alert",
+          "props": { "variant": "destructive" },
+          "children": [
+            { "id": "error-title", "type": "text", "element": "h3", "content": "FAQ Error" },
+            { "id": "error-message", "type": "text", "element": "p", "content": "Failed to load FAQs. Please try again." },
+            { "id": "error-retry-btn", "type": "Button", "text": "Retry", "icon": "RefreshCw", "action": { "type": "custom", "target": "reload-faq" } }
+          ]
+        }
+      ]
+    },
+    "success": {
+      "components": "$ref:componentTree"
+    }
+  },
+  "componentTree": [
+    {
+      "id": "faq-content",
+      "type": "div",
+      "props": { "className": "p-6 space-y-4" },
+      "children": [
+        { "id": "page-title", "type": "text", "element": "h1", "content": "FAQ Board", "props": { "className": "text-2xl font-bold" } },
+        {
+          "id": "search-input",
+          "type": "Input",
+          "props": { "placeholder": "Search FAQs...", "className": "max-w-md" },
+          "icon": "Search"
+        },
+        {
+          "id": "category-tabs",
+          "type": "Tabs",
+          "props": { "defaultValue": "all" },
+          "children": [
+            { "id": "tab-all", "type": "div", "props": { "value": "all", "label": "All" } },
+            { "id": "tab-booking", "type": "div", "props": { "value": "booking", "label": "Booking" } },
+            { "id": "tab-payment", "type": "div", "props": { "value": "payment", "label": "Payment" } },
+            { "id": "tab-cancellation", "type": "div", "props": { "value": "cancellation", "label": "Cancellation" } },
+            { "id": "tab-account", "type": "div", "props": { "value": "account", "label": "Account" } },
+            { "id": "tab-technical", "type": "div", "props": { "value": "technical", "label": "Technical" } }
+          ]
+        },
+        {
+          "id": "faq-list",
+          "type": "div",
+          "props": { "className": "space-y-2" },
+          "dataBinding": "faqs",
+          "children": [
+            {
+              "id": "faq-item-template",
+              "type": "Card",
+              "props": { "className": "p-0", "note": "Accordion-style FAQ item" },
+              "children": [
+                {
+                  "id": "faq-question",
+                  "type": "Button",
+                  "text": "Question title",
+                  "props": { "variant": "ghost", "className": "w-full justify-between p-4 font-medium text-left" },
+                  "icon": "ChevronDown",
+                  "action": { "type": "toggle", "target": "faq-answer" },
+                  "dataBinding": "faq.question"
+                },
+                {
+                  "id": "faq-answer",
+                  "type": "div",
+                  "props": { "className": "px-4 pb-4 text-sm text-muted-foreground", "note": "Collapsed by default, expanded on question click" },
+                  "dataBinding": "faq.answer"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "interactions": [
+    {
+      "id": "toggle-faq",
+      "trigger": { "component": "faq-question", "event": "click" },
+      "behavior": "toggle"
+    }
+  ],
+  "dataShape": {
+    "faqs": {
+      "type": "array",
+      "item": {
+        "id": "UUID",
+        "question": "string",
+        "answer": "string",
+        "category": "enum(Booking,Payment,Cancellation,Account,Technical)"
+      }
+    }
+  },
+  "errorHandling": []
+}

@@ -1,0 +1,317 @@
+{
+  "screen": {
+    "id": "registration",
+    "title": "Registration",
+    "purpose": "3-Step registration process for new companies and users",
+    "route": "/register"
+  },
+  "states": {
+    "loading": {
+      "components": [
+        {
+          "id": "reg-loading",
+          "type": "div",
+          "props": { "className": "flex flex-col items-center justify-center min-h-screen" },
+          "children": [
+            { "id": "logo-skeleton", "type": "Skeleton", "props": { "className": "h-10 w-40 mb-8" } },
+            { "id": "stepper-skeleton", "type": "Skeleton", "props": { "className": "h-12 w-96 mb-4" } },
+            { "id": "form-skeleton", "type": "Skeleton", "props": { "className": "h-96 w-[600px]" } }
+          ]
+        }
+      ]
+    },
+    "empty": {
+      "components": [
+        {
+          "id": "reg-empty",
+          "type": "Card",
+          "props": { "className": "max-w-md mx-auto mt-20 p-6 text-center" },
+          "children": [
+            { "id": "empty-title", "type": "text", "element": "h2", "content": "Registration" },
+            { "id": "empty-desc", "type": "text", "element": "p", "content": "Complete the registration form to create your account." }
+          ]
+        }
+      ]
+    },
+    "error": {
+      "components": [
+        {
+          "id": "reg-error",
+          "type": "Alert",
+          "props": { "variant": "destructive" },
+          "children": [
+            { "id": "error-title", "type": "text", "element": "h3", "content": "Registration Error" },
+            { "id": "error-message", "type": "text", "element": "p", "content": "An error occurred during registration. Please try again." },
+            { "id": "error-retry-btn", "type": "Button", "text": "Retry", "icon": "RefreshCw", "action": { "type": "custom", "target": "reload-page" } }
+          ]
+        }
+      ]
+    },
+    "success": {
+      "components": "$ref:componentTree"
+    }
+  },
+  "componentTree": [
+    {
+      "id": "registration-page",
+      "type": "div",
+      "props": { "className": "flex flex-col min-h-screen" },
+      "children": [
+        {
+          "id": "header",
+          "type": "div",
+          "props": { "className": "flex items-center justify-between h-14 border-b px-4" },
+          "children": [
+            { "id": "logo", "type": "text", "element": "span", "content": "DOTBIZ", "props": { "className": "text-xl font-bold" } },
+            { "id": "dark-mode-toggle", "type": "Button", "props": { "variant": "ghost", "size": "icon" }, "icon": "Moon", "action": { "type": "toggle", "target": "theme-mode" } }
+          ]
+        },
+        {
+          "id": "step-indicator",
+          "type": "div",
+          "props": { "className": "flex items-center justify-center gap-4 py-6", "note": "Stepper: 3 steps" },
+          "children": [
+            { "id": "step-1", "type": "Badge", "props": { "variant": "default" }, "text": "1. Company Info" },
+            { "id": "step-2", "type": "Badge", "props": { "variant": "secondary" }, "text": "2. User Info" },
+            { "id": "step-3", "type": "Badge", "props": { "variant": "secondary" }, "text": "3. Agreement" }
+          ]
+        },
+        {
+          "id": "form-content",
+          "type": "Card",
+          "props": { "className": "max-w-2xl mx-auto p-8 w-full" },
+          "children": [
+            {
+              "id": "step1-form",
+              "type": "Form",
+              "props": { "className": "space-y-4", "note": "Visible in Step 1" },
+              "children": [
+                {
+                  "id": "company-name-input",
+                  "type": "Input",
+                  "props": { "label": "Company Name", "placeholder": "Enter company name" },
+                  "validation": {
+                    "required": true,
+                    "rules": [
+                      { "type": "maxLength", "value": 100, "message": "Company name must not exceed 100 characters" }
+                    ]
+                  }
+                },
+                {
+                  "id": "business-reg-input",
+                  "type": "Input",
+                  "props": { "label": "Business Registration No.", "placeholder": "Enter registration number" },
+                  "validation": {
+                    "required": true,
+                    "rules": [
+                      { "type": "maxLength", "value": 20, "message": "Registration number must not exceed 20 characters" }
+                    ]
+                  }
+                },
+                {
+                  "id": "business-type-select",
+                  "type": "Select",
+                  "props": { "label": "Business Type", "options": ["Prepaid", "Postpaid"] },
+                  "validation": { "required": true, "rules": [] }
+                },
+                {
+                  "id": "address-input",
+                  "type": "Input",
+                  "props": { "label": "Address", "placeholder": "Enter company address" }
+                },
+                {
+                  "id": "phone-input",
+                  "type": "Input",
+                  "props": { "label": "Phone", "placeholder": "Enter phone number" },
+                  "validation": {
+                    "required": false,
+                    "rules": [
+                      { "type": "maxLength", "value": 20, "message": "Phone number must not exceed 20 characters" },
+                      { "type": "pattern", "value": "^[0-9\\-]+$", "message": "Phone number must contain only numbers and hyphens" }
+                    ]
+                  }
+                },
+                {
+                  "id": "company-email-input",
+                  "type": "Input",
+                  "props": { "type": "email", "label": "Company Email", "placeholder": "Enter company email" },
+                  "validation": {
+                    "required": true,
+                    "rules": [
+                      { "type": "email", "message": "Please enter a valid email address" }
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "id": "step2-form",
+              "type": "Form",
+              "props": { "className": "space-y-4", "note": "Visible in Step 2" },
+              "children": [
+                {
+                  "id": "full-name-input",
+                  "type": "Input",
+                  "props": { "label": "Full Name", "placeholder": "Enter your full name" },
+                  "validation": { "required": true, "rules": [] }
+                },
+                {
+                  "id": "position-input",
+                  "type": "Input",
+                  "props": { "label": "Position", "placeholder": "Enter your job title" }
+                },
+                {
+                  "id": "user-email-input",
+                  "type": "Input",
+                  "props": { "type": "email", "label": "Email", "placeholder": "Enter your email" },
+                  "validation": {
+                    "required": true,
+                    "rules": [
+                      { "type": "email", "message": "Please enter a valid email address" },
+                      { "type": "unique", "entity": "User", "field": "email", "message": "This email is already registered." }
+                    ]
+                  }
+                },
+                {
+                  "id": "password-input",
+                  "type": "Input",
+                  "props": { "type": "password", "label": "Password", "placeholder": "Enter password" },
+                  "validation": {
+                    "required": true,
+                    "rules": [
+                      { "type": "minLength", "value": 8, "message": "Password must be at least 8 characters" },
+                      { "type": "maxLength", "value": 128, "message": "Password must not exceed 128 characters" },
+                      { "type": "pattern", "value": "^(?=.*[a-zA-Z])(?=.*[0-9])(?=.*[!@#$%^&*])", "message": "Password must include letters, numbers, and special characters" }
+                    ]
+                  }
+                },
+                {
+                  "id": "password-confirm-input",
+                  "type": "Input",
+                  "props": { "type": "password", "label": "Confirm Password", "placeholder": "Re-enter password" },
+                  "validation": {
+                    "required": true,
+                    "rules": [
+                      { "type": "custom", "value": "matchesField:password-input", "message": "Passwords do not match" }
+                    ]
+                  }
+                },
+                {
+                  "id": "mobile-input",
+                  "type": "Input",
+                  "props": { "label": "Mobile", "placeholder": "Enter mobile number" },
+                  "validation": {
+                    "required": false,
+                    "rules": [
+                      { "type": "maxLength", "value": 20, "message": "Mobile number must not exceed 20 characters" },
+                      { "type": "pattern", "value": "^[0-9\\-]+$", "message": "Mobile number must contain only numbers and hyphens" }
+                    ]
+                  }
+                },
+                {
+                  "id": "language-select",
+                  "type": "Select",
+                  "props": { "label": "Preferred Language", "options": ["EN", "KO", "JA", "ZH", "VI"] }
+                }
+              ]
+            },
+            {
+              "id": "step3-form",
+              "type": "Form",
+              "props": { "className": "space-y-4", "note": "Visible in Step 3" },
+              "children": [
+                {
+                  "id": "terms-checkbox",
+                  "type": "Checkbox",
+                  "props": { "label": "I agree to the B2B Terms of Service" },
+                  "validation": { "required": true, "rules": [{ "type": "required", "message": "You must agree to the terms to proceed" }] }
+                },
+                {
+                  "id": "contract-download-btn",
+                  "type": "Button",
+                  "text": "Download Contract PDF",
+                  "icon": "Download",
+                  "props": { "variant": "outline" },
+                  "action": { "type": "custom", "target": "download-contract" }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "form-actions",
+          "type": "div",
+          "props": { "className": "flex justify-between max-w-2xl mx-auto py-4 w-full" },
+          "children": [
+            {
+              "id": "back-btn",
+              "type": "Button",
+              "text": "Back",
+              "icon": "ArrowLeft",
+              "props": { "variant": "outline" },
+              "action": { "type": "custom", "target": "previous-step" }
+            },
+            {
+              "id": "next-btn",
+              "type": "Button",
+              "text": "Next",
+              "icon": "ArrowRight",
+              "action": { "type": "custom", "target": "next-step" }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "interactions": [
+    {
+      "id": "registration-complete",
+      "trigger": { "component": "next-btn", "event": "click" },
+      "behavior": "toast",
+      "toast": {
+        "title": "Registration Submitted",
+        "description": "Your account is pending approval. You will be redirected to the login page."
+      }
+    }
+  ],
+  "dataShape": {
+    "company": {
+      "type": "object",
+      "fields": {
+        "companyName": "string",
+        "businessRegNo": "string",
+        "businessType": "enum(Prepaid,Postpaid)",
+        "address": "string",
+        "phone": "string",
+        "email": "string"
+      }
+    },
+    "user": {
+      "type": "object",
+      "fields": {
+        "fullName": "string",
+        "position": "string",
+        "email": "string",
+        "password": "string",
+        "mobile": "string",
+        "preferredLanguage": "enum(EN,KO,JA,ZH,VI)"
+      }
+    }
+  },
+  "errorHandling": [
+    {
+      "code": "ERR-REG-001",
+      "condition": "Duplicate email",
+      "message": "This email is already registered.",
+      "resolution": { "type": "custom", "target": "login-or-change-email", "label": "Log in or use a different email" },
+      "triggerComponent": "next-btn"
+    },
+    {
+      "code": "ERR-REG-002",
+      "condition": "Insufficient password strength",
+      "message": "Password must be at least 8 characters and include letters, numbers, and special characters.",
+      "resolution": { "type": "retry", "label": "Re-enter password" },
+      "triggerComponent": "password-input"
+    }
+  ]
+}

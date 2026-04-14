@@ -1,0 +1,207 @@
+{
+  "screen": {
+    "id": "login",
+    "title": "Login",
+    "purpose": "Email/password-based login screen",
+    "route": "/login"
+  },
+  "states": {
+    "loading": {
+      "components": [
+        {
+          "id": "login-loading",
+          "type": "div",
+          "props": { "className": "flex flex-col items-center justify-center min-h-screen" },
+          "children": [
+            { "id": "logo-skeleton", "type": "Skeleton", "props": { "className": "h-10 w-40 mb-8" } },
+            { "id": "form-skeleton", "type": "Skeleton", "props": { "className": "h-80 w-96" } }
+          ]
+        }
+      ]
+    },
+    "empty": {
+      "components": [
+        {
+          "id": "login-empty",
+          "type": "Card",
+          "props": { "className": "max-w-md mx-auto mt-20 p-6 text-center" },
+          "children": [
+            { "id": "empty-title", "type": "text", "element": "h2", "content": "Login" },
+            { "id": "empty-desc", "type": "text", "element": "p", "content": "Enter your credentials to access the system." }
+          ]
+        }
+      ]
+    },
+    "error": {
+      "components": [
+        {
+          "id": "login-error",
+          "type": "Alert",
+          "props": { "variant": "destructive" },
+          "children": [
+            { "id": "error-title", "type": "text", "element": "h3", "content": "Login Error" },
+            { "id": "error-message", "type": "text", "element": "p", "content": "An unexpected error occurred. Please try again." },
+            { "id": "error-retry-btn", "type": "Button", "text": "Retry", "icon": "RefreshCw", "action": { "type": "custom", "target": "reload-page" } }
+          ]
+        }
+      ]
+    },
+    "success": {
+      "components": "$ref:componentTree"
+    }
+  },
+  "componentTree": [
+    {
+      "id": "login-page",
+      "type": "div",
+      "props": { "className": "flex flex-col min-h-screen" },
+      "children": [
+        {
+          "id": "header",
+          "type": "div",
+          "props": { "className": "flex items-center justify-between h-14 border-b px-4" },
+          "children": [
+            { "id": "logo", "type": "text", "element": "span", "content": "DOTBIZ", "props": { "className": "text-xl font-bold" } },
+            { "id": "dark-mode-toggle", "type": "Button", "props": { "variant": "ghost", "size": "icon" }, "icon": "Moon", "action": { "type": "toggle", "target": "theme-mode" } }
+          ]
+        },
+        {
+          "id": "login-body",
+          "type": "div",
+          "props": { "className": "flex-1 flex items-center justify-center", "note": "Animated tech-style background behind the form" },
+          "children": [
+            {
+              "id": "login-form",
+              "type": "Card",
+              "props": { "className": "w-96 p-8" },
+              "children": [
+                {
+                  "id": "form-title",
+                  "type": "text",
+                  "element": "h1",
+                  "content": "Sign In",
+                  "props": { "className": "text-2xl font-bold text-center mb-6" }
+                },
+                {
+                  "id": "email-input",
+                  "type": "Input",
+                  "props": { "type": "email", "placeholder": "Email address", "label": "Email" },
+                  "icon": "Mail",
+                  "validation": {
+                    "required": true,
+                    "rules": [
+                      { "type": "email", "message": "Please enter a valid email address" },
+                      { "type": "maxLength", "value": 254, "message": "Email must not exceed 254 characters" }
+                    ]
+                  }
+                },
+                {
+                  "id": "password-input",
+                  "type": "Input",
+                  "props": { "type": "password", "placeholder": "Password", "label": "Password" },
+                  "icon": "Lock",
+                  "validation": {
+                    "required": true,
+                    "rules": [
+                      { "type": "maxLength", "value": 128, "message": "Password must not exceed 128 characters" }
+                    ]
+                  }
+                },
+                {
+                  "id": "remember-me",
+                  "type": "Checkbox",
+                  "props": { "label": "Remember Me" }
+                },
+                {
+                  "id": "login-btn",
+                  "type": "Button",
+                  "text": "Login",
+                  "props": { "className": "w-full mt-4" },
+                  "icon": "LogIn",
+                  "action": { "type": "submit", "target": "login" }
+                },
+                {
+                  "id": "forgot-password-link",
+                  "type": "Button",
+                  "text": "Forgot Password?",
+                  "props": { "variant": "link", "className": "w-full mt-2" },
+                  "action": { "type": "navigate", "target": "/forgot-password" }
+                },
+                {
+                  "id": "register-link",
+                  "type": "Button",
+                  "text": "Create Account",
+                  "props": { "variant": "outline", "className": "w-full mt-2" },
+                  "action": { "type": "navigate", "target": "/register" }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "interactions": [
+    {
+      "id": "login-submit",
+      "trigger": { "component": "login-btn", "event": "click" },
+      "behavior": "submit",
+      "toast": {
+        "title": "Login Successful",
+        "description": "Redirecting to Dashboard..."
+      }
+    },
+    {
+      "id": "toggle-dark-mode",
+      "trigger": { "component": "dark-mode-toggle", "event": "click" },
+      "behavior": "toggle"
+    }
+  ],
+  "dataShape": {
+    "loginCredentials": {
+      "type": "object",
+      "fields": {
+        "email": "string",
+        "password": "string",
+        "rememberMe": "boolean"
+      }
+    }
+  },
+  "errorHandling": [
+    {
+      "code": "ERR-AUTH-001",
+      "condition": "Invalid email/password",
+      "message": "The email or password is incorrect.",
+      "resolution": { "type": "retry", "label": "Re-enter credentials" },
+      "triggerComponent": "login-btn"
+    },
+    {
+      "code": "ERR-AUTH-002",
+      "condition": "Login attempt with Pending account",
+      "message": "Your account is awaiting approval. Please contact the administrator.",
+      "resolution": { "type": "dismiss", "label": "OK" },
+      "triggerComponent": "login-btn"
+    },
+    {
+      "code": "ERR-AUTH-003",
+      "condition": "Login attempt with deactivated account",
+      "message": "This account has been deactivated. Please contact the administrator.",
+      "resolution": { "type": "dismiss", "label": "OK" },
+      "triggerComponent": "login-btn"
+    },
+    {
+      "code": "ERR-AUTH-004",
+      "condition": "Session timeout (30 minutes)",
+      "message": "Your session has expired. Please log in again.",
+      "resolution": { "type": "navigate", "target": "/login", "label": "Go to Login" },
+      "triggerComponent": "login-btn"
+    },
+    {
+      "code": "ERR-AUTH-005",
+      "condition": "Account locked (5 consecutive login failures)",
+      "message": "Your account is locked. Please try again in 30 minutes or contact the administrator.",
+      "resolution": { "type": "dismiss", "label": "OK" },
+      "triggerComponent": "login-btn"
+    }
+  ]
+}

@@ -1,0 +1,309 @@
+{
+  "screen": {
+    "id": "main-layout",
+    "title": "Main Layout",
+    "purpose": "Shared application shell with sidebar navigation and top bar. All authenticated screens render inside the content slot.",
+    "route": "/app"
+  },
+  "states": {
+    "loading": {
+      "components": [
+        {
+          "id": "layout-loading-shell",
+          "type": "div",
+          "props": { "className": "flex flex-col h-screen" },
+          "children": [
+            {
+              "id": "topbar-skeleton",
+              "type": "div",
+              "props": { "className": "flex items-center h-14 border-b px-4 gap-4" },
+              "children": [
+                { "id": "search-skeleton", "type": "Skeleton", "props": { "className": "h-9 w-64" } },
+                { "id": "currency-skeleton", "type": "Skeleton", "props": { "className": "h-9 w-24" } },
+                { "id": "language-skeleton", "type": "Skeleton", "props": { "className": "h-9 w-24" } },
+                { "id": "darkmode-skeleton", "type": "Skeleton", "props": { "className": "h-9 w-9 rounded-full" } },
+                { "id": "notification-skeleton", "type": "Skeleton", "props": { "className": "h-9 w-9 rounded-full" } },
+                { "id": "profile-skeleton", "type": "Skeleton", "props": { "className": "h-9 w-9 rounded-full" } }
+              ]
+            },
+            {
+              "id": "body-skeleton",
+              "type": "div",
+              "props": { "className": "flex flex-1" },
+              "children": [
+                {
+                  "id": "sidebar-skeleton",
+                  "type": "div",
+                  "props": { "className": "w-60 border-r p-4 flex flex-col gap-3" },
+                  "children": [
+                    { "id": "logo-skeleton", "type": "Skeleton", "props": { "className": "h-10 w-32 mb-4" } },
+                    { "id": "nav-skeleton-1", "type": "Skeleton", "props": { "className": "h-8 w-full" } },
+                    { "id": "nav-skeleton-2", "type": "Skeleton", "props": { "className": "h-8 w-full" } },
+                    { "id": "nav-skeleton-3", "type": "Skeleton", "props": { "className": "h-8 w-full" } },
+                    { "id": "nav-skeleton-4", "type": "Skeleton", "props": { "className": "h-8 w-full" } },
+                    { "id": "nav-skeleton-5", "type": "Skeleton", "props": { "className": "h-8 w-full" } },
+                    { "id": "nav-skeleton-6", "type": "Skeleton", "props": { "className": "h-8 w-full" } },
+                    { "id": "nav-skeleton-7", "type": "Skeleton", "props": { "className": "h-8 w-full" } },
+                    { "id": "nav-skeleton-8", "type": "Skeleton", "props": { "className": "h-8 w-full" } },
+                    { "id": "nav-skeleton-9", "type": "Skeleton", "props": { "className": "h-8 w-full" } }
+                  ]
+                },
+                {
+                  "id": "content-skeleton",
+                  "type": "Skeleton",
+                  "props": { "className": "flex-1 m-4" }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "empty": {
+      "components": [
+        {
+          "id": "layout-empty",
+          "type": "Card",
+          "props": { "className": "max-w-md mx-auto mt-20 p-6 text-center" },
+          "children": [
+            { "id": "empty-title", "type": "text", "element": "h2", "content": "No Content Available" },
+            { "id": "empty-description", "type": "text", "element": "p", "content": "Select a menu item from the sidebar to get started." }
+          ]
+        }
+      ]
+    },
+    "error": {
+      "components": [
+        {
+          "id": "layout-error",
+          "type": "Alert",
+          "props": { "variant": "destructive" },
+          "children": [
+            { "id": "error-title", "type": "text", "element": "h3", "content": "Layout Error" },
+            { "id": "error-message", "type": "text", "element": "p", "content": "Failed to load the application shell. Please try again." },
+            {
+              "id": "error-retry-btn",
+              "type": "Button",
+              "text": "Retry",
+              "icon": "RefreshCw",
+              "action": { "type": "custom", "target": "reload-layout" }
+            }
+          ]
+        }
+      ]
+    },
+    "success": {
+      "components": "$ref:componentTree"
+    }
+  },
+  "componentTree": [
+    {
+      "id": "topbar",
+      "type": "div",
+      "props": { "className": "flex items-center h-14 border-b px-4 gap-4", "role": "banner" },
+      "children": [
+        {
+          "id": "global-search",
+          "type": "Input",
+          "props": { "placeholder": "Search bookings and hotels...", "className": "w-64" },
+          "icon": "Search",
+          "action": { "type": "custom", "target": "global-search" }
+        },
+        {
+          "id": "currency-select",
+          "type": "Select",
+          "props": {
+            "options": ["USD", "KRW", "JPY", "CNY", "VND", "EUR", "GBP", "THB", "SGD", "HKD"],
+            "defaultValue": "USD"
+          },
+          "action": { "type": "custom", "target": "change-currency" }
+        },
+        {
+          "id": "language-select",
+          "type": "Select",
+          "props": {
+            "options": ["EN", "KO", "JA", "ZH", "VI"],
+            "defaultValue": "EN"
+          },
+          "action": { "type": "custom", "target": "change-language" }
+        },
+        {
+          "id": "dark-mode-toggle",
+          "type": "Button",
+          "props": { "variant": "ghost", "size": "icon" },
+          "icon": "Moon",
+          "action": { "type": "toggle", "target": "theme-mode" }
+        },
+        {
+          "id": "notification-bell",
+          "type": "Button",
+          "props": { "variant": "ghost", "size": "icon" },
+          "icon": "Bell",
+          "action": { "type": "navigate", "target": "/app/notifications" },
+          "children": [
+            {
+              "id": "notification-badge",
+              "type": "Badge",
+              "props": { "variant": "destructive", "className": "absolute -top-1 -right-1 h-5 w-5 p-0 text-xs" },
+              "dataBinding": "unreadCount"
+            }
+          ]
+        },
+        {
+          "id": "user-profile-btn",
+          "type": "Button",
+          "props": { "variant": "ghost" },
+          "icon": "User",
+          "action": { "type": "navigate", "target": "/app/my-account" },
+          "children": [
+            {
+              "id": "user-avatar",
+              "type": "Avatar",
+              "props": { "className": "h-8 w-8" },
+              "dataBinding": "currentUser.avatar"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "body-container",
+      "type": "div",
+      "props": { "className": "flex flex-1 overflow-hidden" },
+      "children": [
+        {
+          "id": "sidebar",
+          "type": "div",
+          "props": { "className": "w-60 border-r flex flex-col", "role": "navigation" },
+          "children": [
+            {
+              "id": "app-logo",
+              "type": "div",
+              "props": { "className": "p-4 cursor-pointer" },
+              "action": { "type": "navigate", "target": "/app/dashboard" },
+              "children": [
+                {
+                  "id": "logo-text",
+                  "type": "text",
+                  "element": "span",
+                  "content": "DOTBIZ",
+                  "props": { "className": "text-xl font-bold" }
+                }
+              ]
+            },
+            {
+              "id": "nav-menu",
+              "type": "NavigationMenu",
+              "props": { "orientation": "vertical" },
+              "items": [
+                { "label": "AI Assistant", "icon": "Bot", "action": { "type": "navigate", "target": "/app/ai-assistant" } },
+                { "label": "Find Hotel", "icon": "Search", "action": { "type": "navigate", "target": "/app/find-hotel" } },
+                { "label": "Dashboard", "icon": "LayoutDashboard", "action": { "type": "navigate", "target": "/app/dashboard" } },
+                { "label": "Bookings", "icon": "CalendarCheck", "action": { "type": "navigate", "target": "/app/bookings" } },
+                { "label": "Settlement", "icon": "Wallet", "action": { "type": "navigate", "target": "/app/settlement" }, "visibility": { "roles": ["Master"] } },
+                { "label": "Notifications", "icon": "Bell", "action": { "type": "navigate", "target": "/app/notifications" } },
+                { "label": "FAQ Board", "icon": "HelpCircle", "action": { "type": "navigate", "target": "/app/faq" } },
+                { "label": "My Account", "icon": "User", "action": { "type": "navigate", "target": "/app/my-account" } },
+                { "label": "Rewards Mall", "icon": "Gift", "action": { "type": "navigate", "target": "/app/rewards" } }
+              ]
+            },
+            {
+              "id": "sidebar-spacer",
+              "type": "div",
+              "props": { "className": "flex-1" }
+            },
+            {
+              "id": "sidebar-footer",
+              "type": "div",
+              "props": { "className": "p-4 border-t" },
+              "children": [
+                {
+                  "id": "user-info",
+                  "type": "div",
+                  "props": { "className": "flex items-center gap-2 mb-3" },
+                  "children": [
+                    {
+                      "id": "user-info-avatar",
+                      "type": "Avatar",
+                      "props": { "className": "h-8 w-8" },
+                      "dataBinding": "currentUser.avatar"
+                    },
+                    {
+                      "id": "user-info-details",
+                      "type": "div",
+                      "children": [
+                        {
+                          "id": "user-info-name",
+                          "type": "text",
+                          "element": "p",
+                          "props": { "className": "text-sm font-medium" },
+                          "dataBinding": "currentUser.name"
+                        },
+                        {
+                          "id": "user-info-role",
+                          "type": "Badge",
+                          "props": { "variant": "secondary", "className": "text-xs" },
+                          "dataBinding": "currentUser.role"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "id": "logout-btn",
+                  "type": "Button",
+                  "text": "Logout",
+                  "icon": "LogOut",
+                  "props": { "variant": "ghost", "className": "w-full justify-start" },
+                  "action": { "type": "custom", "target": "logout" }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "content-slot",
+          "type": "Slot",
+          "props": { "className": "flex-1 overflow-auto" }
+        }
+      ]
+    },
+    {
+      "id": "ai-floating-widget",
+      "type": "Button",
+      "text": "AI",
+      "icon": "Bot",
+      "props": { "className": "fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg z-50", "variant": "default", "size": "icon" },
+      "action": { "type": "custom", "target": "open-ai-assistant" }
+    }
+  ],
+  "interactions": [
+    {
+      "id": "logout-confirmation",
+      "trigger": { "component": "logout-btn", "event": "click" },
+      "behavior": "dialog",
+      "dialog": {
+        "type": "AlertDialog",
+        "title": "Confirm Logout",
+        "description": "Are you sure you want to log out? You will be redirected to the login screen.",
+        "confirmVariant": "default"
+      }
+    },
+    {
+      "id": "open-ai-chat",
+      "trigger": { "component": "ai-floating-widget", "event": "click" },
+      "behavior": "dialog",
+      "dialog": {
+        "type": "Sheet",
+        "title": "AI Assistant"
+      }
+    },
+    {
+      "id": "toggle-dark-mode",
+      "trigger": { "component": "dark-mode-toggle", "event": "click" },
+      "behavior": "toggle"
+    }
+  ],
+  "dataShape": {},
+  "errorHandling": []
+}

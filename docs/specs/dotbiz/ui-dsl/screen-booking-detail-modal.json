@@ -1,0 +1,239 @@
+{
+  "screen": {
+    "id": "booking-detail-modal",
+    "title": "Booking Detail Modal",
+    "purpose": "View full booking information in a 9-section modal",
+    "route": "/app/bookings/:bookingId",
+    "layout": "main-layout"
+  },
+  "states": {
+    "loading": {
+      "components": [
+        {
+          "id": "modal-loading",
+          "type": "div",
+          "props": { "className": "p-6 space-y-4" },
+          "children": [
+            { "id": "header-skel", "type": "Skeleton", "props": { "className": "h-10 w-full" } },
+            { "id": "sections-skel-1", "type": "Skeleton", "props": { "className": "h-20 w-full" } },
+            { "id": "sections-skel-2", "type": "Skeleton", "props": { "className": "h-20 w-full" } },
+            { "id": "sections-skel-3", "type": "Skeleton", "props": { "className": "h-20 w-full" } },
+            { "id": "sections-skel-4", "type": "Skeleton", "props": { "className": "h-20 w-full" } }
+          ]
+        }
+      ]
+    },
+    "empty": {
+      "components": [
+        {
+          "id": "modal-empty",
+          "type": "Card",
+          "props": { "className": "max-w-md mx-auto mt-20 p-6 text-center" },
+          "children": [
+            { "id": "empty-title", "type": "text", "element": "h2", "content": "Booking Not Found" },
+            { "id": "empty-desc", "type": "text", "element": "p", "content": "The requested booking could not be found." },
+            { "id": "empty-action", "type": "Button", "text": "Back to Bookings", "action": { "type": "navigate", "target": "/app/bookings" } }
+          ]
+        }
+      ]
+    },
+    "error": {
+      "components": [
+        {
+          "id": "modal-error",
+          "type": "Alert",
+          "props": { "variant": "destructive" },
+          "children": [
+            { "id": "error-title", "type": "text", "element": "h3", "content": "Error Loading Booking" },
+            { "id": "error-message", "type": "text", "element": "p", "content": "Failed to load booking details. Please try again." },
+            { "id": "error-retry-btn", "type": "Button", "text": "Retry", "icon": "RefreshCw", "action": { "type": "custom", "target": "retry-load" } }
+          ]
+        }
+      ]
+    },
+    "success": {
+      "components": "$ref:componentTree"
+    }
+  },
+  "componentTree": [
+    {
+      "id": "booking-detail-dialog",
+      "type": "Dialog",
+      "props": { "className": "max-w-2xl max-h-[90vh]" },
+      "children": [
+        {
+          "id": "modal-header",
+          "type": "div",
+          "props": { "className": "flex items-center justify-between p-4 border-b" },
+          "children": [
+            { "id": "modal-title", "type": "text", "element": "h2", "dataBinding": "booking.ellisCode", "props": { "className": "text-lg font-bold" } },
+            { "id": "close-btn", "type": "Button", "icon": "X", "props": { "variant": "ghost", "size": "icon" }, "action": { "type": "dismiss", "target": "close-modal" } }
+          ]
+        },
+        {
+          "id": "modal-body",
+          "type": "ScrollArea",
+          "props": { "className": "p-4 space-y-4" },
+          "children": [
+            {
+              "id": "booking-summary-section",
+              "type": "Card",
+              "props": { "className": "p-4" },
+              "children": [
+                { "id": "section-title-summary", "type": "text", "element": "h3", "content": "Booking Summary", "props": { "className": "font-semibold mb-2" } },
+                { "id": "summary-status", "type": "Badge", "dataBinding": "booking.bookingStatus" },
+                { "id": "summary-date", "type": "text", "element": "p", "dataBinding": "booking.bookingDate", "props": { "className": "text-sm" } },
+                { "id": "summary-code", "type": "text", "element": "p", "dataBinding": "booking.ellisCode", "props": { "className": "font-mono" } }
+              ]
+            },
+            {
+              "id": "hotel-info-section",
+              "type": "Card",
+              "props": { "className": "p-4" },
+              "children": [
+                { "id": "section-title-hotel", "type": "text", "element": "h3", "content": "Hotel Information", "props": { "className": "font-semibold mb-2" } },
+                { "id": "hotel-name", "type": "text", "element": "p", "dataBinding": "booking.hotelName" },
+                { "id": "hotel-address", "type": "text", "element": "p", "dataBinding": "booking.hotelAddress", "props": { "className": "text-sm text-muted-foreground" } },
+                { "id": "hotel-contact", "type": "text", "element": "p", "dataBinding": "booking.hotelContact", "props": { "className": "text-sm text-muted-foreground" } }
+              ]
+            },
+            {
+              "id": "room-details-section",
+              "type": "Card",
+              "props": { "className": "p-4" },
+              "children": [
+                { "id": "section-title-room", "type": "text", "element": "h3", "content": "Room Details", "props": { "className": "font-semibold mb-2" } },
+                { "id": "room-type", "type": "text", "element": "p", "dataBinding": "booking.roomType" },
+                { "id": "room-guests", "type": "text", "element": "p", "dataBinding": "booking.guests" },
+                { "id": "room-rate", "type": "text", "element": "p", "dataBinding": "booking.roomRate" }
+              ]
+            },
+            {
+              "id": "guest-info-section",
+              "type": "Card",
+              "props": { "className": "p-4" },
+              "children": [
+                { "id": "section-title-guest", "type": "text", "element": "h3", "content": "Guest Information", "props": { "className": "font-semibold mb-2" } },
+                { "id": "guest-name", "type": "text", "element": "p", "dataBinding": "booking.guestName" },
+                { "id": "guest-email", "type": "text", "element": "p", "dataBinding": "booking.guestEmail" },
+                { "id": "guest-mobile", "type": "text", "element": "p", "dataBinding": "booking.guestMobile" }
+              ]
+            },
+            {
+              "id": "payment-info-section",
+              "type": "Card",
+              "props": { "className": "p-4" },
+              "children": [
+                { "id": "section-title-payment", "type": "text", "element": "h3", "content": "Payment Information", "props": { "className": "font-semibold mb-2" } },
+                { "id": "payment-amount", "type": "text", "element": "p", "dataBinding": "booking.paymentAmount" },
+                { "id": "payment-status", "type": "Badge", "dataBinding": "booking.paymentStatus" },
+                { "id": "payment-method", "type": "text", "element": "p", "dataBinding": "booking.paymentMethod" }
+              ]
+            },
+            {
+              "id": "cancel-policy-section",
+              "type": "Card",
+              "props": { "className": "p-4" },
+              "children": [
+                { "id": "section-title-cancel", "type": "text", "element": "h3", "content": "Cancellation Policy", "props": { "className": "font-semibold mb-2" } },
+                { "id": "cancel-deadline", "type": "text", "element": "p", "dataBinding": "booking.cancelDeadline" },
+                { "id": "cancel-fee", "type": "text", "element": "p", "dataBinding": "booking.cancelFee" }
+              ]
+            },
+            {
+              "id": "special-requests-section",
+              "type": "Card",
+              "props": { "className": "p-4" },
+              "children": [
+                { "id": "section-title-requests", "type": "text", "element": "h3", "content": "Special Requests", "props": { "className": "font-semibold mb-2" } },
+                { "id": "requests-text", "type": "text", "element": "p", "dataBinding": "booking.specialRequests" }
+              ]
+            },
+            {
+              "id": "timeline-section",
+              "type": "Card",
+              "props": { "className": "p-4" },
+              "children": [
+                { "id": "section-title-timeline", "type": "text", "element": "h3", "content": "Booking Timeline", "props": { "className": "font-semibold mb-2" } },
+                { "id": "timeline-items", "type": "div", "props": { "note": "Timeline: Created > Confirmed > Paid > etc." }, "dataBinding": "booking.timeline" }
+              ]
+            },
+            {
+              "id": "actions-section",
+              "type": "div",
+              "props": { "className": "flex gap-2 pt-4 border-t" },
+              "children": [
+                { "id": "voucher-btn", "type": "Button", "text": "Voucher", "icon": "Download", "props": { "variant": "outline" }, "action": { "type": "custom", "target": "download-voucher" } },
+                { "id": "receipt-btn", "type": "Button", "text": "Receipt", "icon": "Download", "props": { "variant": "outline" }, "action": { "type": "custom", "target": "download-receipt" } },
+                { "id": "modify-btn", "type": "Button", "text": "Modify", "icon": "Pencil", "props": { "variant": "outline" }, "action": { "type": "custom", "target": "modify-booking" } },
+                { "id": "cancel-btn", "type": "Button", "text": "Cancel Booking", "icon": "X", "props": { "variant": "destructive" }, "action": { "type": "dialog", "target": "cancel-confirmation" } }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "interactions": [
+    {
+      "id": "cancel-confirmation",
+      "trigger": { "component": "cancel-btn", "event": "click" },
+      "behavior": "dialog",
+      "dialog": {
+        "type": "AlertDialog",
+        "title": "Cancel Booking",
+        "description": "Are you sure you want to cancel this booking? Cancellation fees may apply.",
+        "confirmVariant": "destructive",
+        "content": [
+          { "id": "cancel-reason-select", "type": "Select", "props": { "label": "Cancellation Reason", "options": ["Change of plans", "Found better option", "Guest cancelled", "Date change needed", "Other"] } },
+          { "id": "cancel-fee-display", "type": "text", "element": "p", "content": "Estimated refund: ", "dataBinding": "cancellation.estimatedRefund" }
+        ]
+      }
+    },
+    {
+      "id": "booking-cancelled",
+      "trigger": { "component": "cancel-btn", "event": "confirmed" },
+      "behavior": "toast",
+      "toast": {
+        "title": "Booking Cancelled",
+        "description": "The booking has been cancelled and a notification has been created."
+      }
+    }
+  ],
+  "dataShape": {
+    "booking": {
+      "type": "object",
+      "fields": {
+        "id": "UUID",
+        "ellisCode": "string",
+        "bookingStatus": "enum(Confirmed,Cancelled,Pending,No-show,Completed)",
+        "paymentStatus": "enum(Not Paid,Partially Paid,Fully Paid,Refunded,Partially Refunded,Pending)",
+        "bookingDate": "ISO-8601",
+        "hotelName": "string",
+        "hotelAddress": "string",
+        "hotelContact": "string",
+        "roomType": "string",
+        "guests": "string",
+        "roomRate": "number",
+        "guestName": "string",
+        "guestEmail": "string",
+        "guestMobile": "string",
+        "paymentAmount": "number",
+        "paymentMethod": "string",
+        "cancelDeadline": "ISO-8601",
+        "cancelFee": "string",
+        "specialRequests": "string",
+        "timeline": "string"
+      }
+    }
+  },
+  "errorHandling": [
+    {
+      "code": "ERR-BOOK-003",
+      "condition": "Attempt to cancel Non-Refundable booking",
+      "message": "This is a Non-Refundable booking. A 100% fee will be charged upon cancellation. Are you sure you want to cancel?",
+      "resolution": { "type": "custom", "target": "confirm-cancel", "label": "Confirm Cancellation" },
+      "triggerComponent": "cancel-btn"
+    }
+  ]
+}

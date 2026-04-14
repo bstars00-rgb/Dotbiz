@@ -1,0 +1,171 @@
+{
+  "screen": {
+    "id": "booking-confirm",
+    "title": "Booking Confirm (Step 2)",
+    "purpose": "Final booking review and terms agreement",
+    "route": "/app/booking/confirm",
+    "layout": "main-layout"
+  },
+  "states": {
+    "loading": {
+      "components": [
+        {
+          "id": "confirm-loading",
+          "type": "div",
+          "props": { "className": "p-6 space-y-4" },
+          "children": [
+            { "id": "step-skel", "type": "Skeleton", "props": { "className": "h-12 w-96 mx-auto" } },
+            { "id": "review-skel", "type": "Skeleton", "props": { "className": "h-64 w-full" } },
+            { "id": "price-skel", "type": "Skeleton", "props": { "className": "h-32 w-full" } }
+          ]
+        }
+      ]
+    },
+    "empty": {
+      "components": [
+        {
+          "id": "confirm-empty",
+          "type": "Card",
+          "props": { "className": "max-w-md mx-auto mt-20 p-6 text-center" },
+          "children": [
+            { "id": "empty-title", "type": "text", "element": "h2", "content": "No Booking Data" },
+            { "id": "empty-desc", "type": "text", "element": "p", "content": "Please complete the booking form first." },
+            { "id": "empty-action", "type": "Button", "text": "Go to Booking Form", "action": { "type": "navigate", "target": "/app/booking/form" } }
+          ]
+        }
+      ]
+    },
+    "error": {
+      "components": [
+        {
+          "id": "confirm-error",
+          "type": "Alert",
+          "props": { "variant": "destructive" },
+          "children": [
+            { "id": "error-title", "type": "text", "element": "h3", "content": "Confirmation Error" },
+            { "id": "error-message", "type": "text", "element": "p", "content": "Failed to confirm booking. Please try again." },
+            { "id": "error-retry-btn", "type": "Button", "text": "Retry", "icon": "RefreshCw", "action": { "type": "custom", "target": "retry-confirm" } }
+          ]
+        }
+      ]
+    },
+    "success": {
+      "components": "$ref:componentTree"
+    }
+  },
+  "componentTree": [
+    {
+      "id": "booking-confirm-content",
+      "type": "div",
+      "props": { "className": "p-6 space-y-6 max-w-3xl mx-auto" },
+      "children": [
+        {
+          "id": "step-indicator",
+          "type": "div",
+          "props": { "className": "flex items-center justify-center gap-4 py-4" },
+          "children": [
+            { "id": "step-1", "type": "Badge", "props": { "variant": "secondary" }, "text": "1. Guest Info" },
+            { "id": "step-2", "type": "Badge", "props": { "variant": "default" }, "text": "2. Review" },
+            { "id": "step-3", "type": "Badge", "props": { "variant": "secondary" }, "text": "3. Complete" }
+          ]
+        },
+        {
+          "id": "review-section",
+          "type": "Card",
+          "props": { "className": "p-6 space-y-4" },
+          "children": [
+            { "id": "review-title", "type": "text", "element": "h2", "content": "Booking Review", "props": { "className": "text-lg font-semibold" } },
+            { "id": "hotel-info", "type": "div", "props": { "className": "space-y-1" }, "children": [
+              { "id": "hotel-label", "type": "text", "element": "p", "content": "Hotel", "props": { "className": "text-sm text-muted-foreground" } },
+              { "id": "hotel-value", "type": "text", "element": "p", "dataBinding": "booking.hotelName", "props": { "className": "font-medium" } }
+            ]},
+            { "id": "date-info", "type": "div", "props": { "className": "space-y-1" }, "children": [
+              { "id": "date-label", "type": "text", "element": "p", "content": "Dates", "props": { "className": "text-sm text-muted-foreground" } },
+              { "id": "date-value", "type": "text", "element": "p", "dataBinding": "booking.dateRange" }
+            ]},
+            { "id": "room-info", "type": "div", "props": { "className": "space-y-1" }, "children": [
+              { "id": "room-label", "type": "text", "element": "p", "content": "Room", "props": { "className": "text-sm text-muted-foreground" } },
+              { "id": "room-value", "type": "text", "element": "p", "dataBinding": "booking.roomType" }
+            ]},
+            { "id": "guest-info", "type": "div", "props": { "className": "space-y-1" }, "children": [
+              { "id": "guest-label", "type": "text", "element": "p", "content": "Guest", "props": { "className": "text-sm text-muted-foreground" } },
+              { "id": "guest-value", "type": "text", "element": "p", "dataBinding": "booking.guestName" }
+            ]}
+          ]
+        },
+        {
+          "id": "price-detail",
+          "type": "Card",
+          "props": { "className": "p-6" },
+          "children": [
+            { "id": "price-title", "type": "text", "element": "h2", "content": "Price Details", "props": { "className": "text-lg font-semibold mb-4" } },
+            { "id": "rate-row", "type": "div", "props": { "className": "flex justify-between" }, "children": [
+              { "id": "rate-label", "type": "text", "element": "span", "content": "Room Rate" },
+              { "id": "rate-value", "type": "text", "element": "span", "dataBinding": "booking.roomRate" }
+            ]},
+            { "id": "tax-row", "type": "div", "props": { "className": "flex justify-between" }, "children": [
+              { "id": "tax-label", "type": "text", "element": "span", "content": "Tax" },
+              { "id": "tax-value", "type": "text", "element": "span", "dataBinding": "booking.tax" }
+            ]},
+            { "id": "total-separator", "type": "Separator" },
+            { "id": "total-row", "type": "div", "props": { "className": "flex justify-between font-bold text-lg" }, "children": [
+              { "id": "total-label", "type": "text", "element": "span", "content": "Total" },
+              { "id": "total-value", "type": "text", "element": "span", "dataBinding": "booking.total" }
+            ]}
+          ]
+        },
+        {
+          "id": "cancel-policy-info",
+          "type": "Alert",
+          "props": { "className": "mt-4" },
+          "children": [
+            { "id": "policy-title", "type": "text", "element": "h3", "content": "Cancellation Policy" },
+            { "id": "policy-text", "type": "text", "element": "p", "dataBinding": "booking.cancellationPolicy" }
+          ]
+        },
+        {
+          "id": "terms-checkbox",
+          "type": "Checkbox",
+          "props": { "label": "I agree to the Terms & Conditions" },
+          "validation": { "required": true, "rules": [{ "type": "required", "message": "You must agree to the terms to confirm the booking" }] }
+        },
+        {
+          "id": "form-actions",
+          "type": "div",
+          "props": { "className": "flex justify-between" },
+          "children": [
+            { "id": "back-btn", "type": "Button", "text": "Back", "icon": "ArrowLeft", "props": { "variant": "outline" }, "action": { "type": "navigate", "target": "/app/booking/form" } },
+            { "id": "confirm-btn", "type": "Button", "text": "Confirm Booking", "icon": "Check", "props": { "note": "Activated only when terms checkbox is checked" }, "action": { "type": "submit", "target": "confirm-booking" } }
+          ]
+        }
+      ]
+    }
+  ],
+  "interactions": [
+    {
+      "id": "booking-confirmed",
+      "trigger": { "component": "confirm-btn", "event": "click" },
+      "behavior": "toast",
+      "toast": {
+        "title": "Booking Confirmed",
+        "description": "Your booking has been confirmed successfully."
+      }
+    }
+  ],
+  "dataShape": {
+    "booking": {
+      "type": "object",
+      "fields": {
+        "hotelName": "string",
+        "dateRange": "string",
+        "roomType": "string",
+        "guestName": "string",
+        "roomRate": "number",
+        "tax": "number",
+        "total": "number",
+        "cancellationPolicy": "string"
+      }
+    }
+  },
+  "errorHandling": []
+}

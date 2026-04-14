@@ -1,0 +1,373 @@
+{
+  "screen": {
+    "id": "dashboard",
+    "title": "Dashboard",
+    "purpose": "KPI summary and business analytics dashboard",
+    "route": "/app/dashboard",
+    "layout": "main-layout"
+  },
+  "states": {
+    "loading": {
+      "components": [
+        {
+          "id": "dash-loading",
+          "type": "div",
+          "props": { "className": "p-6 space-y-6" },
+          "children": [
+            {
+              "id": "kpi-skeleton",
+              "type": "div",
+              "props": { "className": "grid grid-cols-4 gap-4" },
+              "children": [
+                { "id": "kpi-skel-1", "type": "Skeleton", "props": { "className": "h-28" } },
+                { "id": "kpi-skel-2", "type": "Skeleton", "props": { "className": "h-28" } },
+                { "id": "kpi-skel-3", "type": "Skeleton", "props": { "className": "h-28" } },
+                { "id": "kpi-skel-4", "type": "Skeleton", "props": { "className": "h-28" } }
+              ]
+            },
+            { "id": "points-skeleton", "type": "Skeleton", "props": { "className": "h-24" } },
+            {
+              "id": "charts-skeleton",
+              "type": "div",
+              "props": { "className": "grid grid-cols-2 gap-4" },
+              "children": [
+                { "id": "chart-skel-1", "type": "Skeleton", "props": { "className": "h-64" } },
+                { "id": "chart-skel-2", "type": "Skeleton", "props": { "className": "h-64" } }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "empty": {
+      "components": [
+        {
+          "id": "dash-empty",
+          "type": "Card",
+          "props": { "className": "max-w-md mx-auto mt-20 p-6 text-center" },
+          "children": [
+            { "id": "empty-title", "type": "text", "element": "h2", "content": "No Data Yet" },
+            { "id": "empty-desc", "type": "text", "element": "p", "content": "Start booking hotels to see your dashboard analytics." },
+            { "id": "empty-action", "type": "Button", "text": "Find Hotel", "icon": "Search", "action": { "type": "navigate", "target": "/app/find-hotel" } }
+          ]
+        }
+      ]
+    },
+    "error": {
+      "components": [
+        {
+          "id": "dash-error",
+          "type": "Alert",
+          "props": { "variant": "destructive" },
+          "children": [
+            { "id": "error-title", "type": "text", "element": "h3", "content": "Dashboard Error" },
+            { "id": "error-message", "type": "text", "element": "p", "content": "Failed to load dashboard data. Please try again." },
+            { "id": "error-retry-btn", "type": "Button", "text": "Retry", "icon": "RefreshCw", "action": { "type": "custom", "target": "reload-dashboard" } }
+          ]
+        }
+      ]
+    },
+    "success": {
+      "components": "$ref:componentTree"
+    }
+  },
+  "componentTree": [
+    {
+      "id": "dashboard-content",
+      "type": "div",
+      "props": { "className": "p-6 space-y-6" },
+      "children": [
+        {
+          "id": "page-title",
+          "type": "text",
+          "element": "h1",
+          "content": "Dashboard",
+          "props": { "className": "text-2xl font-bold" }
+        },
+        {
+          "id": "kpi-cards",
+          "type": "div",
+          "props": { "className": "grid grid-cols-4 gap-4" },
+          "children": [
+            {
+              "id": "kpi-total-bookings",
+              "type": "Card",
+              "props": { "className": "p-4" },
+              "children": [
+                { "id": "kpi-bookings-label", "type": "text", "element": "p", "content": "Total Bookings", "props": { "className": "text-sm text-muted-foreground" } },
+                { "id": "kpi-bookings-value", "type": "text", "element": "h3", "content": "0", "props": { "className": "text-2xl font-bold" }, "dataBinding": "kpi.totalBookings" },
+                { "id": "kpi-bookings-change", "type": "Badge", "dataBinding": "kpi.bookingsChange" }
+              ]
+            },
+            {
+              "id": "kpi-revenue",
+              "type": "Card",
+              "props": { "className": "p-4" },
+              "children": [
+                { "id": "kpi-revenue-label", "type": "text", "element": "p", "content": "Revenue (TTV)", "props": { "className": "text-sm text-muted-foreground" } },
+                { "id": "kpi-revenue-value", "type": "text", "element": "h3", "content": "$0", "props": { "className": "text-2xl font-bold" }, "dataBinding": "kpi.revenue" },
+                { "id": "kpi-revenue-change", "type": "Badge", "dataBinding": "kpi.revenueChange" }
+              ]
+            },
+            {
+              "id": "kpi-room-nights",
+              "type": "Card",
+              "props": { "className": "p-4" },
+              "children": [
+                { "id": "kpi-nights-label", "type": "text", "element": "p", "content": "Room Nights", "props": { "className": "text-sm text-muted-foreground" } },
+                { "id": "kpi-nights-value", "type": "text", "element": "h3", "content": "0", "props": { "className": "text-2xl font-bold" }, "dataBinding": "kpi.roomNights" },
+                { "id": "kpi-nights-change", "type": "Badge", "dataBinding": "kpi.nightsChange" }
+              ]
+            },
+            {
+              "id": "kpi-avg-value",
+              "type": "Card",
+              "props": { "className": "p-4" },
+              "children": [
+                { "id": "kpi-avg-label", "type": "text", "element": "p", "content": "Avg Booking Value", "props": { "className": "text-sm text-muted-foreground" } },
+                { "id": "kpi-avg-value-text", "type": "text", "element": "h3", "content": "$0", "props": { "className": "text-2xl font-bold" }, "dataBinding": "kpi.avgBookingValue" },
+                { "id": "kpi-avg-change", "type": "Badge", "dataBinding": "kpi.avgChange" }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "op-points-widget",
+          "type": "Card",
+          "props": { "className": "p-4" },
+          "children": [
+            { "id": "points-title", "type": "text", "element": "h3", "content": "OP Points", "props": { "className": "font-semibold mb-2" } },
+            {
+              "id": "points-row",
+              "type": "div",
+              "props": { "className": "flex items-center gap-6" },
+              "children": [
+                { "id": "points-balance", "type": "text", "element": "span", "content": "Balance: 0P", "dataBinding": "points.balance" },
+                { "id": "points-earned", "type": "text", "element": "span", "content": "Earned: 0P", "dataBinding": "points.earned" },
+                { "id": "points-used", "type": "text", "element": "span", "content": "Used: 0P", "dataBinding": "points.used" },
+                { "id": "rewards-link", "type": "Button", "text": "Rewards Mall", "icon": "Gift", "props": { "variant": "link" }, "action": { "type": "navigate", "target": "/app/rewards" } }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "mid-section",
+          "type": "div",
+          "props": { "className": "grid grid-cols-2 gap-4" },
+          "children": [
+            {
+              "id": "top-hotels",
+              "type": "Card",
+              "props": { "className": "p-4" },
+              "children": [
+                { "id": "top-hotels-title", "type": "text", "element": "h3", "content": "Top Hotels", "props": { "className": "font-semibold mb-2" } },
+                {
+                  "id": "top-hotels-table",
+                  "type": "Table",
+                  "columns": [
+                    { "key": "rank", "header": "#" },
+                    { "key": "hotelName", "header": "Hotel" },
+                    { "key": "bookingCount", "header": "Bookings", "sortable": true },
+                    { "key": "totalAmount", "header": "Amount", "sortable": true }
+                  ],
+                  "dataBinding": "topHotels"
+                }
+              ]
+            },
+            {
+              "id": "ttv-trend",
+              "type": "Card",
+              "props": { "className": "p-4" },
+              "children": [
+                { "id": "ttv-title", "type": "text", "element": "h3", "content": "12-Month TTV Trend", "props": { "className": "font-semibold mb-2" } },
+                { "id": "ttv-chart", "type": "div", "props": { "className": "h-48", "note": "CSS-based bar chart, current month highlighted" }, "dataBinding": "ttvTrend" }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "booking-funnel",
+          "type": "Card",
+          "props": { "className": "p-4" },
+          "children": [
+            { "id": "funnel-title", "type": "text", "element": "h3", "content": "Booking Conversion Funnel", "props": { "className": "font-semibold mb-2" } },
+            { "id": "funnel-chart", "type": "div", "props": { "className": "h-48", "note": "5-stage funnel: Searches > Room Views > Booking Started > Confirmed > Completed" }, "dataBinding": "bookingFunnel" }
+          ]
+        },
+        {
+          "id": "hotel-profitability",
+          "type": "Card",
+          "props": { "className": "p-4" },
+          "children": [
+            { "id": "profit-title", "type": "text", "element": "h3", "content": "Hotel Profitability", "props": { "className": "font-semibold mb-2" } },
+            {
+              "id": "profit-table",
+              "type": "Table",
+              "columns": [
+                { "key": "hotelName", "header": "Hotel" },
+                { "key": "avgNetPerNight", "header": "Avg Net/Night", "sortable": true },
+                { "key": "bookingCount", "header": "Bookings" },
+                { "key": "trend", "header": "Trend" }
+              ],
+              "dataBinding": "hotelProfitability"
+            }
+          ]
+        },
+        {
+          "id": "op-performance",
+          "type": "Card",
+          "props": { "className": "p-4" },
+          "visibility": { "roles": ["Master"] },
+          "children": [
+            { "id": "op-perf-title", "type": "text", "element": "h3", "content": "OP Performance Comparison", "props": { "className": "font-semibold mb-2" } },
+            {
+              "id": "op-perf-table",
+              "type": "Table",
+              "columns": [
+                { "key": "opName", "header": "OP Name" },
+                { "key": "bookingCount", "header": "Bookings", "sortable": true },
+                { "key": "ttv", "header": "TTV", "sortable": true },
+                { "key": "roomNights", "header": "Room Nights", "sortable": true },
+                { "key": "avgValue", "header": "Avg Value", "sortable": true },
+                { "key": "ranking", "header": "Rank" }
+              ],
+              "dataBinding": "opPerformance"
+            }
+          ]
+        },
+        {
+          "id": "my-performance",
+          "type": "Card",
+          "props": { "className": "p-4" },
+          "visibility": { "roles": ["OP"] },
+          "children": [
+            { "id": "my-perf-title", "type": "text", "element": "h3", "content": "My Performance KPIs", "props": { "className": "font-semibold mb-2" } },
+            {
+              "id": "my-perf-gauges",
+              "type": "div",
+              "props": { "className": "grid grid-cols-4 gap-4" },
+              "children": [
+                {
+                  "id": "gauge-success-rate",
+                  "type": "Card",
+                  "props": { "className": "p-3 text-center" },
+                  "children": [
+                    { "id": "gauge-sr-label", "type": "text", "element": "p", "content": "Success Rate" },
+                    { "id": "gauge-sr-bar", "type": "Progress", "dataBinding": "myPerformance.successRate" }
+                  ]
+                },
+                {
+                  "id": "gauge-response-time",
+                  "type": "Card",
+                  "props": { "className": "p-3 text-center" },
+                  "children": [
+                    { "id": "gauge-rt-label", "type": "text", "element": "p", "content": "Avg Response Time" },
+                    { "id": "gauge-rt-bar", "type": "Progress", "dataBinding": "myPerformance.avgResponseTime" }
+                  ]
+                },
+                {
+                  "id": "gauge-satisfaction",
+                  "type": "Card",
+                  "props": { "className": "p-3 text-center" },
+                  "children": [
+                    { "id": "gauge-sat-label", "type": "text", "element": "p", "content": "Satisfaction" },
+                    { "id": "gauge-sat-bar", "type": "Progress", "dataBinding": "myPerformance.satisfaction" }
+                  ]
+                },
+                {
+                  "id": "gauge-repeat-rate",
+                  "type": "Card",
+                  "props": { "className": "p-3 text-center" },
+                  "children": [
+                    { "id": "gauge-rr-label", "type": "text", "element": "p", "content": "Repeat Rate" },
+                    { "id": "gauge-rr-bar", "type": "Progress", "dataBinding": "myPerformance.repeatRate" }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "interactions": [],
+  "dataShape": {
+    "kpi": {
+      "type": "object",
+      "fields": {
+        "totalBookings": "number",
+        "bookingsChange": "string",
+        "revenue": "number",
+        "revenueChange": "string",
+        "roomNights": "number",
+        "nightsChange": "string",
+        "avgBookingValue": "number",
+        "avgChange": "string"
+      }
+    },
+    "points": {
+      "type": "object",
+      "fields": {
+        "balance": "number",
+        "earned": "number",
+        "used": "number"
+      }
+    },
+    "topHotels": {
+      "type": "array",
+      "item": {
+        "rank": "number",
+        "hotelName": "string",
+        "bookingCount": "number",
+        "totalAmount": "number"
+      }
+    },
+    "ttvTrend": {
+      "type": "array",
+      "item": {
+        "month": "string",
+        "amount": "number"
+      }
+    },
+    "bookingFunnel": {
+      "type": "object",
+      "fields": {
+        "searches": "number",
+        "roomViews": "number",
+        "bookingStarted": "number",
+        "confirmed": "number",
+        "completed": "number"
+      }
+    },
+    "hotelProfitability": {
+      "type": "array",
+      "item": {
+        "hotelName": "string",
+        "avgNetPerNight": "number",
+        "bookingCount": "number",
+        "trend": "string"
+      }
+    },
+    "opPerformance": {
+      "type": "array",
+      "item": {
+        "opName": "string",
+        "bookingCount": "number",
+        "ttv": "number",
+        "roomNights": "number",
+        "avgValue": "number",
+        "ranking": "number"
+      }
+    },
+    "myPerformance": {
+      "type": "object",
+      "fields": {
+        "successRate": "number",
+        "avgResponseTime": "number",
+        "satisfaction": "number",
+        "repeatRate": "number"
+      }
+    }
+  },
+  "errorHandling": []
+}

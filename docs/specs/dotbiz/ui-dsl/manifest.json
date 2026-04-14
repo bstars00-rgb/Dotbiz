@@ -1,0 +1,82 @@
+{
+  "feature": "dotbiz",
+  "schemaVersion": "1.0",
+  "generatedAt": "2026-03-28T12:00:00.000Z",
+  "sourceSpec": "docs/specs/dotbiz/en/",
+  "screens": [
+    { "id": "login", "file": "screen-login.json", "title": "Login", "entryPoint": true },
+    { "id": "registration", "file": "screen-registration.json", "title": "Registration" },
+    { "id": "main-layout", "file": "screen-main-layout.json", "title": "Main Layout", "source": "_shared" },
+    { "id": "dashboard", "file": "screen-dashboard.json", "title": "Dashboard", "layout": "main-layout" },
+    { "id": "find-hotel", "file": "screen-find-hotel.json", "title": "Find Hotel", "layout": "main-layout" },
+    { "id": "search-results", "file": "screen-search-results.json", "title": "Search Results", "layout": "main-layout" },
+    { "id": "hotel-detail", "file": "screen-hotel-detail.json", "title": "Hotel Detail", "layout": "main-layout" },
+    { "id": "booking-form", "file": "screen-booking-form.json", "title": "Booking Form (Step 1)", "layout": "main-layout" },
+    { "id": "booking-confirm", "file": "screen-booking-confirm.json", "title": "Booking Confirm (Step 2)", "layout": "main-layout" },
+    { "id": "booking-complete", "file": "screen-booking-complete.json", "title": "Booking Complete (Step 3)", "layout": "main-layout" },
+    { "id": "bookings", "file": "screen-bookings.json", "title": "Bookings", "layout": "main-layout" },
+    { "id": "booking-detail-modal", "file": "screen-booking-detail-modal.json", "title": "Booking Detail Modal", "layout": "main-layout" },
+    { "id": "settlement", "file": "screen-settlement.json", "title": "Settlement", "layout": "main-layout" },
+    { "id": "notifications", "file": "screen-notifications.json", "title": "Notifications", "layout": "main-layout" },
+    { "id": "faq-board", "file": "screen-faq-board.json", "title": "FAQ Board", "layout": "main-layout" },
+    { "id": "my-account", "file": "screen-my-account.json", "title": "My Account", "layout": "main-layout" },
+    { "id": "rewards-mall", "file": "screen-rewards-mall.json", "title": "Rewards Mall", "layout": "main-layout" },
+    { "id": "ai-assistant", "file": "screen-ai-assistant.json", "title": "AI Assistant", "layout": "main-layout" }
+  ],
+  "navigation": [
+    { "from": "login", "to": "dashboard", "trigger": "click-login-button" },
+    { "from": "login", "to": "registration", "trigger": "click-register-link" },
+    { "from": "registration", "to": "login", "trigger": "registration-complete" },
+    { "from": "dashboard", "to": "rewards-mall", "trigger": "click-rewards-mall-link" },
+    { "from": "find-hotel", "to": "search-results", "trigger": "click-search-button" },
+    { "from": "find-hotel", "to": "hotel-detail", "trigger": "click-favorite-hotel-card" },
+    { "from": "search-results", "to": "hotel-detail", "trigger": "click-hotel-card" },
+    { "from": "search-results", "to": "find-hotel", "trigger": "click-modify-search" },
+    { "from": "hotel-detail", "to": "booking-form", "trigger": "click-select-room-button" },
+    { "from": "booking-form", "to": "hotel-detail", "trigger": "click-back-button" },
+    { "from": "booking-form", "to": "booking-confirm", "trigger": "click-continue-button" },
+    { "from": "booking-confirm", "to": "booking-form", "trigger": "click-back-button" },
+    { "from": "booking-confirm", "to": "booking-complete", "trigger": "click-confirm-booking" },
+    { "from": "booking-complete", "to": "bookings", "trigger": "click-my-bookings-button" },
+    { "from": "booking-complete", "to": "find-hotel", "trigger": "click-new-booking-button" },
+    { "from": "bookings", "to": "booking-detail-modal", "trigger": "click-table-row" },
+    { "from": "ai-assistant", "to": "hotel-detail", "trigger": "click-hotel-card-in-chat" }
+  ],
+  "dataEntities": [
+    "User",
+    "Company",
+    "Hotel",
+    "Room",
+    "Booking",
+    "Payment",
+    "Invoice",
+    "Notification",
+    "FAQ",
+    "Product",
+    "PointsTransaction",
+    "OperatingPartner"
+  ],
+  "layouts": [
+    {
+      "id": "main-layout",
+      "source": "_shared",
+      "children": [
+        "dashboard",
+        "find-hotel",
+        "search-results",
+        "hotel-detail",
+        "booking-form",
+        "booking-confirm",
+        "booking-complete",
+        "bookings",
+        "booking-detail-modal",
+        "settlement",
+        "notifications",
+        "faq-board",
+        "my-account",
+        "rewards-mall",
+        "ai-assistant"
+      ]
+    }
+  ]
+}

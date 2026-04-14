@@ -1,0 +1,151 @@
+{
+  "screen": {
+    "id": "ai-assistant",
+    "title": "AI Assistant",
+    "purpose": "AI-powered hotel recommendation, booking analysis, and area guide floating widget",
+    "route": "/app/ai-assistant",
+    "layout": "main-layout"
+  },
+  "states": {
+    "loading": {
+      "components": [
+        {
+          "id": "ai-loading",
+          "type": "div",
+          "props": { "className": "p-4 space-y-3" },
+          "children": [
+            { "id": "header-skel", "type": "Skeleton", "props": { "className": "h-10 w-full" } },
+            { "id": "actions-skel", "type": "Skeleton", "props": { "className": "h-12 w-full" } },
+            { "id": "messages-skel", "type": "Skeleton", "props": { "className": "h-64 w-full" } }
+          ]
+        }
+      ]
+    },
+    "empty": {
+      "components": [
+        {
+          "id": "ai-empty",
+          "type": "Card",
+          "props": { "className": "p-6 text-center" },
+          "children": [
+            { "id": "empty-title", "type": "text", "element": "h2", "content": "AI Assistant" },
+            { "id": "empty-desc", "type": "text", "element": "p", "content": "Ask me anything about hotels, bookings, or destinations!" },
+            { "id": "empty-action", "type": "Button", "text": "Start Chatting", "icon": "Bot", "action": { "type": "custom", "target": "focus-input" } }
+          ]
+        }
+      ]
+    },
+    "error": {
+      "components": [
+        {
+          "id": "ai-error",
+          "type": "Alert",
+          "props": { "variant": "destructive" },
+          "children": [
+            { "id": "error-title", "type": "text", "element": "h3", "content": "AI Service Error" },
+            { "id": "error-message", "type": "text", "element": "p", "content": "AI service is temporarily unavailable. Using limited service mode." },
+            { "id": "error-retry-btn", "type": "Button", "text": "Retry", "icon": "RefreshCw", "action": { "type": "custom", "target": "retry-ai" } }
+          ]
+        }
+      ]
+    },
+    "success": {
+      "components": "$ref:componentTree"
+    }
+  },
+  "componentTree": [
+    {
+      "id": "ai-widget",
+      "type": "Card",
+      "props": { "className": "flex flex-col h-[600px] max-w-lg mx-auto", "note": "Also renders as a floating Sheet from main-layout FAB" },
+      "children": [
+        {
+          "id": "chat-header",
+          "type": "div",
+          "props": { "className": "flex items-center justify-between p-4 border-b" },
+          "children": [
+            { "id": "ai-title", "type": "text", "element": "h2", "content": "AI Assistant", "icon": "Bot", "props": { "className": "font-semibold" } },
+            {
+              "id": "header-actions",
+              "type": "div",
+              "props": { "className": "flex gap-1" },
+              "children": [
+                { "id": "minimize-btn", "type": "Button", "icon": "Minus", "props": { "variant": "ghost", "size": "icon" }, "action": { "type": "custom", "target": "minimize-widget" } },
+                { "id": "close-btn", "type": "Button", "icon": "X", "props": { "variant": "ghost", "size": "icon" }, "action": { "type": "dismiss", "target": "close-widget" } }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "quick-actions",
+          "type": "div",
+          "props": { "className": "flex gap-2 p-3 border-b overflow-x-auto" },
+          "children": [
+            { "id": "hotel-recommend-btn", "type": "Button", "text": "Hotel Recommendation", "icon": "Building2", "props": { "variant": "outline", "size": "sm" }, "action": { "type": "custom", "target": "quick-hotel-recommend" } },
+            { "id": "booking-analysis-btn", "type": "Button", "text": "Booking Analysis", "icon": "BarChart3", "props": { "variant": "outline", "size": "sm" }, "action": { "type": "custom", "target": "quick-booking-analysis" } },
+            { "id": "area-guide-btn", "type": "Button", "text": "Area Guide", "icon": "MapPin", "props": { "variant": "outline", "size": "sm" }, "action": { "type": "custom", "target": "quick-area-guide" } },
+            { "id": "help-btn", "type": "Button", "text": "Help", "icon": "HelpCircle", "props": { "variant": "outline", "size": "sm" }, "action": { "type": "custom", "target": "quick-help" } }
+          ]
+        },
+        {
+          "id": "chat-messages",
+          "type": "ScrollArea",
+          "props": { "className": "flex-1 p-4" },
+          "dataBinding": "messages",
+          "children": [
+            {
+              "id": "message-template",
+              "type": "div",
+              "props": { "note": "User and AI messages rendered here. AI messages may contain text, hotel cards (clickable), or analysis charts." }
+            }
+          ]
+        },
+        {
+          "id": "chat-input",
+          "type": "div",
+          "props": { "className": "flex items-center gap-2 p-3 border-t" },
+          "children": [
+            { "id": "message-input", "type": "Input", "props": { "placeholder": "Ask about hotels, destinations...", "className": "flex-1" } },
+            { "id": "send-btn", "type": "Button", "icon": "Send", "props": { "size": "icon" }, "action": { "type": "submit", "target": "send-ai-message" } }
+          ]
+        }
+      ]
+    }
+  ],
+  "interactions": [
+    {
+      "id": "ai-response",
+      "trigger": { "component": "send-btn", "event": "click" },
+      "behavior": "custom"
+    }
+  ],
+  "dataShape": {
+    "messages": {
+      "type": "array",
+      "item": {
+        "id": "UUID",
+        "role": "enum(user,assistant)",
+        "content": "string",
+        "timestamp": "ISO-8601",
+        "hotelCards": "string",
+        "analysisData": "string"
+      }
+    }
+  },
+  "errorHandling": [
+    {
+      "code": "ERR-AI-001",
+      "condition": "Claude API connection failed",
+      "message": "AI service is temporarily unavailable.",
+      "resolution": { "type": "custom", "target": "local-fallback", "label": "Switch to Local Fallback mode" },
+      "triggerComponent": "send-btn"
+    },
+    {
+      "code": "ERR-AI-002",
+      "condition": "API response timeout (5 seconds)",
+      "message": "The response timed out. Please try again.",
+      "resolution": { "type": "retry", "label": "Retry" },
+      "triggerComponent": "send-btn"
+    }
+  ]
+}

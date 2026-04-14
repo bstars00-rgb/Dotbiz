@@ -1,0 +1,604 @@
+DOTBIZ
+B2B Self-Service Hotel Booking Platform
+Architecture &amp; Problem Resolution v2.1
+Phase 1 Production | Vanilla JS SPA + ELLIS API
+Target: 6-Month Delivery | Real Traffic Ready
+Item
+Detail
+Status
+DRAFT
+Author
+JACKIE OS (CEO Strategic Operating System)
+Version
+2.1
+Created
+2026-04-02
+Core Problem
+검색 불안정 + 결제 UX + 정산 불편 + B2B 직접예약 0건 해결
+Supersedes
+DOTBIZ_기획서_v1.0 + Architecture_v2.0
+Table of Contents
+1. 비즈니스 문제 정의
+1.1 닷비즈의 존재 이유
+OhMyHotel은 현재 일 3,000건 이상의 부킹을 처리하고 있으나, 이는 전량 API 채널(예: Ctrip, Agoda 등 ~80개 채널)을 통해 발생한다. B2C 또는 B2B 직접 예약은 거의 0건이다.
+이는 두 가지 구조적 문제를 의미한다:
+채널 집중 리스크: Ctrip/Trip.com 단일 채널이 TTV의 44.3%를 차지. 해당 채널의 정책 변경이나 분쟁 시 OMH 매출의 절반이 위험에 처함.
+마진 통제력 부재: API 채널을 통한 매출은 채널이 마진을 결정. OMH가 직접 에이전트에게 판매하면 마진 자율성 확보 가능.
+닷비즈는 이 문제를 해결하는 신규 직접 예약 채널이다:
+항목
+정의
+플랫폼 성격
+신규 에이전트 유치용 B2B 셀프서비스 호텔 예약 플랫폼
+타겟 사용자
+API 연동 없이 웹에서 직접 예약하는 중소형 여행사/에이전트
+기존 API 부킹과의 관계
+별개 채널. API 3,000건/일과 별도로 신규 직접 예약 매출 창출
+핵심 가치
+Net Rate 공급 → 에이전트가 마진 자율 결정 → OMH는 안정적 수익 확보
+CEO OKR 연계
+B2C 0.1%→10% 목표 중 B2B 직접예약 채널 구축 단계
+KR6 Exit Criteria
+닷비즈 MVP 런칭 + 월 활성 에이전트 수 측정
+1.2 현재 운영 시스템의 3대 문제점
+현재 ELLIS 기반 시스템(어드민, B2B, B2C 모듈 공통)에서 발생하는 문제점과 닷비즈에서의 해결 방향:
+문제 1: 검색 불안정 (긴급도: Critical)
+항목
+현황
+증상
+호텔 검색 결과가 나오다 안나오다 반복
+발생 범위
+어드민 / B2B / B2C 모듈 공통 (동일 검색 엔진 사용)
+원인 1
+공백 처리 미흡: &apos;Shinjuku Hotel&apos; vs &apos;ShinjukuHotel&apos; 다른 결과
+원인 2
+단어 순서 민감: &apos;Hotel Gracery Shinjuku&apos; vs &apos;Gracery Hotel Shinjuku&apos; 불일치
+원인 3
+부분 일치 미지원: 호텔명 일부만 입력해도 검색 실패
+영향
+에이전트가 원하는 호텔을 찾지 못해 예약 전환 실패 → 이탈
+문제 2: 결제 UX 불편 (긴급도: High)
+항목
+현황
+증상
+선입금 에이전트의 단밴카드 결제 프로세스가 불편
+문제점 1
+카드 등록/변경/기본카드 설정 프로세스가 직관적이지 않음
+문제점 2
+RNPL(Reserve Now Pay Later) 후 결제 시점이 불명확
+문제점 3
+결제 실패 시 복구 플로우가 미흡 (Booking Form으로 돌아가지만 상태 유지 안 됨)
+영향
+결제 포기 → 미수금 발생 → 운영 부담 증가
+문제 3: 정산 조회 불편 (긴급도: Medium)
+항목
+현황
+증상
+에이전트가 정산 내역을 확인하기 어려워 문의 발생
+문제점 1
+월별 정산 데이터 접근이 번거로움 (클릭 경로 많음)
+문제점 2
+미수금 현황과 취소 데드라인 한눈에 파악 어려움
+문제점 3
+인보이스/영수증 PDF 다운로드가 불편
+영향
+CS 문의 증가, 정산 관련 운영 공수 증가
+2. 문제별 해결 설계
+2.1 검색 엔진 재설계
+현재 ELLIS 검색 엔진의 근본 문제를 해결하는 검색 레이어를 DOTBIZ BFF에 추가한다. 이 레이어는 향후 어드민/B2C에도 적용 가능.
+2.1.1 검색 문제 원인 분석 및 해결책
+문제
+원인
+해결책
+구현 위치
+공백 민감
+DB LIKE 검색 또는 exact match
+검색어 정규화 (normalize): 공백 제거, 소문자 변환 후 검색
+BFF 검색 미들웨어
+단어 순서 민감
+호텔명 전체 문자열 매칭
+토큰 기반 검색: 각 단어를 분리하여 AND 조건으로 검색
+BFF 검색 미들웨어
+부분 일치 미지원
+전체 문자열 일치만 처리
+Trigram 유사도 검색 + prefix matching
+BFF + Elasticsearch/Redis
+검색 불안정 (나왔다 안나옴)
+API 타임아웃 또는 레이스 컨디션
+BFF 캐시 레이어 + 펴백 로직 + 타임아웃 연장
+BFF Cache + Retry
+2.1.2 검색 아키텍처: BFF Search Middleware
+DOTBIZ BFF에 검색 전처리 미들웨어를 추가하여 ELLIS API로 전달하기 전에 검색어를 처리한다:
+User Input          BFF Search Middleware          ELLIS Rate Engine
+                                                                    
+&apos;gracery shinjuku&apos;  → normalize(&apos;gracery shinjuku&apos;)              
+                    → tokenize: [&apos;gracery&apos;, &apos;shinjuku&apos;]          
+                    → Strategy 1: ELLIS API (tokens AND match)   
+                       └→ 결과 있음 → 반환                        
+                    → Strategy 2: Redis 호텔명 인덱스 (fuzzy)    
+                       └→ trigram 유사도 &gt; 0.3 → 반환          
+                    → Strategy 3: 도시 + 호텔명 분리 검색      
+                       └→ fallback 결과 반환                  
+2.1.3 검색 방식별 처리 로직
+검색 방식
+사용자 입력 예시
+BFF 처리
+결과
+호텔명 검색
+&apos;gracery shinjuku&apos;
+normalize → tokenize → AND match + fuzzy fallback
+모든 매칭 호텔
+도시 검색
+&apos;tokyo&apos;
+도시명 → ELLIS 도시 검색 API
+해당 도시 전체 호텔
+도시 + 등급
+&apos;tokyo 5star&apos;
+tokenize → 도시(tokyo) + 필터(star_rating=5)
+도시 검색 + 필터 적용
+도시 + 가격
+&apos;osaka under 200&apos;
+tokenize → 도시(osaka) + 필터(max_price=200)
+가격 필터 적용
+도시 + 에리어
+&apos;tokyo shinjuku&apos;
+tokenize → 도시(tokyo) + 에리어(shinjuku)
+에리어 필터 적용
+복합 검색
+&apos;osaka namba 4star free cancel&apos;
+tokenize → 분류 → 도시 + 에리어 + 등급 + 취소정책
+복합 필터
+2.1.4 호텔명 인덱스 (Redis)
+BFF에서 ELLIS 호텔 데이터를 주기적으로 동기화하여 Redis에 검색용 인덱스를 구축한다:
+데이터: 2,500+ 일본 직계약 호텔 + 아시아 7,000개 호텔명/ID/도시/에리어/등급
+인덱스 키: hotel:{normalized_name}, city:{city_code}, area:{area_code}
+동기화 주기: 일 1회 (ELLIS 호텔 DB → Redis)
+검색 성능: Redis 인덱스 히트 시 &lt; 100ms, ELLIS API 펴백 시 &lt; 1초
+2.2 결제 UX 개선
+2.2.1 선불업체 결제 플로우 개선
+문제점
+현재
+개선 후
+카드 등록
+별도 페이지에서 등록 후 예약 시 선택
+예약 플로우 내에서 신규카드 등록 + 기존카드 선택 통합 UI
+RNPL 결제 시점
+예약 후 언제 결제해야 하는지 불명확
+예약 완료 화면에 Cancel Deadline 카운트다운 + 1-click 결제 버튼
+결제 실패 복구
+폼 초기화되어 재입력 필요
+결제 실패 시 폼 데이터 유지 + 카드 변경만 허용 + 재시도 버튼
+D-day 가시성
+AR 탭에서만 확인 가능
+대시보드 + 예약리스트에서 Cancel Deadline D-day 상시 표시
+자동취소 경고
+취소 후 알림만
+D-7, D-3, D-1 사전 경고 + 경고 이메일 발송
+2.2.2 후불업체 Deposit/Credit 개선
+문제점
+현재
+개선 후
+Deposit 잔액 확인
+별도 페이지에서 확인
+예약폼 사이드바에 실시간 Deposit 잔액 표시
+Deposit 부족 시
+에러 메시지만 표시
+Credit Line 전환 안내 + 1-click 전환 버튼
+혼합 결제
+v1.0 미지원
+Phase 2 검토 (사용자 요청 빈도 측정 후)
+2.3 정산 UX 개선
+2.3.1 정산 대시보드 재설계
+에이전트가 로그인 후 1클릭으로 핵심 정산 정보를 파악할 수 있도록 개선:
+문제점
+현재
+개선 후
+접근성
+여러 탭/페이지 거쳐야 정산 확인
+Settlement 탭 1개에 Summary 카드 5개 집약 (총액/미수금/룸나잇/인보이스/포인트)
+미수금 현황
+별도 AR 탭에서만 확인
+대시보드 KPI 카드에 미수금 금액 + 건수 상시 표시
+Cancel Deadline
+예약 상세에서만 확인
+AR 목록에 D-day 카운트다운 + 색상 경고 (D-3: 노랑, D-1: 빨강)
+PDF 다운로드
+번거로운 클릭 경로
+인보이스 목록에서 1-click PDF + 일괄 다운로드
+기간 필터
+월별만 선택 가능
+월별 + 주별 + 커스텀 기간 필터 추가
+3. 셀프서비스 에이전트 유치 전략
+3.1 타겟 에이전트 정의
+항목
+정의
+대상
+API 연동 없이 웹에서 직접 호텔 예약하는 중소형 여행사/에이전트
+규모
+월 예약 10~200건 수준 (대형 API 에이전트 대비 소규모)
+지역
+한국, 대만, 동남아, 중국 소규모 에이전트
+핵심 니즈
+가입 즉시 예약 가능, 간단한 결제, 투명한 정산
+경쟁사 대비 차별화
+Net Rate 공급 (마진 자율성) + 일본 2,500개 직계약 호텔 경쟁력
+3.2 셀프서비스 가입 플로우
+신규 에이전트가 가입에서 첫 예약까지 최소한의 마찰로 도달하는 것이 핵심:
+Step 1: Self-Registration (3-Step, v1.0 유지)
+  └→ 회사정보 → 사용자정보 → 약관동의
+  └→ Pending 상태로 계정 생성
+
+Step 2: Internal Approval (OMH 내부)
+  └→ 사업자등록 확인 + 신용 평가
+  └→ 업체 유형 결정 (선불/후불) + Credit Line 설정
+  └→ 목표: 가입 후 24시간 이내 승인 (SLA)
+
+Step 3: First Booking (첫 예약 가이드)
+  └→ 승인 완료 이메일에 &apos;첫 예약 가이드&apos; 포함
+  └→ 로그인 시 온보딩 투어 (주요 기능 3분 안내)
+  └→ AI Assistant에서 &apos;첫 예약 도우미&apos; Quick Action
+3.3 에이전트 유치 KPI
+KPI
+Phase 1 목표 (M6)
+측정 방법
+신규 가입 수
+월 20개 업체
+가입 완료 수
+가입→첫예약 전환율
+50% 이상
+(첫예약 업체 / 승인 업체) x 100
+월 활성 에이전트 수
+30개 업체
+월 1건 이상 예약 업체 수
+월 직접예약 건수
+500건
+닷비즈 경유 예약 건수
+검색 → 예약 전환율
+5% 이상
+(예약건수 / 검색횟수) x 100
+검색 성공률
+95% 이상
+(검색결과 있음 / 전체 검색) x 100
+4. 시스템 아키텍처
+4.1 3계층 구성도
+┌──────────────────────────────────────────────────────────────┐
+│  LAYER 1: Presentation (Vanilla JS SPA)                     │
+│  Router | Components | State(EventBus) | i18n | Theme      │
+│  + 검색 UX 개선 (fuzzy, autocomplete, 복합필터)       │
+│  + 결제 UX 개선 (1-click, D-day, 폼복구)              │
+│  + 정산 UX 개선 (Summary 카드, D-day 색상, 1-click PDF) │
+└──────────────────────────────┬───────────────────────────────┘
+                               │ HTTPS / REST
+┌──────────────────────────────┼───────────────────────────────┐
+│  LAYER 2: DOTBIZ BFF                                        │
+│  Auth(JWT) | ★Search Middleware★ | AI Proxy | Doc Gen    │
+│  Rate Limit | Cache(Redis) | WebSocket | Cron Jobs        │
+│  + 호텔명 인덱스 (Redis, fuzzy/trigram)                  │
+│  + 결제 상태 관리 + RNPL Deadline Cron                │
+└──────────────────────────────┬───────────────────────────────┘
+                               │ Internal API
+┌──────────────────────────────┼───────────────────────────────┐
+│  LAYER 3: ELLIS Core                                        │
+│  Rate Engine | Flow Engine | Insight | Link | Bridge       │
+│  HARE (AI) | PostgreSQL | Redis                             │
+└──────────────────────────────────────────────────────────────┘
+4.2 계층별 책임 정의
+Layer 1: Presentation (Vanilla JS SPA)
+모듈
+책임
+비고
+Router
+Hash-based SPA 라우팅
+v1.0 유지
+Components
+재사용 UI 컴포넌트 (Web Components)
+v1.0 유지
+State Manager
+EventBus Pub/Sub
+v1.0 유지
+API Client
+BFF API fetch wrapper (JWT auto-attach, retry)
+v2.1 신규
+Search UX
+실시간 자동완성 + 복합필터 UI
+v2.1 신규
+Payment UX
+1-click 결제 + 폼복구 + D-day 표시
+v2.1 신규
+Settlement UX
+Summary 카드 + D-day 색상 + 1-click PDF
+v2.1 신규
+Layer 2: DOTBIZ BFF
+모듈
+책임
+비고
+Auth Service
+JWT + Redis 세션 + RBAC
+v2.0 유지
+★ Search Middleware
+검색어 정규화 + 토큰화 + fuzzy + 펴백
+v2.1 신규 핵심
+★ Hotel Index
+Redis 기반 호텔명/도시/에리어 인덱스
+v2.1 신규 핵심
+AI Proxy
+Claude API 프록시 (서버사이드 키)
+v2.0 유지
+Doc Generator
+PDF 바우처/영수증/인보이스
+v2.0 유지
+Cron Jobs
+RNPL 자동취소 + 인보이스 자동생성 + 알림
+v2.1 신규
+WebSocket
+실시간 알림/채팅
+v2.0 유지
+Layer 3: ELLIS Core
+엔진
+책임
+DOTBIZ 연동
+Rate Engine
+호텔 요금/가용성
+검색/요금 API (BFF Search Middleware 경유)
+Flow Engine
+예약 CRUD
+예약 생성/취소/조회 API
+Insight Engine
+분석/KPI/정산
+대시보드/정산 데이터 API
+Bridge Engine
+PG/파트너 연동
+결제 처리 API
+HARE
+AI 네비게이션
+AI Assistant 백엔드
+5. DOTBIZ BFF API 설계
+5.1 핵심 API Endpoints
+Auth
+Method
+Endpoint
+설명
+POST
+/api/v1/auth/login
+로그인 → JWT
+POST
+/api/v1/auth/register
+3-Step 회원가입
+POST
+/api/v1/auth/logout
+로그아웃
+POST
+/api/v1/auth/refresh
+토큰 갱신
+POST
+/api/v1/auth/password/reset
+비밀번호 재설정
+Search (★ 검색 개선 핵심)
+Method
+Endpoint
+설명
+GET
+/api/v1/hotels/search
+호텔 검색 (BFF Search Middleware 경유)
+GET
+/api/v1/hotels/suggest
+자동완성 (Redis 인덱스 기반, &lt; 100ms)
+GET
+/api/v1/hotels/:id
+호텔 상세
+GET
+/api/v1/hotels/:id/rooms
+객실 목록 + 가용성
+GET
+/api/v1/destinations
+도시/에리어 목록 (캐시)
+Booking
+Method
+Endpoint
+설명
+POST
+/api/v1/bookings
+예약 생성 (ELLIS Code 서버 발번)
+GET
+/api/v1/bookings
+예약 목록 (서버 페이지네이션)
+GET
+/api/v1/bookings/:id
+예약 상세
+PUT
+/api/v1/bookings/:id/guest
+게스트 정보 수정
+POST
+/api/v1/bookings/:id/cancel
+예약 취소
+GET
+/api/v1/bookings/:id/voucher
+바우처 PDF
+Payment / Settlement / AI / Notification
+Method
+Endpoint
+설명
+POST
+/api/v1/payments/charge
+카드 결제 (PG 경유)
+POST
+/api/v1/payments/split
+분할 결제
+GET
+/api/v1/settlement/monthly
+월별 정산
+GET
+/api/v1/settlement/ar
+미수금 목록 (포함: D-day 계산)
+GET
+/api/v1/settlement/invoices
+세금계산서
+POST
+/api/v1/ai/chat
+AI 챗봇 (BFF Proxy)
+GET
+/api/v1/notifications
+알림 목록 (WebSocket 병행)
+6. 보안 및 인증
+6.1 인증 플로우
+Client                    BFF                       ELLIS
+  |-- POST /auth/login --&gt;|                           |
+  |   (email + password)  |-- validate credentials --&gt;|
+  |                       |&lt;-- user + role + tenant ---|
+  |                       |-- JWT (15min) + Refresh --|
+  |&lt;-- httpOnly Cookie ---|-- Redis session store ---&gt;|
+  |                       |                           |
+  |-- API call + Cookie -&gt;|-- verify JWT -----------&gt;|
+  |                       |-- check RBAC (Master/OP) |
+  |                       |-- check tenant isolation |
+  |                       |-- call ELLIS API -------&gt;|
+  |&lt;-- response ----------|&lt;-- data -----------------|
+6.2 보안 요건
+항목
+설계
+Access Token
+JWT 15분, httpOnly Secure Cookie
+Refresh Token
+Opaque, 7일, Redis
+세션 타임아웃
+30분 무활동, 5분전 경고
+RBAC
+Master(정산/OP관리) vs OP(본인 예약만)
+테넌트 격리
+업체간 데이터 완전 분리 (tenant_id 기반)
+계정 잠금
+5회 실패 → 30분 잠금
+AI Proxy
+Claude API 키 서버사이드, OP당 일 50회 제한
+CORS
+DOTBIZ 도메인만 허용
+7. Phase 1 개발 로드맵 (6개월)
+7.1 스프린트 계획
+Sprint
+기간
+목표
+산출물
+S1-S2
+M1
+BFF + 인증 + 호텔 인덱스
+JWT, RBAC, Redis 호텔명 인덱스 구축
+S3-S4
+M2
+★ 검색 개선 + 호텔 상세
+Search Middleware, fuzzy/autocomplete, List/Map
+S5-S6
+M3
+예약 + ★ 결제 UX 개선
+Flow Engine 연동, PG, 1-click 결제, 폼복구
+S7-S8
+M4
+★ 정산 UX 개선 + 예약관리
+Summary 카드, D-day, 캘린더, Excel
+S9-S10
+M5
+AI + 알림 + 부가기능
+AI Proxy, WebSocket 알림, 포인트, FAQ
+S11-S12
+M6
+QA + 안정화 + 런칭
+E2E 테스트, 성능 최적화, 보안 감사
+7.2 팀 역할
+역할
+담당
+주요 업무
+Frontend
+VN 개발팀 2-3명
+SPA, 검색/결제/정산 UX 개선
+BFF Backend
+VN 개발팀 2명
+Search Middleware, Auth, API Router
+ELLIS API
+VN 개발팀 1-2명
+DOTBIZ용 ELLIS API 엔드포인트
+QA
+VN QA 1명
+테스트 시나리오 (v1.0 76건 기반)
+PM/Design
+KR AI Planning
+기획 검증, UX 감수
+CTO
+Justin Choi
+ELLIS API 설계, 검색 엔진 개선 감수
+7.3 Exit Criteria
+Milestone
+Exit Criteria
+M1: Auth + Index
+JWT 정상, Redis 호텔 인덱스 2,500+ 로드 완료
+M2: Search
+검색 성공률 95%+ (공백/순서/부분일치 테스트 통과)
+M3: Booking
+예약→확정→취소 E2E + 결제 실패 복구 테스트 통과
+M4: BizOps
+정산 Summary 1-click 확인 + D-day 색상 표시 정상
+M5: AI/Extras
+AI 챗봇 응답 &lt; 5초, 알림 WebSocket 실시간
+M6: Launch
+Staging E2E 통과 + 검색성공률 95%+ + 보안감사
+8. Open Questions Resolution
+ID
+질문
+해결
+Status
+OQ-001
+Claude API 호출 방식
+BFF AI Proxy
+RESOLVED
+OQ-002
+OP Points 적립률
+1% 고정 (ELLIS DB)
+RESOLVED
+OQ-003
+포인트 화폘 가치
+1P = $0.01
+RESOLVED
+OQ-004
+호텔 데이터 귀모
+ELLIS API 2,500+ 실제 호텔
+RESOLVED
+OQ-005
+Excel 라이브러리
+SheetJS 허용
+RESOLVED
+OQ-006
+Support Chat
+AI 챗봇 + 담당자 부재 시뮬레이션
+RESOLVED
+OQ-007
+Invoice 자동 생성
+Cron Job 매월 1일 Draft
+RESOLVED
+9. Risk Assessment
+리스크
+영향
+확률
+대응
+ELLIS 검색 API 근본 문제 미해결
+Critical
+Medium
+BFF Search Middleware로 우회, ELLIS 고도화는 병행
+ELLIS API 엔드포인트 부족
+High
+Medium
+M1에서 간격 분석, 부족분 추가 개발
+VN 개발팀 리소스
+High
+Medium
+핵심(M1-M3) 집중, 부가기능 후순위
+신규 에이전트 유치 부진
+High
+Medium
+프로포저 OS 연계, 마케팅 채널 활용
+PG 연동 지연
+Medium
+Low
+M3까지 Mock 유지 가능
+Vanilla JS 스케일 한계
+Medium
+Low
+Phase 2에서 프레임워크 전환 검토
+End of Document
+DOTBIZ Architecture v2.1 | OhMyHotel &amp; Co. | April 2026

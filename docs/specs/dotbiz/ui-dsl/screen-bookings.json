@@ -1,0 +1,309 @@
+{
+  "screen": {
+    "id": "bookings",
+    "title": "Bookings",
+    "purpose": "Booking list, calendar view, and support chat (3 tabs)",
+    "route": "/app/bookings",
+    "layout": "main-layout"
+  },
+  "states": {
+    "loading": {
+      "components": [
+        {
+          "id": "bookings-loading",
+          "type": "div",
+          "props": { "className": "p-6 space-y-4" },
+          "children": [
+            { "id": "tabs-skel", "type": "Skeleton", "props": { "className": "h-10 w-96" } },
+            { "id": "filter-skel", "type": "Skeleton", "props": { "className": "h-24 w-full" } },
+            { "id": "table-skel", "type": "Skeleton", "props": { "className": "h-96 w-full" } }
+          ]
+        }
+      ]
+    },
+    "empty": {
+      "components": [
+        {
+          "id": "bookings-empty",
+          "type": "Card",
+          "props": { "className": "max-w-md mx-auto mt-20 p-6 text-center" },
+          "children": [
+            { "id": "empty-title", "type": "text", "element": "h2", "content": "No Bookings Yet" },
+            { "id": "empty-desc", "type": "text", "element": "p", "content": "Start searching for hotels to create your first booking." },
+            { "id": "empty-action", "type": "Button", "text": "Find Hotel", "icon": "Search", "action": { "type": "navigate", "target": "/app/find-hotel" } }
+          ]
+        }
+      ]
+    },
+    "error": {
+      "components": [
+        {
+          "id": "bookings-error",
+          "type": "Alert",
+          "props": { "variant": "destructive" },
+          "children": [
+            { "id": "error-title", "type": "text", "element": "h3", "content": "Bookings Error" },
+            { "id": "error-message", "type": "text", "element": "p", "content": "Failed to load bookings. Please try again." },
+            { "id": "error-retry-btn", "type": "Button", "text": "Retry", "icon": "RefreshCw", "action": { "type": "custom", "target": "reload-bookings" } }
+          ]
+        }
+      ]
+    },
+    "success": {
+      "components": "$ref:componentTree"
+    }
+  },
+  "componentTree": [
+    {
+      "id": "bookings-content",
+      "type": "div",
+      "props": { "className": "p-6 space-y-4" },
+      "children": [
+        { "id": "page-title", "type": "text", "element": "h1", "content": "Bookings", "props": { "className": "text-2xl font-bold" } },
+        {
+          "id": "tab-bar",
+          "type": "Tabs",
+          "props": { "defaultValue": "list" },
+          "children": [
+            {
+              "id": "booking-list-tab",
+              "type": "div",
+              "props": { "value": "list", "label": "Booking List", "className": "space-y-4" },
+              "children": [
+                {
+                  "id": "filter-panel",
+                  "type": "Card",
+                  "props": { "className": "p-4" },
+                  "children": [
+                    {
+                      "id": "filter-form",
+                      "type": "Form",
+                      "props": { "className": "grid grid-cols-4 gap-3" },
+                      "children": [
+                        { "id": "date-type-select", "type": "Select", "props": { "label": "Date Type", "options": ["Booking", "Cancel", "Check In", "Check Out", "Cancel Deadline", "Stay Date"] } },
+                        { "id": "date-range-picker", "type": "DatePicker", "props": { "label": "Date Range", "note": "Range picker" } },
+                        { "id": "ellis-code-input", "type": "Input", "props": { "label": "ELLIS Code", "placeholder": "Enter code" } },
+                        { "id": "booking-status-select", "type": "Select", "props": { "label": "Booking Status", "options": ["All", "Confirmed", "Cancelled", "Pending", "No-show", "Completed"] } },
+                        { "id": "payment-status-select", "type": "Select", "props": { "label": "Payment Status", "options": ["All", "Not Paid", "Partially Paid", "Fully Paid", "Refunded", "Partially Refunded", "Pending"] } },
+                        { "id": "search-by-select", "type": "Select", "props": { "label": "Search By", "options": ["Booker", "Traveler", "Mobile"] } },
+                        { "id": "search-input", "type": "Input", "props": { "placeholder": "Search term" }, "icon": "Search" },
+                        { "id": "hotel-name-input", "type": "Input", "props": { "label": "Hotel Name", "placeholder": "Hotel name" } },
+                        {
+                          "id": "filter-actions",
+                          "type": "div",
+                          "props": { "className": "flex gap-2 col-span-4" },
+                          "children": [
+                            { "id": "search-btn", "type": "Button", "text": "Search", "icon": "Search", "action": { "type": "submit", "target": "search-bookings" } },
+                            { "id": "reset-btn", "type": "Button", "text": "Reset", "icon": "X", "props": { "variant": "outline" }, "action": { "type": "custom", "target": "reset-filters" } }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "id": "action-bar",
+                  "type": "div",
+                  "props": { "className": "flex items-center justify-between" },
+                  "children": [
+                    {
+                      "id": "bulk-actions",
+                      "type": "div",
+                      "props": { "className": "flex gap-2" },
+                      "children": [
+                        { "id": "excel-export-btn", "type": "Button", "text": "Excel Export", "icon": "Download", "props": { "variant": "outline" }, "action": { "type": "custom", "target": "export-excel" } },
+                        { "id": "bulk-voucher-btn", "type": "Button", "text": "Bulk Voucher", "icon": "Download", "props": { "variant": "outline" }, "action": { "type": "custom", "target": "bulk-voucher" } }
+                      ]
+                    },
+                    { "id": "page-size-select", "type": "Select", "props": { "options": ["20", "50", "100"], "defaultValue": "20" } }
+                  ]
+                },
+                {
+                  "id": "booking-table",
+                  "type": "Table",
+                  "columns": [
+                    { "key": "select", "header": "", "cell": { "type": "Checkbox" } },
+                    { "key": "bookingDate", "header": "Booking Date", "sortable": true },
+                    { "key": "ellisCode", "header": "ELLIS Code" },
+                    { "key": "bookingStatus", "header": "Booking Status", "cell": { "type": "Badge" } },
+                    { "key": "paymentStatus", "header": "Payment Status", "cell": { "type": "Badge" } },
+                    { "key": "hotelName", "header": "Hotel Name", "sortable": true },
+                    { "key": "cancelDeadline", "header": "Cancel Deadline" },
+                    { "key": "checkIn", "header": "Check-in & Nights" },
+                    { "key": "roomType", "header": "Room Type & Count" },
+                    { "key": "traveler", "header": "1st Traveler" },
+                    { "key": "currency", "header": "Currency" },
+                    { "key": "sumAmount", "header": "Sum Amount", "sortable": true },
+                    { "key": "invoiceNo", "header": "Invoice No." },
+                    { "key": "dispute", "header": "Dispute" }
+                  ],
+                  "pagination": { "enabled": true, "pageSize": 20 },
+                  "dataBinding": "bookings"
+                }
+              ]
+            },
+            {
+              "id": "calendar-tab",
+              "type": "div",
+              "props": { "value": "calendar", "label": "Calendar", "className": "space-y-4" },
+              "children": [
+                {
+                  "id": "calendar-header",
+                  "type": "div",
+                  "props": { "className": "flex items-center gap-3" },
+                  "children": [
+                    { "id": "prev-month-btn", "type": "Button", "text": "Prev", "icon": "ChevronLeft", "props": { "variant": "outline", "size": "sm" } },
+                    { "id": "today-btn", "type": "Button", "text": "Today", "props": { "variant": "outline", "size": "sm" } },
+                    { "id": "next-month-btn", "type": "Button", "text": "Next", "icon": "ChevronRight", "props": { "variant": "outline", "size": "sm" } },
+                    { "id": "month-label", "type": "text", "element": "h2", "dataBinding": "calendar.currentMonth", "props": { "className": "text-lg font-semibold" } }
+                  ]
+                },
+                {
+                  "id": "monthly-stats",
+                  "type": "div",
+                  "props": { "className": "grid grid-cols-5 gap-3" },
+                  "children": [
+                    { "id": "stat-confirmed", "type": "Card", "props": { "className": "p-3 text-center" }, "children": [
+                      { "id": "stat-confirmed-label", "type": "text", "element": "p", "content": "Confirmed", "props": { "className": "text-sm" } },
+                      { "id": "stat-confirmed-value", "type": "text", "element": "h3", "dataBinding": "calendar.confirmed", "props": { "className": "text-xl font-bold" } }
+                    ]},
+                    { "id": "stat-cancelled", "type": "Card", "props": { "className": "p-3 text-center" }, "children": [
+                      { "id": "stat-cancelled-label", "type": "text", "element": "p", "content": "Cancelled", "props": { "className": "text-sm" } },
+                      { "id": "stat-cancelled-value", "type": "text", "element": "h3", "dataBinding": "calendar.cancelled", "props": { "className": "text-xl font-bold" } }
+                    ]},
+                    { "id": "stat-nights", "type": "Card", "props": { "className": "p-3 text-center" }, "children": [
+                      { "id": "stat-nights-label", "type": "text", "element": "p", "content": "Room Nights", "props": { "className": "text-sm" } },
+                      { "id": "stat-nights-value", "type": "text", "element": "h3", "dataBinding": "calendar.roomNights", "props": { "className": "text-xl font-bold" } }
+                    ]},
+                    { "id": "stat-cost", "type": "Card", "props": { "className": "p-3 text-center" }, "children": [
+                      { "id": "stat-cost-label", "type": "text", "element": "p", "content": "Net Cost", "props": { "className": "text-sm" } },
+                      { "id": "stat-cost-value", "type": "text", "element": "h3", "dataBinding": "calendar.netCost", "props": { "className": "text-xl font-bold" } }
+                    ]},
+                    { "id": "stat-unpaid", "type": "Card", "props": { "className": "p-3 text-center" }, "children": [
+                      { "id": "stat-unpaid-label", "type": "text", "element": "p", "content": "Unpaid", "props": { "className": "text-sm" } },
+                      { "id": "stat-unpaid-value", "type": "text", "element": "h3", "dataBinding": "calendar.unpaid", "props": { "className": "text-xl font-bold" } }
+                    ]}
+                  ]
+                },
+                {
+                  "id": "calendar-grid",
+                  "type": "div",
+                  "props": { "className": "grid grid-cols-7 gap-1", "note": "Monthly calendar grid with color-coded event badges. Blue=Check-in, Yellow=Check-out, Green=Stay, Red=Cancelled, Pink=Cancel Deadline. Max 3 events per cell, +N more indicator." },
+                  "dataBinding": "calendar.days"
+                },
+                {
+                  "id": "upcoming-checkins",
+                  "type": "Card",
+                  "props": { "className": "p-4 mt-4" },
+                  "children": [
+                    { "id": "upcoming-title", "type": "text", "element": "h3", "content": "Upcoming Check-ins", "props": { "className": "font-semibold mb-2" } },
+                    {
+                      "id": "upcoming-table",
+                      "type": "Table",
+                      "columns": [
+                        { "key": "dDay", "header": "D-Day", "cell": { "type": "Badge" } },
+                        { "key": "hotelName", "header": "Hotel" },
+                        { "key": "guestName", "header": "Guest" },
+                        { "key": "checkIn", "header": "Check-in" },
+                        { "key": "roomType", "header": "Room" }
+                      ],
+                      "dataBinding": "calendar.upcomingCheckins"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "support-chat-tab",
+              "type": "div",
+              "props": { "value": "chat", "label": "Support Chat", "className": "flex h-[600px]" },
+              "children": [
+                {
+                  "id": "chat-list",
+                  "type": "div",
+                  "props": { "className": "w-64 border-r overflow-auto" },
+                  "dataBinding": "chatRooms",
+                  "children": [
+                    {
+                      "id": "chat-room-template",
+                      "type": "div",
+                      "props": { "className": "p-3 border-b cursor-pointer hover:bg-muted" },
+                      "children": [
+                        { "id": "chat-room-title", "type": "text", "element": "p", "props": { "className": "font-medium text-sm" } },
+                        { "id": "chat-room-preview", "type": "text", "element": "p", "props": { "className": "text-xs text-muted-foreground truncate" } }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "id": "chat-area",
+                  "type": "div",
+                  "props": { "className": "flex-1 flex flex-col" },
+                  "children": [
+                    { "id": "chat-messages", "type": "ScrollArea", "props": { "className": "flex-1 p-4" }, "dataBinding": "chatMessages" },
+                    {
+                      "id": "chat-input-bar",
+                      "type": "div",
+                      "props": { "className": "flex items-center gap-2 p-3 border-t" },
+                      "children": [
+                        { "id": "attach-btn", "type": "Button", "icon": "Paperclip", "props": { "variant": "ghost", "size": "icon" }, "action": { "type": "custom", "target": "attach-file" } },
+                        { "id": "message-input", "type": "Input", "props": { "placeholder": "Type a message...", "className": "flex-1" } },
+                        { "id": "send-btn", "type": "Button", "icon": "Send", "props": { "size": "icon" }, "action": { "type": "submit", "target": "send-message" } }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "interactions": [
+    {
+      "id": "open-booking-detail",
+      "trigger": { "component": "booking-table", "event": "row-click" },
+      "behavior": "dialog",
+      "dialog": {
+        "type": "Dialog",
+        "title": "Booking Detail"
+      }
+    }
+  ],
+  "dataShape": {
+    "bookings": {
+      "type": "array",
+      "item": {
+        "id": "UUID",
+        "bookingDate": "ISO-8601",
+        "ellisCode": "string",
+        "bookingStatus": "enum(Confirmed,Cancelled,Pending,No-show,Completed)",
+        "paymentStatus": "enum(Not Paid,Partially Paid,Fully Paid,Refunded,Partially Refunded,Pending)",
+        "hotelName": "string",
+        "cancelDeadline": "ISO-8601",
+        "checkIn": "ISO-8601",
+        "nights": "number",
+        "roomType": "string",
+        "roomCount": "number",
+        "traveler": "string",
+        "currency": "string",
+        "sumAmount": "number",
+        "invoiceNo": "string",
+        "dispute": "string"
+      }
+    },
+    "calendar": {
+      "type": "object",
+      "fields": {
+        "currentMonth": "string",
+        "confirmed": "number",
+        "cancelled": "number",
+        "roomNights": "number",
+        "netCost": "number",
+        "unpaid": "number"
+      }
+    }
+  },
+  "errorHandling": []
+}

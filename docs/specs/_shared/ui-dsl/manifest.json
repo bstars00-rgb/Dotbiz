@@ -1,0 +1,22 @@
+{
+  "feature": "_shared",
+  "schemaVersion": "1.0",
+  "generatedAt": "2026-03-28T00:00:00.000Z",
+  "sourceSpec": "docs/specs/_shared/en/",
+  "screens": [
+    {
+      "id": "main-layout",
+      "file": "screen-main-layout.json",
+      "title": "Main Layout",
+      "entryPoint": true
+    }
+  ],
+  "navigation": [],
+  "dataEntities": [],
+  "layouts": [
+    {
+      "id": "main-layout",
+      "children": []
+    }
+  ]
+}

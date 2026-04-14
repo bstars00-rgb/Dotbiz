@@ -1,0 +1,49 @@
+{
+  "feature": "dotbiz",
+  "status": "finalized",
+  "workingLanguage": "ko",
+  "currentRound": 2,
+  "rounds": [
+    {
+      "round": 1,
+      "plannerScore": 7,
+      "testerScore": 4,
+      "issuesFound": 25,
+      "issuesResolved": 25,
+      "date": "2026-03-28"
+    },
+    {
+      "round": 2,
+      "plannerScore": 8,
+      "testerScore": 7,
+      "issuesFound": 15,
+      "issuesResolved": 8,
+      "date": "2026-03-28"
+    }
+  ],
+  "translations": {
+    "en": { "synced": true, "lastSyncedAt": "2026-03-28T12:00:00Z" },
+    "vi": { "synced": true, "lastSyncedAt": "2026-03-28T12:00:00Z" }
+  },
+  "design": {
+    "status": "completed",
+    "stages": {
+      "dsl": {
+        "status": "completed",
+        "screenCount": 17,
+        "generatedAt": "2026-03-28T13:00:00Z"
+      },
+      "stitch": {
+        "status": "skipped",
+        "generatedAt": "2026-03-28T13:00:00Z"
+      },
+      "prototype": {
+        "status": "completed",
+        "path": "prototypes/dotbiz/",
+        "artifact": "prototypes/dotbiz/bundle.html",
+        "bundleStatus": "current",
+        "generatedAt": "2026-03-28T14:30:00Z"
+      }
+    }
+  }
+}

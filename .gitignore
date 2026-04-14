@@ -1,0 +1,5 @@
+node_modules/
+.claude/
+prototypes/dotbiz/node_modules/
+prototypes/dotbiz/dist/
+*.log

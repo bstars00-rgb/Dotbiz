@@ -1,0 +1,214 @@
+{
+  "screen": {
+    "id": "notifications",
+    "title": "Notifications",
+    "purpose": "Notification center with category tabs and settings",
+    "route": "/app/notifications",
+    "layout": "main-layout"
+  },
+  "states": {
+    "loading": {
+      "components": [
+        {
+          "id": "notif-loading",
+          "type": "div",
+          "props": { "className": "p-6 space-y-4" },
+          "children": [
+            { "id": "cards-skel", "type": "div", "props": { "className": "grid grid-cols-4 gap-4" }, "children": [
+              { "id": "card-skel-1", "type": "Skeleton", "props": { "className": "h-20" } },
+              { "id": "card-skel-2", "type": "Skeleton", "props": { "className": "h-20" } },
+              { "id": "card-skel-3", "type": "Skeleton", "props": { "className": "h-20" } },
+              { "id": "card-skel-4", "type": "Skeleton", "props": { "className": "h-20" } }
+            ]},
+            { "id": "tabs-skel", "type": "Skeleton", "props": { "className": "h-10 w-full" } },
+            { "id": "list-skel", "type": "Skeleton", "props": { "className": "h-96 w-full" } }
+          ]
+        }
+      ]
+    },
+    "empty": {
+      "components": [
+        {
+          "id": "notif-empty",
+          "type": "Card",
+          "props": { "className": "max-w-md mx-auto mt-20 p-6 text-center" },
+          "children": [
+            { "id": "empty-title", "type": "text", "element": "h2", "content": "No Notifications" },
+            { "id": "empty-desc", "type": "text", "element": "p", "content": "You are all caught up! No new notifications." }
+          ]
+        }
+      ]
+    },
+    "error": {
+      "components": [
+        {
+          "id": "notif-error",
+          "type": "Alert",
+          "props": { "variant": "destructive" },
+          "children": [
+            { "id": "error-title", "type": "text", "element": "h3", "content": "Notification Error" },
+            { "id": "error-message", "type": "text", "element": "p", "content": "Failed to load notifications. Please try again." },
+            { "id": "error-retry-btn", "type": "Button", "text": "Retry", "icon": "RefreshCw", "action": { "type": "custom", "target": "reload-notifications" } }
+          ]
+        }
+      ]
+    },
+    "success": {
+      "components": "$ref:componentTree"
+    }
+  },
+  "componentTree": [
+    {
+      "id": "notifications-content",
+      "type": "div",
+      "props": { "className": "p-6 space-y-4" },
+      "children": [
+        { "id": "page-title", "type": "text", "element": "h1", "content": "Notifications", "props": { "className": "text-2xl font-bold" } },
+        {
+          "id": "summary-cards",
+          "type": "div",
+          "props": { "className": "grid grid-cols-4 gap-4" },
+          "children": [
+            { "id": "card-critical", "type": "Card", "props": { "className": "p-4 text-center border-red-200" }, "children": [
+              { "id": "critical-label", "type": "text", "element": "p", "content": "Critical", "props": { "className": "text-sm" } },
+              { "id": "critical-value", "type": "text", "element": "h3", "dataBinding": "summary.critical", "props": { "className": "text-2xl font-bold text-red-600" } }
+            ]},
+            { "id": "card-unread", "type": "Card", "props": { "className": "p-4 text-center" }, "children": [
+              { "id": "unread-label", "type": "text", "element": "p", "content": "Unread", "props": { "className": "text-sm" } },
+              { "id": "unread-value", "type": "text", "element": "h3", "dataBinding": "summary.unread", "props": { "className": "text-2xl font-bold" } }
+            ]},
+            { "id": "card-deadlines", "type": "Card", "props": { "className": "p-4 text-center" }, "children": [
+              { "id": "deadlines-label", "type": "text", "element": "p", "content": "Deadlines", "props": { "className": "text-sm" } },
+              { "id": "deadlines-value", "type": "text", "element": "h3", "dataBinding": "summary.deadlines", "props": { "className": "text-2xl font-bold" } }
+            ]},
+            { "id": "card-payments", "type": "Card", "props": { "className": "p-4 text-center" }, "children": [
+              { "id": "payments-label", "type": "text", "element": "p", "content": "Payments", "props": { "className": "text-sm" } },
+              { "id": "payments-value", "type": "text", "element": "h3", "dataBinding": "summary.payments", "props": { "className": "text-2xl font-bold" } }
+            ]}
+          ]
+        },
+        {
+          "id": "notification-tabs",
+          "type": "Tabs",
+          "props": { "defaultValue": "all" },
+          "children": [
+            {
+              "id": "all-tab",
+              "type": "div",
+              "props": { "value": "all", "label": "All" }
+            },
+            { "id": "unread-tab", "type": "div", "props": { "value": "unread", "label": "Unread" } },
+            { "id": "deadlines-tab", "type": "div", "props": { "value": "deadlines", "label": "Deadlines" } },
+            { "id": "payment-tab", "type": "div", "props": { "value": "payment", "label": "Payment" } },
+            { "id": "checkin-tab", "type": "div", "props": { "value": "checkin", "label": "Check-in" } },
+            { "id": "bookings-tab", "type": "div", "props": { "value": "bookings", "label": "Bookings" } },
+            { "id": "cancelled-tab", "type": "div", "props": { "value": "cancelled", "label": "Cancelled" } },
+            { "id": "system-tab", "type": "div", "props": { "value": "system", "label": "System" } }
+          ]
+        },
+        {
+          "id": "mark-all-read-btn",
+          "type": "Button",
+          "text": "Mark All as Read",
+          "icon": "CheckCheck",
+          "props": { "variant": "outline", "size": "sm" },
+          "action": { "type": "custom", "target": "mark-all-read" }
+        },
+        {
+          "id": "notification-list",
+          "type": "div",
+          "props": { "className": "space-y-2" },
+          "dataBinding": "notifications",
+          "children": [
+            {
+              "id": "notification-item-template",
+              "type": "Card",
+              "props": { "className": "p-4 flex items-start gap-3 cursor-pointer hover:bg-muted/50 transition-colors" },
+              "action": { "type": "custom", "target": "open-notification" },
+              "children": [
+                { "id": "notif-priority", "type": "Badge", "dataBinding": "notification.priority", "props": { "note": "Critical=red, High=yellow, Medium=green, Low=gray" } },
+                {
+                  "id": "notif-content",
+                  "type": "div",
+                  "props": { "className": "flex-1" },
+                  "children": [
+                    { "id": "notif-title", "type": "text", "element": "p", "dataBinding": "notification.title", "props": { "className": "font-medium" } },
+                    { "id": "notif-desc", "type": "text", "element": "p", "dataBinding": "notification.description", "props": { "className": "text-sm text-muted-foreground" } }
+                  ]
+                },
+                {
+                  "id": "notif-meta",
+                  "type": "div",
+                  "props": { "className": "text-right shrink-0" },
+                  "children": [
+                    { "id": "notif-time", "type": "text", "element": "span", "dataBinding": "notification.time", "props": { "className": "text-xs text-muted-foreground" } },
+                    { "id": "notif-read-status", "type": "div", "props": { "className": "w-2 h-2 rounded-full bg-blue-500 mt-1 ml-auto", "note": "Unread indicator dot" } }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "notification-settings",
+          "type": "Card",
+          "props": { "className": "p-4 mt-6" },
+          "children": [
+            { "id": "settings-title", "type": "text", "element": "h3", "content": "Notification Settings", "props": { "className": "font-semibold mb-4" } },
+            {
+              "id": "settings-list",
+              "type": "div",
+              "props": { "className": "space-y-3" },
+              "children": [
+                { "id": "toggle-deadline", "type": "Switch", "props": { "label": "Cancel Deadline Reminders" } },
+                { "id": "toggle-checkin", "type": "Switch", "props": { "label": "Check-in Reminders" } },
+                { "id": "toggle-payment", "type": "Switch", "props": { "label": "Payment Notifications" } },
+                { "id": "toggle-booking", "type": "Switch", "props": { "label": "Booking Notifications" } },
+                { "id": "toggle-email", "type": "Switch", "props": { "label": "Email Notifications" } },
+                { "id": "toggle-promo", "type": "Switch", "props": { "label": "Promotional Notifications" } },
+                { "id": "toggle-system", "type": "Switch", "props": { "label": "System Notifications" } },
+                { "id": "toggle-quiet", "type": "Switch", "props": { "label": "Quiet Hours" } }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "interactions": [
+    {
+      "id": "mark-all-read-toast",
+      "trigger": { "component": "mark-all-read-btn", "event": "click" },
+      "behavior": "toast",
+      "toast": {
+        "title": "All Read",
+        "description": "All notifications have been marked as read."
+      }
+    }
+  ],
+  "dataShape": {
+    "summary": {
+      "type": "object",
+      "fields": {
+        "critical": "number",
+        "unread": "number",
+        "deadlines": "number",
+        "payments": "number"
+      }
+    },
+    "notifications": {
+      "type": "array",
+      "item": {
+        "id": "UUID",
+        "title": "string",
+        "description": "string",
+        "priority": "enum(Critical,High,Medium,Low)",
+        "category": "enum(Deadlines,Payment,CheckIn,Bookings,Cancelled,System)",
+        "time": "ISO-8601",
+        "isRead": "boolean",
+        "relatedBookingId": "UUID"
+      }
+    }
+  },
+  "errorHandling": []
+}

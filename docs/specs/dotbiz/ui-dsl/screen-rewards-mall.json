@@ -1,0 +1,245 @@
+{
+  "screen": {
+    "id": "rewards-mall",
+    "title": "Rewards Mall",
+    "purpose": "Redeem products with OP Points, view history, and transfer points",
+    "route": "/app/rewards",
+    "layout": "main-layout"
+  },
+  "states": {
+    "loading": {
+      "components": [
+        {
+          "id": "rewards-loading",
+          "type": "div",
+          "props": { "className": "p-6 space-y-4" },
+          "children": [
+            { "id": "balance-skel", "type": "Skeleton", "props": { "className": "h-20 w-full" } },
+            { "id": "tabs-skel", "type": "Skeleton", "props": { "className": "h-10 w-full" } },
+            { "id": "grid-skel", "type": "div", "props": { "className": "grid grid-cols-4 gap-4" }, "children": [
+              { "id": "prod-skel-1", "type": "Skeleton", "props": { "className": "h-48" } },
+              { "id": "prod-skel-2", "type": "Skeleton", "props": { "className": "h-48" } },
+              { "id": "prod-skel-3", "type": "Skeleton", "props": { "className": "h-48" } },
+              { "id": "prod-skel-4", "type": "Skeleton", "props": { "className": "h-48" } }
+            ]}
+          ]
+        }
+      ]
+    },
+    "empty": {
+      "components": [
+        {
+          "id": "rewards-empty",
+          "type": "Card",
+          "props": { "className": "max-w-md mx-auto mt-20 p-6 text-center" },
+          "children": [
+            { "id": "empty-title", "type": "text", "element": "h2", "content": "No Products Available" },
+            { "id": "empty-desc", "type": "text", "element": "p", "content": "Check back later for rewards." }
+          ]
+        }
+      ]
+    },
+    "error": {
+      "components": [
+        {
+          "id": "rewards-error",
+          "type": "Alert",
+          "props": { "variant": "destructive" },
+          "children": [
+            { "id": "error-title", "type": "text", "element": "h3", "content": "Rewards Error" },
+            { "id": "error-message", "type": "text", "element": "p", "content": "Failed to load rewards. Please try again." },
+            { "id": "error-retry-btn", "type": "Button", "text": "Retry", "icon": "RefreshCw", "action": { "type": "custom", "target": "reload-rewards" } }
+          ]
+        }
+      ]
+    },
+    "success": {
+      "components": "$ref:componentTree"
+    }
+  },
+  "componentTree": [
+    {
+      "id": "rewards-content",
+      "type": "div",
+      "props": { "className": "p-6 space-y-6" },
+      "children": [
+        { "id": "page-title", "type": "text", "element": "h1", "content": "Rewards Mall", "props": { "className": "text-2xl font-bold" } },
+        {
+          "id": "points-balance",
+          "type": "Card",
+          "props": { "className": "p-4 flex items-center gap-6" },
+          "children": [
+            { "id": "balance-label", "type": "text", "element": "span", "content": "Current Points:", "props": { "className": "text-muted-foreground" } },
+            { "id": "balance-value", "type": "text", "element": "span", "dataBinding": "points.currentBalance", "props": { "className": "text-2xl font-bold" } },
+            { "id": "used-label", "type": "text", "element": "span", "content": "Used This Month:", "props": { "className": "text-muted-foreground ml-6" } },
+            { "id": "used-value", "type": "text", "element": "span", "dataBinding": "points.usedThisMonth", "props": { "className": "font-semibold" } }
+          ]
+        },
+        {
+          "id": "category-tabs",
+          "type": "Tabs",
+          "props": { "defaultValue": "all" },
+          "children": [
+            { "id": "tab-all", "type": "div", "props": { "value": "all", "label": "All" } },
+            { "id": "tab-gift", "type": "div", "props": { "value": "gift-cards", "label": "Gift Cards" } },
+            { "id": "tab-travel", "type": "div", "props": { "value": "travel", "label": "Travel" } },
+            { "id": "tab-electronics", "type": "div", "props": { "value": "electronics", "label": "Electronics" } },
+            { "id": "tab-lifestyle", "type": "div", "props": { "value": "lifestyle", "label": "Lifestyle" } },
+            { "id": "tab-dining", "type": "div", "props": { "value": "dining", "label": "Dining" } },
+            { "id": "tab-entertainment", "type": "div", "props": { "value": "entertainment", "label": "Entertainment" } }
+          ]
+        },
+        {
+          "id": "product-grid",
+          "type": "div",
+          "props": { "className": "grid grid-cols-4 gap-4" },
+          "dataBinding": "products",
+          "children": [
+            {
+              "id": "product-card-template",
+              "type": "Card",
+              "props": { "className": "p-0 overflow-hidden" },
+              "children": [
+                { "id": "product-image", "type": "div", "props": { "className": "h-40 bg-muted", "note": "Product image" } },
+                {
+                  "id": "product-info",
+                  "type": "div",
+                  "props": { "className": "p-4" },
+                  "children": [
+                    { "id": "product-name", "type": "text", "element": "h3", "dataBinding": "product.name", "props": { "className": "font-medium" } },
+                    { "id": "product-points", "type": "text", "element": "p", "dataBinding": "product.pointsCost", "props": { "className": "text-lg font-bold mt-1" } },
+                    { "id": "redeem-btn", "type": "Button", "text": "Redeem", "icon": "Gift", "props": { "className": "w-full mt-2" }, "action": { "type": "dialog", "target": "redeem-confirmation" } }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "points-history",
+          "type": "Card",
+          "props": { "className": "p-6" },
+          "children": [
+            { "id": "history-title", "type": "text", "element": "h2", "content": "Points History", "props": { "className": "text-lg font-semibold mb-4" } },
+            {
+              "id": "history-table",
+              "type": "Table",
+              "columns": [
+                { "key": "date", "header": "Date", "sortable": true },
+                { "key": "type", "header": "Type", "cell": { "type": "Badge" } },
+                { "key": "description", "header": "Description" },
+                { "key": "amount", "header": "Points", "sortable": true },
+                { "key": "balance", "header": "Balance" }
+              ],
+              "dataBinding": "pointsHistory"
+            }
+          ]
+        },
+        {
+          "id": "points-transfer",
+          "type": "Card",
+          "props": { "className": "p-6" },
+          "children": [
+            { "id": "transfer-title", "type": "text", "element": "h2", "content": "Transfer Points", "props": { "className": "text-lg font-semibold mb-4" } },
+            {
+              "id": "transfer-form",
+              "type": "Form",
+              "props": { "className": "grid grid-cols-2 gap-4" },
+              "children": [
+                { "id": "target-op-select", "type": "Select", "props": { "label": "Recipient OP", "placeholder": "Select OP" }, "dataBinding": "companyOPs" },
+                { "id": "transfer-amount", "type": "Input", "props": { "label": "Points Amount", "type": "number", "placeholder": "Enter amount" }, "validation": { "required": true, "rules": [{ "type": "min", "value": 1, "message": "Minimum transfer is 1 point" }] } },
+                { "id": "transfer-reason", "type": "Input", "props": { "label": "Reason", "placeholder": "Transfer reason (optional)" } },
+                { "id": "transfer-btn", "type": "Button", "text": "Transfer", "icon": "ArrowRightLeft", "action": { "type": "dialog", "target": "transfer-confirmation" } }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "interactions": [
+    {
+      "id": "redeem-confirmation",
+      "trigger": { "component": "redeem-btn", "event": "click" },
+      "behavior": "dialog",
+      "dialog": {
+        "type": "AlertDialog",
+        "title": "Confirm Redemption",
+        "description": "Are you sure you want to redeem this product? Points will be deducted from your balance."
+      }
+    },
+    {
+      "id": "transfer-confirmation",
+      "trigger": { "component": "transfer-btn", "event": "click" },
+      "behavior": "dialog",
+      "dialog": {
+        "type": "AlertDialog",
+        "title": "Confirm Transfer",
+        "description": "Are you sure you want to transfer these points? This action cannot be undone."
+      }
+    },
+    {
+      "id": "redeem-success",
+      "trigger": { "component": "redeem-btn", "event": "confirmed" },
+      "behavior": "toast",
+      "toast": {
+        "title": "Product Redeemed",
+        "description": "Points have been deducted from your balance."
+      }
+    },
+    {
+      "id": "transfer-success",
+      "trigger": { "component": "transfer-btn", "event": "confirmed" },
+      "behavior": "toast",
+      "toast": {
+        "title": "Points Transferred",
+        "description": "Points have been transferred successfully."
+      }
+    }
+  ],
+  "dataShape": {
+    "points": {
+      "type": "object",
+      "fields": {
+        "currentBalance": "number",
+        "usedThisMonth": "number"
+      }
+    },
+    "products": {
+      "type": "array",
+      "item": {
+        "id": "UUID",
+        "name": "string",
+        "category": "enum(GiftCards,Travel,Electronics,Lifestyle,Dining,Entertainment)",
+        "pointsCost": "number",
+        "image": "string"
+      }
+    },
+    "pointsHistory": {
+      "type": "array",
+      "item": {
+        "date": "ISO-8601",
+        "type": "enum(Earned,Used,Transfer)",
+        "description": "string",
+        "amount": "number",
+        "balance": "number"
+      }
+    }
+  },
+  "errorHandling": [
+    {
+      "code": "ERR-PTS-001",
+      "condition": "Insufficient points balance",
+      "message": "Insufficient points. Current balance: ${points}P",
+      "resolution": { "type": "dismiss", "label": "Check balance" },
+      "triggerComponent": "redeem-btn"
+    },
+    {
+      "code": "ERR-PTS-002",
+      "condition": "Transfer attempt to OP outside the same company",
+      "message": "Points can only be transferred to OPs within the same company.",
+      "resolution": { "type": "retry", "label": "Re-select recipient" },
+      "triggerComponent": "transfer-btn"
+    }
+  ]
+}

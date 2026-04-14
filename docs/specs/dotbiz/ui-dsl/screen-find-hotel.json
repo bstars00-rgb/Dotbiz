@@ -1,0 +1,225 @@
+{
+  "screen": {
+    "id": "find-hotel",
+    "title": "Find Hotel",
+    "purpose": "Hotel search entry point and favorites",
+    "route": "/app/find-hotel",
+    "layout": "main-layout"
+  },
+  "states": {
+    "loading": {
+      "components": [
+        {
+          "id": "find-loading",
+          "type": "div",
+          "props": { "className": "p-6 space-y-6" },
+          "children": [
+            { "id": "search-form-skel", "type": "Skeleton", "props": { "className": "h-64 w-full" } },
+            { "id": "favorites-skel", "type": "Skeleton", "props": { "className": "h-48 w-full" } }
+          ]
+        }
+      ]
+    },
+    "empty": {
+      "components": [
+        {
+          "id": "find-empty",
+          "type": "Card",
+          "props": { "className": "max-w-md mx-auto mt-20 p-6 text-center" },
+          "children": [
+            { "id": "empty-title", "type": "text", "element": "h2", "content": "Find Your Perfect Hotel" },
+            { "id": "empty-desc", "type": "text", "element": "p", "content": "Enter a destination and dates to start searching." }
+          ]
+        }
+      ]
+    },
+    "error": {
+      "components": [
+        {
+          "id": "find-error",
+          "type": "Alert",
+          "props": { "variant": "destructive" },
+          "children": [
+            { "id": "error-title", "type": "text", "element": "h3", "content": "Search Error" },
+            { "id": "error-message", "type": "text", "element": "p", "content": "Failed to load search form. Please try again." },
+            { "id": "error-retry-btn", "type": "Button", "text": "Retry", "icon": "RefreshCw", "action": { "type": "custom", "target": "reload-page" } }
+          ]
+        }
+      ]
+    },
+    "success": {
+      "components": "$ref:componentTree"
+    }
+  },
+  "componentTree": [
+    {
+      "id": "find-hotel-content",
+      "type": "div",
+      "props": { "className": "p-6 space-y-6" },
+      "children": [
+        {
+          "id": "page-title",
+          "type": "text",
+          "element": "h1",
+          "content": "Find Hotel",
+          "props": { "className": "text-2xl font-bold" }
+        },
+        {
+          "id": "search-form",
+          "type": "Card",
+          "props": { "className": "p-6" },
+          "children": [
+            {
+              "id": "search-fields",
+              "type": "Form",
+              "props": { "className": "space-y-4" },
+              "children": [
+                {
+                  "id": "destination-input",
+                  "type": "Input",
+                  "props": { "label": "Destination", "placeholder": "City, landmark, or hotel name", "note": "Autocomplete for major Asian cities" },
+                  "icon": "MapPin",
+                  "validation": { "required": true, "rules": [{ "type": "required", "message": "Please enter a destination" }] }
+                },
+                {
+                  "id": "date-row",
+                  "type": "div",
+                  "props": { "className": "grid grid-cols-3 gap-4" },
+                  "children": [
+                    {
+                      "id": "checkin-picker",
+                      "type": "DatePicker",
+                      "props": { "label": "Check-in" },
+                      "icon": "Calendar",
+                      "validation": { "required": true, "rules": [{ "type": "custom", "value": "minDate:today", "message": "Check-in date must be today or later" }] }
+                    },
+                    {
+                      "id": "checkout-picker",
+                      "type": "DatePicker",
+                      "props": { "label": "Check-out" },
+                      "icon": "Calendar",
+                      "validation": { "required": true, "rules": [{ "type": "custom", "value": "afterField:checkin-picker", "message": "Check-out date must be after check-in" }] }
+                    },
+                    {
+                      "id": "nights-display",
+                      "type": "text",
+                      "element": "span",
+                      "content": "0 Nights",
+                      "props": { "className": "self-end py-2 text-lg font-semibold" },
+                      "dataBinding": "searchParams.nights"
+                    }
+                  ]
+                },
+                {
+                  "id": "guest-row",
+                  "type": "div",
+                  "props": { "className": "grid grid-cols-4 gap-4" },
+                  "children": [
+                    {
+                      "id": "rooms-select",
+                      "type": "Select",
+                      "props": { "label": "Rooms", "options": ["1","2","3","4","5","6","7","8","9","10"], "defaultValue": "1" },
+                      "validation": { "required": true, "rules": [{ "type": "min", "value": 1, "message": "At least 1 room is required" }, { "type": "max", "value": 10, "message": "Maximum 10 rooms" }] }
+                    },
+                    {
+                      "id": "adults-select",
+                      "type": "Select",
+                      "props": { "label": "Adults", "options": ["1","2","3","4","5","6","7","8","9","10"], "defaultValue": "2" },
+                      "validation": { "required": true, "rules": [{ "type": "min", "value": 1, "message": "At least 1 adult is required" }] }
+                    },
+                    {
+                      "id": "children-select",
+                      "type": "Select",
+                      "props": { "label": "Children", "options": ["0","1","2","3","4","5","6","7","8","9","10"], "defaultValue": "0" }
+                    },
+                    {
+                      "id": "nationality-select",
+                      "type": "Select",
+                      "props": { "label": "Nationality" },
+                      "icon": "Globe"
+                    }
+                  ]
+                },
+                {
+                  "id": "child-ages",
+                  "type": "div",
+                  "props": { "className": "flex gap-2", "note": "Dynamically generated based on children count" },
+                  "dataBinding": "searchParams.childAges"
+                },
+                {
+                  "id": "search-btn",
+                  "type": "Button",
+                  "text": "Search Hotels",
+                  "icon": "Search",
+                  "props": { "className": "w-full mt-4", "size": "lg" },
+                  "action": { "type": "navigate", "target": "/app/search-results" }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "favorites-section",
+          "type": "div",
+          "children": [
+            { "id": "fav-title", "type": "text", "element": "h2", "content": "Favorite Hotels", "props": { "className": "text-xl font-semibold mb-4" } },
+            {
+              "id": "favorite-grid",
+              "type": "div",
+              "props": { "className": "grid grid-cols-3 gap-4" },
+              "dataBinding": "favoriteHotels",
+              "children": [
+                {
+                  "id": "favorite-card-template",
+                  "type": "Card",
+                  "props": { "className": "cursor-pointer hover:shadow-md transition-shadow" },
+                  "action": { "type": "navigate", "target": "/app/hotel/{id}" },
+                  "children": [
+                    { "id": "fav-image", "type": "div", "props": { "className": "h-40 bg-muted", "note": "Hotel image" } },
+                    { "id": "fav-name", "type": "text", "element": "h3", "content": "Hotel Name", "dataBinding": "hotel.name" },
+                    { "id": "fav-rating", "type": "Badge", "dataBinding": "hotel.starRating" }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "interactions": [],
+  "dataShape": {
+    "searchParams": {
+      "type": "object",
+      "fields": {
+        "destination": "string",
+        "checkIn": "ISO-8601",
+        "checkOut": "ISO-8601",
+        "nights": "number",
+        "rooms": "number",
+        "adults": "number",
+        "children": "number",
+        "childAges": "string",
+        "nationality": "string"
+      }
+    },
+    "favoriteHotels": {
+      "type": "array",
+      "item": {
+        "id": "UUID",
+        "name": "string",
+        "starRating": "number",
+        "image": "string"
+      }
+    }
+  },
+  "errorHandling": [
+    {
+      "code": "ERR-SEARCH-002",
+      "condition": "Required search fields not filled",
+      "message": "Please enter a destination and dates.",
+      "resolution": { "type": "retry", "label": "Fill required fields" },
+      "triggerComponent": "search-btn"
+    }
+  ]
+}

@@ -1,0 +1,266 @@
+{
+  "screen": {
+    "id": "search-results",
+    "title": "Search Results",
+    "purpose": "Hotel search results with List View and Map View",
+    "route": "/app/search-results",
+    "layout": "main-layout"
+  },
+  "states": {
+    "loading": {
+      "components": [
+        {
+          "id": "results-loading",
+          "type": "div",
+          "props": { "className": "p-6 space-y-4" },
+          "children": [
+            { "id": "search-bar-skel", "type": "Skeleton", "props": { "className": "h-14 w-full" } },
+            { "id": "toggle-skel", "type": "Skeleton", "props": { "className": "h-10 w-60" } },
+            {
+              "id": "results-grid-skel",
+              "type": "div",
+              "props": { "className": "grid grid-cols-4 gap-4" },
+              "children": [
+                { "id": "filter-skel", "type": "Skeleton", "props": { "className": "h-96 col-span-1" } },
+                { "id": "cards-skel", "type": "Skeleton", "props": { "className": "h-96 col-span-3" } }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "empty": {
+      "components": [
+        {
+          "id": "results-empty",
+          "type": "Card",
+          "props": { "className": "max-w-md mx-auto mt-20 p-6 text-center" },
+          "children": [
+            { "id": "empty-title", "type": "text", "element": "h2", "content": "No Hotels Found" },
+            { "id": "empty-desc", "type": "text", "element": "p", "content": "No hotels match your search criteria. Please try different conditions." },
+            { "id": "empty-action", "type": "Button", "text": "Modify Search", "icon": "Search", "action": { "type": "navigate", "target": "/app/find-hotel" } }
+          ]
+        }
+      ]
+    },
+    "error": {
+      "components": [
+        {
+          "id": "results-error",
+          "type": "Alert",
+          "props": { "variant": "destructive" },
+          "children": [
+            { "id": "error-title", "type": "text", "element": "h3", "content": "Search Error" },
+            { "id": "error-message", "type": "text", "element": "p", "content": "Failed to load search results. Please try again." },
+            { "id": "error-retry-btn", "type": "Button", "text": "Retry", "icon": "RefreshCw", "action": { "type": "custom", "target": "retry-search" } }
+          ]
+        }
+      ]
+    },
+    "success": {
+      "components": "$ref:componentTree"
+    }
+  },
+  "componentTree": [
+    {
+      "id": "search-results-content",
+      "type": "div",
+      "props": { "className": "p-6 space-y-4" },
+      "children": [
+        {
+          "id": "compact-search-bar",
+          "type": "Card",
+          "props": { "className": "p-3 flex items-center gap-4" },
+          "children": [
+            { "id": "compact-destination", "type": "text", "element": "span", "dataBinding": "searchParams.destination" },
+            { "id": "compact-dates", "type": "text", "element": "span", "dataBinding": "searchParams.dateRange" },
+            { "id": "compact-rooms", "type": "text", "element": "span", "dataBinding": "searchParams.roomsSummary" },
+            { "id": "modify-btn", "type": "Button", "text": "Modify", "icon": "Pencil", "props": { "variant": "outline", "size": "sm" }, "action": { "type": "navigate", "target": "/app/find-hotel" } }
+          ]
+        },
+        {
+          "id": "toolbar",
+          "type": "div",
+          "props": { "className": "flex items-center justify-between" },
+          "children": [
+            {
+              "id": "view-toggle",
+              "type": "div",
+              "props": { "className": "flex gap-2" },
+              "children": [
+                { "id": "list-view-btn", "type": "Button", "text": "List", "icon": "List", "props": { "variant": "outline" }, "action": { "type": "toggle", "target": "list-view" } },
+                { "id": "map-view-btn", "type": "Button", "text": "Map", "icon": "Map", "props": { "variant": "outline" }, "action": { "type": "toggle", "target": "map-view" } }
+              ]
+            },
+            {
+              "id": "sort-and-count",
+              "type": "div",
+              "props": { "className": "flex items-center gap-4" },
+              "children": [
+                { "id": "result-count", "type": "text", "element": "span", "content": "0 hotels found", "dataBinding": "results.count" },
+                {
+                  "id": "sort-dropdown",
+                  "type": "Select",
+                  "props": { "options": ["Recommended", "Price: Low to High", "Price: High to Low", "Rating"], "defaultValue": "Recommended" },
+                  "action": { "type": "custom", "target": "sort-results" }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "results-body",
+          "type": "div",
+          "props": { "className": "flex gap-4" },
+          "children": [
+            {
+              "id": "filter-sidebar",
+              "type": "Card",
+              "props": { "className": "w-64 p-4 shrink-0 space-y-4" },
+              "children": [
+                { "id": "filter-title", "type": "text", "element": "h3", "content": "Filters", "icon": "Filter", "props": { "className": "font-semibold" } },
+                {
+                  "id": "star-rating-filter",
+                  "type": "div",
+                  "children": [
+                    { "id": "star-label", "type": "text", "element": "p", "content": "Star Rating", "props": { "className": "text-sm font-medium mb-1" } },
+                    { "id": "star-5", "type": "Checkbox", "props": { "label": "5 Stars" } },
+                    { "id": "star-4", "type": "Checkbox", "props": { "label": "4 Stars" } },
+                    { "id": "star-3", "type": "Checkbox", "props": { "label": "3 Stars" } }
+                  ]
+                },
+                {
+                  "id": "price-range-filter",
+                  "type": "div",
+                  "children": [
+                    { "id": "price-label", "type": "text", "element": "p", "content": "Price Range", "props": { "className": "text-sm font-medium mb-1" } },
+                    { "id": "price-slider", "type": "Input", "props": { "type": "range", "min": 0, "max": 500, "note": "RangeSlider for price filter" } }
+                  ]
+                },
+                {
+                  "id": "area-filter",
+                  "type": "div",
+                  "children": [
+                    { "id": "area-label", "type": "text", "element": "p", "content": "Area", "props": { "className": "text-sm font-medium mb-1" } },
+                    { "id": "area-checkboxes", "type": "div", "props": { "note": "Dynamic area checkboxes based on results" } }
+                  ]
+                },
+                {
+                  "id": "amenity-filter",
+                  "type": "div",
+                  "children": [
+                    { "id": "amenity-label", "type": "text", "element": "p", "content": "Amenities", "props": { "className": "text-sm font-medium mb-1" } },
+                    { "id": "amenity-free-cancel", "type": "Checkbox", "props": { "label": "Free Cancellation" } },
+                    { "id": "amenity-breakfast", "type": "Checkbox", "props": { "label": "Breakfast Included" } },
+                    { "id": "amenity-pool", "type": "Checkbox", "props": { "label": "Pool" } },
+                    { "id": "amenity-wifi", "type": "Checkbox", "props": { "label": "WiFi" } }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "results-list",
+              "type": "div",
+              "props": { "className": "flex-1 space-y-4" },
+              "dataBinding": "hotelResults",
+              "children": [
+                {
+                  "id": "hotel-card-template",
+                  "type": "Card",
+                  "props": { "className": "flex cursor-pointer hover:shadow-md transition-shadow" },
+                  "action": { "type": "navigate", "target": "/app/hotel/{id}" },
+                  "children": [
+                    { "id": "hotel-image", "type": "div", "props": { "className": "w-48 h-40 bg-muted shrink-0", "note": "Hotel image" } },
+                    {
+                      "id": "hotel-info",
+                      "type": "div",
+                      "props": { "className": "flex-1 p-4" },
+                      "children": [
+                        {
+                          "id": "hotel-header",
+                          "type": "div",
+                          "props": { "className": "flex items-start justify-between" },
+                          "children": [
+                            {
+                              "id": "hotel-name-area",
+                              "type": "div",
+                              "children": [
+                                { "id": "hotel-name", "type": "text", "element": "h3", "content": "Hotel Name", "dataBinding": "hotel.name", "props": { "className": "font-semibold" } },
+                                { "id": "hotel-area", "type": "text", "element": "p", "content": "Area", "dataBinding": "hotel.area", "props": { "className": "text-sm text-muted-foreground" } }
+                              ]
+                            },
+                            { "id": "favorite-star", "type": "Button", "icon": "Star", "props": { "variant": "ghost", "size": "icon" }, "action": { "type": "custom", "target": "toggle-favorite" } }
+                          ]
+                        },
+                        {
+                          "id": "hotel-badges",
+                          "type": "div",
+                          "props": { "className": "flex gap-2 mt-2" },
+                          "children": [
+                            { "id": "star-badge", "type": "Badge", "dataBinding": "hotel.starRating" },
+                            { "id": "review-badge", "type": "Badge", "props": { "variant": "secondary" }, "dataBinding": "hotel.reviewScore" },
+                            { "id": "featured-badge", "type": "Badge", "props": { "variant": "default", "note": "Shown if hotel is featured" }, "text": "FEATURED" },
+                            { "id": "free-cancel-badge", "type": "Badge", "props": { "variant": "outline" }, "text": "FREE CANCEL" }
+                          ]
+                        },
+                        {
+                          "id": "hotel-amenities",
+                          "type": "div",
+                          "props": { "className": "flex gap-2 mt-2" },
+                          "dataBinding": "hotel.amenities"
+                        },
+                        {
+                          "id": "hotel-price",
+                          "type": "text",
+                          "element": "p",
+                          "content": "$0",
+                          "dataBinding": "hotel.price",
+                          "props": { "className": "text-xl font-bold text-right mt-2" }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "pagination",
+          "type": "Pagination",
+          "pagination": { "enabled": true, "pageSize": 20 }
+        }
+      ]
+    }
+  ],
+  "interactions": [],
+  "dataShape": {
+    "hotelResults": {
+      "type": "array",
+      "item": {
+        "id": "UUID",
+        "name": "string",
+        "area": "string",
+        "starRating": "number",
+        "reviewScore": "number",
+        "reviewCount": "number",
+        "price": "number",
+        "currency": "string",
+        "image": "string",
+        "amenities": "string",
+        "isFeatured": "boolean",
+        "hasFreeCancellation": "boolean",
+        "isFavorite": "boolean"
+      }
+    }
+  },
+  "errorHandling": [
+    {
+      "code": "ERR-SEARCH-001",
+      "condition": "No search results",
+      "message": "No hotels match your search criteria. Please try different conditions.",
+      "resolution": { "type": "custom", "target": "relax-filters", "label": "Try different conditions" },
+      "triggerComponent": "search-btn"
+    }
+  ]
+}

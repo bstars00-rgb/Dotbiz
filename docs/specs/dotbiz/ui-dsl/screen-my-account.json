@@ -1,0 +1,253 @@
+{
+  "screen": {
+    "id": "my-account",
+    "title": "My Account",
+    "purpose": "User and company information management with payment info and OP management",
+    "route": "/app/my-account",
+    "layout": "main-layout"
+  },
+  "states": {
+    "loading": {
+      "components": [
+        {
+          "id": "account-loading",
+          "type": "div",
+          "props": { "className": "p-6 space-y-4" },
+          "children": [
+            { "id": "personal-skel", "type": "Skeleton", "props": { "className": "h-48 w-full" } },
+            { "id": "company-skel", "type": "Skeleton", "props": { "className": "h-32 w-full" } },
+            { "id": "payment-skel", "type": "Skeleton", "props": { "className": "h-32 w-full" } }
+          ]
+        }
+      ]
+    },
+    "empty": {
+      "components": [
+        {
+          "id": "account-empty",
+          "type": "Card",
+          "props": { "className": "max-w-md mx-auto mt-20 p-6 text-center" },
+          "children": [
+            { "id": "empty-title", "type": "text", "element": "h2", "content": "Account Not Found" },
+            { "id": "empty-desc", "type": "text", "element": "p", "content": "Unable to load account information." }
+          ]
+        }
+      ]
+    },
+    "error": {
+      "components": [
+        {
+          "id": "account-error",
+          "type": "Alert",
+          "props": { "variant": "destructive" },
+          "children": [
+            { "id": "error-title", "type": "text", "element": "h3", "content": "Account Error" },
+            { "id": "error-message", "type": "text", "element": "p", "content": "Failed to load account data. Please try again." },
+            { "id": "error-retry-btn", "type": "Button", "text": "Retry", "icon": "RefreshCw", "action": { "type": "custom", "target": "reload-account" } }
+          ]
+        }
+      ]
+    },
+    "success": {
+      "components": "$ref:componentTree"
+    }
+  },
+  "componentTree": [
+    {
+      "id": "my-account-content",
+      "type": "div",
+      "props": { "className": "p-6 space-y-6 max-w-4xl" },
+      "children": [
+        { "id": "page-title", "type": "text", "element": "h1", "content": "My Account", "props": { "className": "text-2xl font-bold" } },
+        {
+          "id": "personal-info",
+          "type": "Card",
+          "props": { "className": "p-6" },
+          "children": [
+            { "id": "personal-title", "type": "text", "element": "h2", "content": "Personal Information", "props": { "className": "text-lg font-semibold mb-4" } },
+            {
+              "id": "personal-form",
+              "type": "Form",
+              "props": { "className": "grid grid-cols-2 gap-4" },
+              "children": [
+                { "id": "name-input", "type": "Input", "props": { "label": "Full Name" }, "icon": "User", "dataBinding": "user.fullName", "validation": { "required": true, "rules": [] } },
+                { "id": "email-display", "type": "Input", "props": { "label": "Email", "disabled": true }, "icon": "Mail", "dataBinding": "user.email" },
+                { "id": "phone-input", "type": "Input", "props": { "label": "Phone" }, "icon": "Phone", "dataBinding": "user.phone" },
+                { "id": "password-change-btn", "type": "Button", "text": "Change Password", "icon": "Lock", "props": { "variant": "outline" }, "action": { "type": "dialog", "target": "change-password-dialog" } }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "company-info",
+          "type": "Card",
+          "props": { "className": "p-6" },
+          "children": [
+            { "id": "company-title", "type": "text", "element": "h2", "content": "Company Information", "props": { "className": "text-lg font-semibold mb-4" } },
+            { "id": "company-name", "type": "div", "props": { "className": "flex justify-between py-2" }, "children": [
+              { "id": "cn-label", "type": "text", "element": "span", "content": "Company Name", "props": { "className": "text-muted-foreground" } },
+              { "id": "cn-value", "type": "text", "element": "span", "dataBinding": "company.name" }
+            ]},
+            { "id": "business-type", "type": "div", "props": { "className": "flex justify-between py-2" }, "children": [
+              { "id": "bt-label", "type": "text", "element": "span", "content": "Business Type", "props": { "className": "text-muted-foreground" } },
+              { "id": "bt-value", "type": "Badge", "dataBinding": "company.businessType" }
+            ]},
+            { "id": "contract-date", "type": "div", "props": { "className": "flex justify-between py-2" }, "children": [
+              { "id": "cd-label", "type": "text", "element": "span", "content": "Contract Date", "props": { "className": "text-muted-foreground" } },
+              { "id": "cd-value", "type": "text", "element": "span", "dataBinding": "company.contractDate" }
+            ]}
+          ]
+        },
+        {
+          "id": "payment-info-prepaid",
+          "type": "Card",
+          "props": { "className": "p-6" },
+          "visibility": { "condition": "company.businessType === 'Prepaid'" },
+          "children": [
+            { "id": "payment-title-pre", "type": "text", "element": "h2", "content": "Payment Information", "props": { "className": "text-lg font-semibold mb-4" } },
+            {
+              "id": "card-list",
+              "type": "div",
+              "props": { "className": "space-y-2" },
+              "dataBinding": "paymentMethods.cards",
+              "children": [
+                {
+                  "id": "card-item-template",
+                  "type": "Card",
+                  "props": { "className": "p-3 flex items-center justify-between" },
+                  "children": [
+                    { "id": "card-info", "type": "text", "element": "span", "dataBinding": "card.displayName" },
+                    { "id": "card-default-badge", "type": "Badge", "text": "Default", "props": { "variant": "secondary" } }
+                  ]
+                }
+              ]
+            },
+            { "id": "add-card-btn", "type": "Button", "text": "Add Card", "icon": "Plus", "props": { "variant": "outline", "className": "mt-3" }, "action": { "type": "dialog", "target": "add-card-dialog" } }
+          ]
+        },
+        {
+          "id": "payment-info-postpaid",
+          "type": "Card",
+          "props": { "className": "p-6" },
+          "visibility": { "condition": "company.businessType === 'Postpaid'" },
+          "children": [
+            { "id": "payment-title-post", "type": "text", "element": "h2", "content": "Payment Information", "props": { "className": "text-lg font-semibold mb-4" } },
+            { "id": "deposit-balance", "type": "div", "props": { "className": "flex justify-between py-2" }, "children": [
+              { "id": "dep-label", "type": "text", "element": "span", "content": "Floating Deposit Balance" },
+              { "id": "dep-value", "type": "text", "element": "span", "dataBinding": "payment.depositBalance", "props": { "className": "font-bold text-lg" } }
+            ]},
+            { "id": "credit-limit", "type": "div", "props": { "className": "flex justify-between py-2" }, "children": [
+              { "id": "cred-label", "type": "text", "element": "span", "content": "Credit Line Limit" },
+              { "id": "cred-value", "type": "text", "element": "span", "dataBinding": "payment.creditLineLimit", "props": { "className": "font-bold text-lg" } }
+            ]}
+          ]
+        },
+        {
+          "id": "op-management",
+          "type": "Card",
+          "props": { "className": "p-6" },
+          "visibility": { "roles": ["Master"] },
+          "children": [
+            {
+              "id": "op-header",
+              "type": "div",
+              "props": { "className": "flex items-center justify-between mb-4" },
+              "children": [
+                { "id": "op-title", "type": "text", "element": "h2", "content": "OP Management", "props": { "className": "text-lg font-semibold" } },
+                { "id": "add-op-btn", "type": "Button", "text": "Add OP", "icon": "Plus", "action": { "type": "dialog", "target": "add-op-dialog" } }
+              ]
+            },
+            {
+              "id": "op-table",
+              "type": "Table",
+              "columns": [
+                { "key": "name", "header": "Name" },
+                { "key": "email", "header": "Email" },
+                { "key": "status", "header": "Status", "cell": { "type": "Badge" } },
+                { "key": "shareRatio", "header": "Share %" },
+                { "key": "actions", "header": "Actions" }
+              ],
+              "dataBinding": "operatingPartners"
+            }
+          ]
+        },
+        {
+          "id": "save-btn",
+          "type": "Button",
+          "text": "Save Changes",
+          "icon": "Save",
+          "props": { "className": "mt-4" },
+          "action": { "type": "submit", "target": "save-account" }
+        }
+      ]
+    }
+  ],
+  "interactions": [
+    {
+      "id": "save-success",
+      "trigger": { "component": "save-btn", "event": "click" },
+      "behavior": "toast",
+      "toast": {
+        "title": "Changes Saved",
+        "description": "Your account information has been updated."
+      }
+    },
+    {
+      "id": "add-op-dialog",
+      "trigger": { "component": "add-op-btn", "event": "click" },
+      "behavior": "dialog",
+      "dialog": {
+        "type": "Dialog",
+        "title": "Add Operating Partner",
+        "content": [
+          { "id": "op-name-input", "type": "Input", "props": { "label": "Full Name" } },
+          { "id": "op-email-input", "type": "Input", "props": { "label": "Email", "type": "email" } },
+          { "id": "op-password-input", "type": "Input", "props": { "label": "Password", "type": "password" } },
+          { "id": "op-share-input", "type": "Input", "props": { "label": "Share Ratio (%)", "type": "number" } }
+        ]
+      }
+    },
+    {
+      "id": "deactivate-op",
+      "trigger": { "component": "op-table", "event": "deactivate-click" },
+      "behavior": "dialog",
+      "dialog": {
+        "type": "AlertDialog",
+        "title": "Deactivate OP",
+        "description": "Are you sure you want to deactivate this OP? Existing bookings will be preserved. The OP will no longer be able to log in or create new bookings.",
+        "confirmVariant": "destructive"
+      }
+    }
+  ],
+  "dataShape": {
+    "user": {
+      "type": "object",
+      "fields": {
+        "id": "UUID",
+        "fullName": "string",
+        "email": "string",
+        "phone": "string",
+        "role": "enum(Master,OP)"
+      }
+    },
+    "company": {
+      "type": "object",
+      "fields": {
+        "name": "string",
+        "businessType": "enum(Prepaid,Postpaid)",
+        "contractDate": "ISO-8601"
+      }
+    },
+    "operatingPartners": {
+      "type": "array",
+      "item": {
+        "id": "UUID",
+        "name": "string",
+        "email": "string",
+        "status": "enum(Active,Pending,Deactivated)",
+        "shareRatio": "number"
+      }
+    }
+  },
+  "errorHandling": []
+}

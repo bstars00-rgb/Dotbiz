@@ -1,0 +1,264 @@
+{
+  "screen": {
+    "id": "booking-form",
+    "title": "Booking Form (Step 1)",
+    "purpose": "Guest information entry and payment method selection",
+    "route": "/app/booking/form",
+    "layout": "main-layout"
+  },
+  "states": {
+    "loading": {
+      "components": [
+        {
+          "id": "form-loading",
+          "type": "div",
+          "props": { "className": "p-6 space-y-4" },
+          "children": [
+            { "id": "step-skel", "type": "Skeleton", "props": { "className": "h-12 w-96 mx-auto" } },
+            {
+              "id": "form-skel",
+              "type": "div",
+              "props": { "className": "flex gap-6" },
+              "children": [
+                { "id": "guest-skel", "type": "Skeleton", "props": { "className": "h-80 flex-1" } },
+                { "id": "summary-skel", "type": "Skeleton", "props": { "className": "h-80 w-80" } }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "empty": {
+      "components": [
+        {
+          "id": "form-empty",
+          "type": "Card",
+          "props": { "className": "max-w-md mx-auto mt-20 p-6 text-center" },
+          "children": [
+            { "id": "empty-title", "type": "text", "element": "h2", "content": "No Room Selected" },
+            { "id": "empty-desc", "type": "text", "element": "p", "content": "Please select a room from the hotel detail page." },
+            { "id": "empty-action", "type": "Button", "text": "Find Hotel", "icon": "Search", "action": { "type": "navigate", "target": "/app/find-hotel" } }
+          ]
+        }
+      ]
+    },
+    "error": {
+      "components": [
+        {
+          "id": "form-error",
+          "type": "Alert",
+          "props": { "variant": "destructive" },
+          "children": [
+            { "id": "error-title", "type": "text", "element": "h3", "content": "Booking Error" },
+            { "id": "error-message", "type": "text", "element": "p", "content": "An error occurred. Please try again." },
+            { "id": "error-retry-btn", "type": "Button", "text": "Retry", "icon": "RefreshCw", "action": { "type": "custom", "target": "reload-page" } }
+          ]
+        }
+      ]
+    },
+    "success": {
+      "components": "$ref:componentTree"
+    }
+  },
+  "componentTree": [
+    {
+      "id": "booking-form-content",
+      "type": "div",
+      "props": { "className": "p-6 space-y-6" },
+      "children": [
+        {
+          "id": "step-indicator",
+          "type": "div",
+          "props": { "className": "flex items-center justify-center gap-4 py-4" },
+          "children": [
+            { "id": "step-1", "type": "Badge", "props": { "variant": "default" }, "text": "1. Guest Info" },
+            { "id": "step-2", "type": "Badge", "props": { "variant": "secondary" }, "text": "2. Review" },
+            { "id": "step-3", "type": "Badge", "props": { "variant": "secondary" }, "text": "3. Complete" }
+          ]
+        },
+        {
+          "id": "form-and-summary",
+          "type": "div",
+          "props": { "className": "flex gap-6" },
+          "children": [
+            {
+              "id": "guest-form",
+              "type": "Card",
+              "props": { "className": "flex-1 p-6" },
+              "children": [
+                { "id": "guest-title", "type": "text", "element": "h2", "content": "Guest Information", "props": { "className": "text-lg font-semibold mb-4" } },
+                {
+                  "id": "guest-fields",
+                  "type": "Form",
+                  "props": { "className": "space-y-4" },
+                  "children": [
+                    {
+                      "id": "name-row",
+                      "type": "div",
+                      "props": { "className": "grid grid-cols-2 gap-4" },
+                      "children": [
+                        {
+                          "id": "first-name-input",
+                          "type": "Input",
+                          "props": { "label": "First Name", "placeholder": "Enter first name" },
+                          "validation": { "required": true, "rules": [{ "type": "required", "message": "First name is required" }] }
+                        },
+                        {
+                          "id": "last-name-input",
+                          "type": "Input",
+                          "props": { "label": "Last Name", "placeholder": "Enter last name" },
+                          "validation": { "required": true, "rules": [{ "type": "required", "message": "Last name is required" }] }
+                        }
+                      ]
+                    },
+                    {
+                      "id": "email-input",
+                      "type": "Input",
+                      "props": { "type": "email", "label": "Email", "placeholder": "Enter email address" },
+                      "icon": "Mail",
+                      "validation": { "required": true, "rules": [{ "type": "email", "message": "Please enter a valid email address" }] }
+                    },
+                    {
+                      "id": "mobile-input",
+                      "type": "Input",
+                      "props": { "label": "Mobile", "placeholder": "Enter mobile number" },
+                      "icon": "Phone"
+                    },
+                    {
+                      "id": "special-requests",
+                      "type": "Textarea",
+                      "props": { "label": "Special Requests", "placeholder": "Any special requests? (optional)", "rows": 3 }
+                    }
+                  ]
+                },
+                { "id": "payment-title", "type": "text", "element": "h2", "content": "Payment Method", "props": { "className": "text-lg font-semibold mt-6 mb-4" } },
+                {
+                  "id": "payment-prepaid",
+                  "type": "div",
+                  "props": { "note": "Shown for prepaid companies", "className": "space-y-3" },
+                  "visibility": { "condition": "company.businessType === 'Prepaid'" },
+                  "children": [
+                    { "id": "card-select", "type": "Select", "props": { "label": "Corporate Card", "placeholder": "Select a card" }, "dataBinding": "paymentMethods.cards" },
+                    { "id": "rnpl-option", "type": "RadioGroup", "props": { "note": "Reserve Now Pay Later option" }, "children": [
+                      { "id": "rnpl-radio", "type": "div", "props": { "label": "Reserve Now, Pay Later" } }
+                    ]}
+                  ]
+                },
+                {
+                  "id": "payment-postpaid",
+                  "type": "div",
+                  "props": { "note": "Shown for postpaid companies", "className": "space-y-3" },
+                  "visibility": { "condition": "company.businessType === 'Postpaid'" },
+                  "children": [
+                    { "id": "deposit-option", "type": "RadioGroup", "props": { "note": "Floating Deposit or Credit Line" }, "children": [
+                      { "id": "deposit-radio", "type": "div", "props": { "label": "Floating Deposit" } },
+                      { "id": "credit-radio", "type": "div", "props": { "label": "Credit Line" } }
+                    ]}
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "booking-summary",
+              "type": "Card",
+              "props": { "className": "w-80 p-6 shrink-0" },
+              "children": [
+                { "id": "summary-title", "type": "text", "element": "h2", "content": "Booking Summary", "props": { "className": "text-lg font-semibold mb-4" } },
+                { "id": "summary-hotel", "type": "text", "element": "p", "dataBinding": "booking.hotelName", "props": { "className": "font-medium" } },
+                { "id": "summary-room", "type": "text", "element": "p", "dataBinding": "booking.roomType", "props": { "className": "text-sm" } },
+                { "id": "summary-dates", "type": "text", "element": "p", "dataBinding": "booking.dateRange", "props": { "className": "text-sm" } },
+                { "id": "summary-nights", "type": "text", "element": "p", "dataBinding": "booking.nights", "props": { "className": "text-sm" } },
+                { "id": "summary-guests", "type": "text", "element": "p", "dataBinding": "booking.guests", "props": { "className": "text-sm" } },
+                { "id": "summary-separator", "type": "Separator" },
+                { "id": "summary-rate", "type": "div", "props": { "className": "flex justify-between" }, "children": [
+                  { "id": "rate-label", "type": "text", "element": "span", "content": "Room Rate" },
+                  { "id": "rate-value", "type": "text", "element": "span", "dataBinding": "booking.roomRate" }
+                ]},
+                { "id": "summary-tax", "type": "div", "props": { "className": "flex justify-between" }, "children": [
+                  { "id": "tax-label", "type": "text", "element": "span", "content": "Tax" },
+                  { "id": "tax-value", "type": "text", "element": "span", "dataBinding": "booking.tax" }
+                ]},
+                { "id": "summary-total", "type": "div", "props": { "className": "flex justify-between font-bold text-lg" }, "children": [
+                  { "id": "total-label", "type": "text", "element": "span", "content": "Total" },
+                  { "id": "total-value", "type": "text", "element": "span", "dataBinding": "booking.total" }
+                ]}
+              ]
+            }
+          ]
+        },
+        {
+          "id": "form-actions",
+          "type": "div",
+          "props": { "className": "flex justify-between" },
+          "children": [
+            { "id": "back-btn", "type": "Button", "text": "Back", "icon": "ArrowLeft", "props": { "variant": "outline" }, "action": { "type": "navigate", "target": "/app/hotel/:hotelId" } },
+            { "id": "continue-btn", "type": "Button", "text": "Continue", "icon": "ArrowRight", "action": { "type": "navigate", "target": "/app/booking/confirm" } }
+          ]
+        }
+      ]
+    }
+  ],
+  "interactions": [],
+  "dataShape": {
+    "guestInfo": {
+      "type": "object",
+      "fields": {
+        "firstName": "string",
+        "lastName": "string",
+        "email": "string",
+        "mobile": "string",
+        "specialRequests": "string"
+      }
+    },
+    "booking": {
+      "type": "object",
+      "fields": {
+        "hotelName": "string",
+        "roomType": "string",
+        "dateRange": "string",
+        "nights": "number",
+        "guests": "string",
+        "roomRate": "number",
+        "tax": "number",
+        "total": "number"
+      }
+    }
+  },
+  "errorHandling": [
+    {
+      "code": "ERR-BOOK-001",
+      "condition": "Required guest information not filled",
+      "message": "Please fill in all required fields.",
+      "resolution": { "type": "retry", "label": "Fill required fields" },
+      "triggerComponent": "continue-btn"
+    },
+    {
+      "code": "ERR-PAY-001",
+      "condition": "Corporate card payment failed",
+      "message": "Payment failed. Please check your card information.",
+      "resolution": { "type": "retry", "label": "Select a different card or retry" },
+      "triggerComponent": "continue-btn"
+    },
+    {
+      "code": "ERR-PAY-002",
+      "condition": "Insufficient Floating Deposit balance",
+      "message": "Insufficient balance. Current balance: ${amount}",
+      "resolution": { "type": "custom", "target": "use-credit-line", "label": "Use Credit Line" },
+      "triggerComponent": "continue-btn"
+    },
+    {
+      "code": "ERR-PAY-003",
+      "condition": "Credit Line limit exceeded",
+      "message": "Your credit limit has been exceeded. Limit: ${limit}",
+      "resolution": { "type": "dismiss", "label": "Request limit increase" },
+      "triggerComponent": "continue-btn"
+    },
+    {
+      "code": "ERR-PAY-005",
+      "condition": "Both Deposit and Credit Line insufficient",
+      "message": "Both balance and credit limit are insufficient.",
+      "resolution": { "type": "dismiss", "label": "Request deposit or limit increase" },
+      "triggerComponent": "continue-btn"
+    }
+  ]
+}

@@ -1,0 +1,148 @@
+{
+  "screen": {
+    "id": "booking-complete",
+    "title": "Booking Complete (Step 3)",
+    "purpose": "Booking success screen with voucher and navigation options",
+    "route": "/app/booking/complete",
+    "layout": "main-layout"
+  },
+  "states": {
+    "loading": {
+      "components": [
+        {
+          "id": "complete-loading",
+          "type": "div",
+          "props": { "className": "p-6 space-y-4" },
+          "children": [
+            { "id": "success-skel", "type": "Skeleton", "props": { "className": "h-32 w-64 mx-auto" } },
+            { "id": "detail-skel", "type": "Skeleton", "props": { "className": "h-64 w-full max-w-2xl mx-auto" } }
+          ]
+        }
+      ]
+    },
+    "empty": {
+      "components": [
+        {
+          "id": "complete-empty",
+          "type": "Card",
+          "props": { "className": "max-w-md mx-auto mt-20 p-6 text-center" },
+          "children": [
+            { "id": "empty-title", "type": "text", "element": "h2", "content": "No Booking Found" },
+            { "id": "empty-desc", "type": "text", "element": "p", "content": "Start a new booking to see your confirmation." },
+            { "id": "empty-action", "type": "Button", "text": "Find Hotel", "icon": "Search", "action": { "type": "navigate", "target": "/app/find-hotel" } }
+          ]
+        }
+      ]
+    },
+    "error": {
+      "components": [
+        {
+          "id": "complete-error",
+          "type": "Alert",
+          "props": { "variant": "destructive" },
+          "children": [
+            { "id": "error-title", "type": "text", "element": "h3", "content": "Error" },
+            { "id": "error-message", "type": "text", "element": "p", "content": "Failed to load booking confirmation. Please try again." },
+            { "id": "error-retry-btn", "type": "Button", "text": "Retry", "icon": "RefreshCw", "action": { "type": "custom", "target": "reload-page" } }
+          ]
+        }
+      ]
+    },
+    "success": {
+      "components": "$ref:componentTree"
+    }
+  },
+  "componentTree": [
+    {
+      "id": "booking-complete-content",
+      "type": "div",
+      "props": { "className": "p-6 max-w-3xl mx-auto space-y-6" },
+      "children": [
+        {
+          "id": "success-message",
+          "type": "div",
+          "props": { "className": "text-center space-y-3" },
+          "children": [
+            { "id": "success-icon", "type": "div", "props": { "className": "w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mx-auto", "note": "Checkmark success icon" }, "icon": "Check" },
+            { "id": "success-text", "type": "text", "element": "h1", "content": "Booking Confirmed!", "props": { "className": "text-2xl font-bold text-green-600" } },
+            { "id": "ellis-code", "type": "text", "element": "p", "content": "ELLIS Code: ", "dataBinding": "booking.ellisCode", "props": { "className": "text-lg font-mono font-semibold" } }
+          ]
+        },
+        {
+          "id": "booking-detail",
+          "type": "Card",
+          "props": { "className": "p-6 space-y-3" },
+          "children": [
+            { "id": "detail-title", "type": "text", "element": "h2", "content": "Booking Details", "props": { "className": "font-semibold mb-3" } },
+            { "id": "detail-hotel", "type": "div", "props": { "className": "flex justify-between" }, "children": [
+              { "id": "hotel-label", "type": "text", "element": "span", "content": "Hotel", "props": { "className": "text-muted-foreground" } },
+              { "id": "hotel-value", "type": "text", "element": "span", "dataBinding": "booking.hotelName" }
+            ]},
+            { "id": "detail-dates", "type": "div", "props": { "className": "flex justify-between" }, "children": [
+              { "id": "dates-label", "type": "text", "element": "span", "content": "Dates", "props": { "className": "text-muted-foreground" } },
+              { "id": "dates-value", "type": "text", "element": "span", "dataBinding": "booking.dateRange" }
+            ]},
+            { "id": "detail-room", "type": "div", "props": { "className": "flex justify-between" }, "children": [
+              { "id": "room-label", "type": "text", "element": "span", "content": "Room", "props": { "className": "text-muted-foreground" } },
+              { "id": "room-value", "type": "text", "element": "span", "dataBinding": "booking.roomType" }
+            ]},
+            { "id": "detail-guest", "type": "div", "props": { "className": "flex justify-between" }, "children": [
+              { "id": "guest-label", "type": "text", "element": "span", "content": "Guest", "props": { "className": "text-muted-foreground" } },
+              { "id": "guest-value", "type": "text", "element": "span", "dataBinding": "booking.guestName" }
+            ]},
+            { "id": "detail-payment", "type": "div", "props": { "className": "flex justify-between" }, "children": [
+              { "id": "payment-label", "type": "text", "element": "span", "content": "Total", "props": { "className": "text-muted-foreground" } },
+              { "id": "payment-value", "type": "text", "element": "span", "dataBinding": "booking.total", "props": { "className": "font-bold" } }
+            ]}
+          ]
+        },
+        {
+          "id": "action-buttons",
+          "type": "div",
+          "props": { "className": "flex flex-wrap gap-3 justify-center" },
+          "children": [
+            { "id": "voucher-download-btn", "type": "Button", "text": "Download Voucher", "icon": "Download", "props": { "variant": "outline" }, "action": { "type": "custom", "target": "download-voucher" } },
+            { "id": "voucher-email-btn", "type": "Button", "text": "Email Voucher", "icon": "Mail", "props": { "variant": "outline" }, "action": { "type": "custom", "target": "email-voucher" } },
+            { "id": "my-bookings-btn", "type": "Button", "text": "My Bookings", "icon": "CalendarCheck", "action": { "type": "navigate", "target": "/app/bookings" } },
+            { "id": "new-booking-btn", "type": "Button", "text": "New Booking", "icon": "Plus", "action": { "type": "navigate", "target": "/app/find-hotel" } }
+          ]
+        }
+      ]
+    }
+  ],
+  "interactions": [
+    {
+      "id": "voucher-emailed",
+      "trigger": { "component": "voucher-email-btn", "event": "click" },
+      "behavior": "toast",
+      "toast": {
+        "title": "Voucher Sent",
+        "description": "The voucher has been sent to the guest email."
+      }
+    }
+  ],
+  "dataShape": {
+    "booking": {
+      "type": "object",
+      "fields": {
+        "ellisCode": "string",
+        "hotelName": "string",
+        "dateRange": "string",
+        "roomType": "string",
+        "guestName": "string",
+        "total": "number",
+        "paymentMethod": "string",
+        "paymentStatus": "enum(Not Paid,Partially Paid,Fully Paid,Refunded,Partially Refunded,Pending)"
+      }
+    }
+  },
+  "errorHandling": [
+    {
+      "code": "ERR-DOC-001",
+      "condition": "Email send failed",
+      "message": "Failed to send the email. Please try again.",
+      "resolution": { "type": "retry", "label": "Retry" },
+      "triggerComponent": "voucher-email-btn"
+    }
+  ]
+}
