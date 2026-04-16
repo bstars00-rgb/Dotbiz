@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { ArrowLeft, RefreshCw, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -21,6 +21,16 @@ import { hotels } from "@/mocks/hotels";
 import { getRoomsByHotel } from "@/mocks/rooms";
 import { toast } from "sonner";
 
+const FORM_STORAGE_KEY = "dotbiz_booking_form";
+
+function loadSavedForm() {
+  try {
+    const saved = sessionStorage.getItem(FORM_STORAGE_KEY);
+    if (saved) return JSON.parse(saved);
+  } catch { /* ignore */ }
+  return null;
+}
+
 export default function BookingFormPage() {
   const { state, setState } = useScreenState("success");
   const navigate = useNavigate();
@@ -28,15 +38,17 @@ export default function BookingFormPage() {
   const { errors, validate } = useFormValidation();
   const { user } = useAuth();
 
-  /* Booker — pre-filled from company registration data */
-  const [bookerName, setBookerName] = useState(user?.name || currentCompany.name);
-  const [bookerEmail, setBookerEmail] = useState(user?.email || currentCompany.email);
-  const [bookerMobile, setBookerMobile] = useState("");
-  const [bookerCode, setBookerCode] = useState("");
-  const [mobileCountry, setMobileCountry] = useState("82");
+  const saved = loadSavedForm();
 
-  /* Travelers */
-  const [travelers, setTravelers] = useState([
+  /* Booker — pre-filled from company registration data, restored from session */
+  const [bookerName, setBookerName] = useState(saved?.bookerName ?? user?.name ?? currentCompany.name);
+  const [bookerEmail, setBookerEmail] = useState(saved?.bookerEmail ?? user?.email ?? currentCompany.email);
+  const [bookerMobile, setBookerMobile] = useState(saved?.bookerMobile ?? "");
+  const [bookerCode, setBookerCode] = useState(saved?.bookerCode ?? "");
+  const [mobileCountry, setMobileCountry] = useState(saved?.mobileCountry ?? "82");
+
+  /* Travelers — restored from session */
+  const [travelers, setTravelers] = useState(saved?.travelers ?? [
     { id: "t-1", room: 1, gender: "M", localName: "", lastName: "", firstName: "", childBirthday: "" },
     { id: "t-2", room: 1, gender: "M", localName: "", lastName: "", firstName: "", childBirthday: "" },
   ]);
@@ -45,11 +57,20 @@ export default function BookingFormPage() {
     setTravelers(prev => prev.map((t, i) => i === idx ? { ...t, [field]: value } : t));
   };
 
-  /* Special Requests */
-  const [specialReqs, setSpecialReqs] = useState<Set<string>>(new Set());
-  const [customRequest, setCustomRequest] = useState("");
-  const [expectedCheckIn, setExpectedCheckIn] = useState("");
+  /* Special Requests — restored from session */
+  const [specialReqs, setSpecialReqs] = useState<Set<string>>(new Set(saved?.specialReqs ?? []));
+  const [customRequest, setCustomRequest] = useState(saved?.customRequest ?? "");
+  const [expectedCheckIn, setExpectedCheckIn] = useState(saved?.expectedCheckIn ?? "");
   const toggleReq = (req: string) => setSpecialReqs(prev => { const n = new Set(prev); n.has(req) ? n.delete(req) : n.add(req); return n; });
+
+  /* Auto-save form data to sessionStorage */
+  useEffect(() => {
+    const data = {
+      bookerName, bookerEmail, bookerMobile, bookerCode, mobileCountry,
+      travelers, specialReqs: Array.from(specialReqs), customRequest, expectedCheckIn,
+    };
+    sessionStorage.setItem(FORM_STORAGE_KEY, JSON.stringify(data));
+  }, [bookerName, bookerEmail, bookerMobile, bookerCode, mobileCountry, travelers, specialReqs, customRequest, expectedCheckIn]);
 
   /* Confirm dialog */
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -238,7 +259,7 @@ export default function BookingFormPage() {
             <AlertDialogDescription className="text-[#FF6000]">Are you sure you want to create this booking?</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogAction onClick={() => { toast.success("Booking created!", { description: "Redirecting to confirmation..." }); navigate("/app/booking/confirm"); }} style={{ background: "#FF6000" }}>Confirm</AlertDialogAction>
+            <AlertDialogAction onClick={() => { sessionStorage.removeItem(FORM_STORAGE_KEY); toast.success("Booking created!", { description: "Redirecting to confirmation..." }); navigate("/app/booking/confirm"); }} style={{ background: "#FF6000" }}>Confirm</AlertDialogAction>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
           </AlertDialogFooter>
         </AlertDialogContent>
