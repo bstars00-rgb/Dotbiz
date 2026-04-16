@@ -1,0 +1,229 @@
+import { Outlet, useNavigate, useLocation } from "react-router";
+import { useState, useEffect } from "react";
+import { AnimatePresence } from "framer-motion";
+import PageTransition from "@/components/PageTransition";
+import Footer from "@/components/Footer";
+import { Search, Moon, Sun, Bell, User, LogOut, LayoutDashboard, CalendarCheck, Wallet, HelpCircle, Gift, Pen, Menu, Users, Ticket, Heart } from "lucide-react";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Separator } from "@/components/ui/separator";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { useAuth } from "@/contexts/AuthContext";
+import { currentUser } from "@/mocks/users";
+
+const navItems = [
+  { label: "Find Hotel", icon: Search, path: "/app/find-hotel" },
+  { label: "Dashboard", icon: LayoutDashboard, path: "/app/dashboard" },
+  { label: "Bookings", icon: CalendarCheck, path: "/app/bookings" },
+  { label: "Settlement", icon: Wallet, path: "/app/settlement", roles: ["Master"] },
+  { label: "Client Mgmt", icon: Users, path: "/app/client", roles: ["Master"] },
+  { label: "Tickets", icon: Ticket, path: "/app/tickets" },
+  { label: "Notifications", icon: Bell, path: "/app/notifications" },
+  { label: "FAQ Board", icon: HelpCircle, path: "/app/faq" },
+  { label: "My Account", icon: User, path: "/app/my-account" },
+  { label: "Rewards Mall", icon: Gift, path: "/app/rewards" },
+  { label: "OhMy Blog", icon: Pen, path: "/app/blog" },
+];
+
+export default function MainLayout() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { hasRole, isAuthenticated, user, logout } = useAuth();
+
+  /* Auth guard — redirect to login if not authenticated */
+  useEffect(() => {
+    if (!isAuthenticated) {
+      navigate("/login", { replace: true });
+    }
+  }, [isAuthenticated, navigate]);
+  const isMobile = !useMediaQuery("(min-width: 768px)");
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [dark, setDark] = useState(() => {
+    const saved = localStorage.getItem("dotbiz_dark");
+    if (saved === "true") { document.documentElement.classList.add("dark"); return true; }
+    return false;
+  });
+  const [logoutOpen, setLogoutOpen] = useState(false);
+
+  const toggleDark = () => {
+    const next = !dark;
+    setDark(next);
+    document.documentElement.classList.toggle("dark");
+    localStorage.setItem("dotbiz_dark", String(next));
+  };
+
+  const isActive = (path: string) => location.pathname.startsWith(path);
+
+  return (
+    <div className="flex flex-col h-full">
+      {/* Top Bar */}
+      <header className="flex items-center h-14 border-b px-4 gap-2 md:gap-4 shrink-0 bg-card" role="banner">
+        {isMobile && (
+          <Button variant="ghost" size="icon" onClick={() => setMobileNavOpen(true)} aria-label="Open menu">
+            <Menu className="h-5 w-5" />
+          </Button>
+        )}
+        <div className="flex-1" />
+        <select className="text-sm border rounded px-2 py-1 bg-card hidden md:block" defaultValue="USD" aria-label="Currency">
+          {["USD","KRW","JPY","CNY","VND","EUR","GBP","THB","SGD","HKD"].map(c => <option key={c}>{c}</option>)}
+        </select>
+        <select className="text-sm border rounded px-2 py-1 bg-card hidden md:block" defaultValue="EN" aria-label="Language">
+          {["EN","KO","JA","ZH","VI"].map(l => <option key={l}>{l}</option>)}
+        </select>
+        <Button variant="ghost" size="icon" onClick={toggleDark} aria-label="Toggle dark mode">
+          {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+        </Button>
+        <Button variant="ghost" size="icon" onClick={() => navigate("/app/favorites")} aria-label="My Favorites">
+          <Heart className="h-4 w-4" />
+        </Button>
+        <Button variant="ghost" size="icon" className="relative" onClick={() => navigate("/app/notifications")} aria-label="Notifications">
+          <Bell className="h-4 w-4" />
+          <Badge variant="destructive" className="absolute -top-1 -right-1 h-5 w-5 p-0 text-xs flex items-center justify-center">3</Badge>
+        </Button>
+        <Button variant="ghost" size="icon" onClick={() => navigate("/app/my-account")} aria-label="My Account">
+          <Avatar className="h-8 w-8">
+            <AvatarFallback>JP</AvatarFallback>
+          </Avatar>
+        </Button>
+      </header>
+
+      {/* Mobile Nav Drawer */}
+      <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
+        <SheetContent side="left" className="w-72 p-0 flex flex-col">
+          <SheetHeader className="px-4 py-4 border-b">
+            <SheetTitle className="flex items-center gap-3">
+              <div className="relative w-9 h-9 shrink-0">
+                <div className="absolute inset-0 rounded-full" style={{ background: "conic-gradient(from 180deg, #FF6000, #FF8C00, #FFCF8F, #FF6000)" }} />
+                <div className="absolute inset-[2px] rounded-full bg-white dark:bg-slate-800 flex items-center justify-center">
+                  <svg viewBox="0 0 24 24" className="w-4.5 h-4.5" fill="none">
+                    <path d="M12 3C7.5 3 4 6.5 4 11c0 3 1.5 5.5 4 7l1-2c-2-1-3-3-3-5 0-3.3 2.7-6 6-6s6 2.7 6 6c0 2-1 3.8-2.5 5l1 2c2.3-1.5 3.5-4 3.5-7 0-4.5-3.5-8-8-8z" fill="#FF6000" />
+                    <circle cx="12" cy="4" r="2.5" fill="#009505" />
+                  </svg>
+                </div>
+              </div>
+              <span className="text-xl font-bold font-heading" style={{ color: "#FF6000" }}>DOTBIZ</span>
+            </SheetTitle>
+          </SheetHeader>
+          <div className="flex flex-col gap-1 px-2 py-2 flex-1">
+            {navItems.map(item => {
+              if (item.roles && !hasRole(item.roles)) return null;
+              const active = isActive(item.path);
+              return (
+                <button
+                  key={item.path}
+                  onClick={() => { navigate(item.path); setMobileNavOpen(false); }}
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors text-left ${active ? "bg-primary text-primary-foreground" : "hover:bg-accent text-foreground"}`}
+                >
+                  <item.icon className="h-4 w-4" aria-hidden="true" />
+                  {item.label}
+                </button>
+              );
+            })}
+          </div>
+          <Separator />
+          <div className="p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Avatar className="h-8 w-8">
+                <AvatarFallback>JP</AvatarFallback>
+              </Avatar>
+              <div>
+                <p className="text-sm font-medium">{user?.name || currentUser.fullName}</p>
+                <Badge variant="secondary" className="text-xs">{user?.role || currentUser.role}</Badge>
+              </div>
+            </div>
+            <Button variant="ghost" className="w-full justify-start" onClick={() => { setMobileNavOpen(false); setLogoutOpen(true); }}>
+              <LogOut className="h-4 w-4 mr-2" aria-hidden="true" />
+              Logout
+            </Button>
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* Body */}
+      <div className="flex flex-1 min-h-0">
+        {/* Sidebar — hidden on mobile */}
+        <nav className="w-60 border-r hidden md:flex flex-col shrink-0 bg-card" role="navigation">
+          <div className="p-4 cursor-pointer flex items-center gap-3" onClick={() => navigate("/app/dashboard")}>
+            <div className="relative w-9 h-9 shrink-0">
+              <div className="absolute inset-0 rounded-full" style={{ background: "conic-gradient(from 180deg, #FF6000, #FF8C00, #FFCF8F, #FF6000)" }} />
+              <div className="absolute inset-[2px] rounded-full bg-white dark:bg-slate-800 flex items-center justify-center">
+                <svg viewBox="0 0 24 24" className="w-4.5 h-4.5" fill="none">
+                  <path d="M12 3C7.5 3 4 6.5 4 11c0 3 1.5 5.5 4 7l1-2c-2-1-3-3-3-5 0-3.3 2.7-6 6-6s6 2.7 6 6c0 2-1 3.8-2.5 5l1 2c2.3-1.5 3.5-4 3.5-7 0-4.5-3.5-8-8-8z" fill="#FF6000" />
+                  <circle cx="12" cy="4" r="2.5" fill="#009505" />
+                </svg>
+              </div>
+            </div>
+            <span className="text-xl font-bold font-heading" style={{ color: "#FF6000" }}>DOTBIZ</span>
+          </div>
+          <div className="flex flex-col gap-1 px-2">
+            {navItems.map(item => {
+              if (item.roles && !hasRole(item.roles)) return null;
+              const active = isActive(item.path);
+              return (
+                <button
+                  key={item.path}
+                  onClick={() => navigate(item.path)}
+                  className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors text-left ${active ? "bg-primary text-primary-foreground" : "hover:bg-accent text-foreground"}`}
+                >
+                  <item.icon className="h-4 w-4" aria-hidden="true" />
+                  {item.label}
+                </button>
+              );
+            })}
+          </div>
+          <div className="flex-1" />
+          <Separator />
+          <div className="p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Avatar className="h-8 w-8">
+                <AvatarFallback>JP</AvatarFallback>
+              </Avatar>
+              <div>
+                <p className="text-sm font-medium">{user?.name || currentUser.fullName}</p>
+                <Badge variant="secondary" className="text-xs">{user?.role || currentUser.role}</Badge>
+              </div>
+            </div>
+            <Button variant="ghost" className="w-full justify-start text-xs" onClick={() => { logout(); navigate("/login"); }}>
+              <User className="h-4 w-4 mr-2" aria-hidden="true" />
+              Switch Account
+            </Button>
+            <Button variant="ghost" className="w-full justify-start" onClick={() => setLogoutOpen(true)}>
+              <LogOut className="h-4 w-4 mr-2" aria-hidden="true" />
+              Logout
+            </Button>
+          </div>
+        </nav>
+
+        {/* Content */}
+        <main className="flex-1 overflow-auto flex flex-col">
+          <div className="flex-1">
+            <AnimatePresence mode="wait">
+              <PageTransition key={location.pathname}>
+                <Outlet />
+              </PageTransition>
+            </AnimatePresence>
+          </div>
+          <Footer />
+        </main>
+      </div>
+
+      {/* Logout Dialog */}
+      <AlertDialog open={logoutOpen} onOpenChange={setLogoutOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Logout</AlertDialogTitle>
+            <AlertDialogDescription>Are you sure you want to log out? You will be redirected to the login screen.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { logout(); navigate("/login"); }}>Logout</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}
