@@ -259,7 +259,7 @@ export default function BookingFormPage() {
             <AlertDialogDescription className="text-[#FF6000]">Are you sure you want to create this booking?</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogAction onClick={() => { sessionStorage.removeItem(FORM_STORAGE_KEY); toast.success("Booking created!", { description: "Redirecting to confirmation..." }); navigate("/app/booking/confirm"); }} style={{ background: "#FF6000" }}>Confirm</AlertDialogAction>
+            <AlertDialogAction onClick={() => { sessionStorage.setItem("dotbiz_booking_hotel", hotelId); sessionStorage.setItem("dotbiz_booking_room", roomId); sessionStorage.setItem("dotbiz_booking_checkin", checkIn); sessionStorage.setItem("dotbiz_booking_checkout", checkOut); toast.success("Booking created!", { description: "Redirecting to review..." }); navigate("/app/booking/confirm"); }} style={{ background: "#FF6000" }}>Confirm</AlertDialogAction>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
           </AlertDialogFooter>
         </AlertDialogContent>
