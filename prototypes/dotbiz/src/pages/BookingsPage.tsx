@@ -17,6 +17,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useScreenState } from "@/hooks/useScreenState";
 import { StateToolbar } from "@/components/StateToolbar";
 import { bookings } from "@/mocks/bookings";
+import CreateTicketDialog from "@/components/CreateTicketDialog";
 // DateRangePicker replaced with native date inputs for compact DIDA-style filter
 // GroupBookingDialog removed — feature intent unclear
 import { toast } from "sonner";
@@ -43,6 +44,8 @@ export default function BookingsPage() {
   const [exportHistoryOpen, setExportHistoryOpen] = useState(false);
   const [viewMode, setViewMode] = useState<"list" | "card">("list");
   const [voucherOpen, setVoucherOpen] = useState(false);
+  const [ticketOpen, setTicketOpen] = useState(false);
+  const [ticketBooking, setTicketBooking] = useState<typeof bookings[0] | null>(null);
   const [rowsPerPage, setRowsPerPage] = useState(20);
   const [currentPage, setCurrentPage] = useState(1);
   const [filterDateFrom, setFilterDateFrom] = useState("2026-04-17");
@@ -250,6 +253,8 @@ export default function BookingsPage() {
                     <TableHead className="whitespace-nowrap text-right">B.Sum Amt</TableHead>
                     <TableHead className="whitespace-nowrap">BKG Cancel Date</TableHead>
                     <TableHead className="whitespace-nowrap">Invoice No.</TableHead>
+                    <TableHead className="whitespace-nowrap">Pay Channel</TableHead>
+                    <TableHead className="whitespace-nowrap">Booking Source</TableHead>
                     <TableHead className="whitespace-nowrap">Dispute</TableHead>
                     <TableHead className="whitespace-nowrap text-center">Ticket</TableHead>
                   </TableRow>
@@ -277,9 +282,13 @@ export default function BookingsPage() {
                       <TableCell className="text-right font-medium whitespace-nowrap">{b.sumAmount.toLocaleString()}</TableCell>
                       <TableCell className="whitespace-nowrap">{b.cancelDate || ""}</TableCell>
                       <TableCell className="whitespace-nowrap">{b.invoiceNo || ""}</TableCell>
+                      <TableCell className="whitespace-nowrap">{b.paymentChannel}</TableCell>
+                      <TableCell className="whitespace-nowrap">
+                        <Badge variant="outline" className={`text-[9px] ${b.bookingSource === "API Integration" ? "border-purple-300 text-purple-600" : "border-orange-300 text-[#FF6000]"}`}>{b.bookingSource}</Badge>
+                      </TableCell>
                       <TableCell className="truncate max-w-[80px] text-red-500">{b.dispute || ""}</TableCell>
                       <TableCell className="text-center">
-                        <Button variant="ghost" size="sm" className="h-6 px-2 text-[10px] text-[#FF6000] hover:bg-[#FF6000]/10" onClick={(e) => { e.stopPropagation(); navigate(`/app/tickets?booking=${b.ellisCode}`); }} title="Create ticket for this booking">
+                        <Button variant="ghost" size="sm" className="h-6 px-2 text-[10px] text-[#FF6000] hover:bg-[#FF6000]/10" onClick={(e) => { e.stopPropagation(); setTicketBooking(b); setTicketOpen(true); }} title="Create ticket for this booking">
                           <Ticket className="h-3 w-3 mr-1" />Ticket
                         </Button>
                       </TableCell>
@@ -487,7 +496,7 @@ export default function BookingsPage() {
 
               {/* Bottom Actions (DIDA style) */}
               <div className="flex items-center justify-between pt-2">
-                <p className="text-xs text-muted-foreground">Friendly reminder: If your itinerary changes and you need to apply for partial cancellation, please consult our customer service team by <button className="text-primary underline" onClick={() => { setSelectedBooking(null); navigate(`/app/tickets?booking=${selectedBooking.ellisCode}`); }}>submitting a ticket</button>.</p>
+                <p className="text-xs text-muted-foreground">Friendly reminder: If your itinerary changes and you need to apply for partial cancellation, please consult our customer service team by <button className="text-primary underline" onClick={() => { setTicketBooking(selectedBooking); setTicketOpen(true); setSelectedBooking(null); }}>submitting a ticket</button>.</p>
                 <div className="flex gap-2 shrink-0 ml-4">
                   {selectedBooking.bookingStatus !== "Cancelled" && selectedBooking.bookingStatus !== "Completed" && (
                     <Button variant="outline" size="sm" className="border-red-300 text-red-500 hover:bg-red-50" onClick={() => {
@@ -495,7 +504,7 @@ export default function BookingsPage() {
                       else toast.error("Cancellation deadline has passed.", { description: "Full charge will be applied." });
                     }}>Cancel</Button>
                   )}
-                  <Button size="sm" style={{ background: "#FF6000" }} onClick={() => { setSelectedBooking(null); navigate(`/app/tickets?booking=${selectedBooking.ellisCode}`); }}>Submit Ticket</Button>
+                  <Button size="sm" style={{ background: "#FF6000" }} onClick={() => { setTicketBooking(selectedBooking); setTicketOpen(true); setSelectedBooking(null); }}>Submit Ticket</Button>
                 </div>
               </div>
             </div>
@@ -636,6 +645,9 @@ export default function BookingsPage() {
 
       {/* ── Group Booking Dialog ── */}
       {/* GroupBookingDialog removed */}
+
+      {/* Create Ticket Dialog */}
+      <CreateTicketDialog open={ticketOpen} onOpenChange={setTicketOpen} bookingCode={ticketBooking?.ellisCode} hotelName={ticketBooking?.hotelName} />
 
       <StateToolbar state={state} setState={setState} />
     </div>
