@@ -366,11 +366,17 @@ export default function BookingsPage() {
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="font-bold text-sm">Reservation Details</h3>
                   <div className="flex gap-2">
-                    {selectedBooking.bookingStatus !== "Cancelled" && selectedBooking.bookingStatus !== "Completed" && selectedBooking.cancelDeadline && new Date(selectedBooking.cancelDeadline) > new Date() && (
-                      <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setCancelOpen(true)}>Cancel</Button>
+                    {selectedBooking.bookingStatus !== "Cancelled" && selectedBooking.bookingStatus !== "Completed" && (
+                      <Button variant="outline" size="sm" className="h-7 text-xs border-red-300 text-red-500 hover:bg-red-50" onClick={() => {
+                        if (new Date(selectedBooking.cancelDeadline) > new Date()) {
+                          setCancelOpen(true);
+                        } else {
+                          toast.error("Cancellation deadline has passed.", { description: `Deadline was ${selectedBooking.cancelDeadline}. Full charge will be applied.` });
+                        }
+                      }}>Cancel</Button>
                     )}
                     <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setVoucherOpen(true)}>Voucher</Button>
-                    <Button variant="outline" size="sm" className="h-7 text-xs"><Download className="h-3 w-3 mr-1" />Invoice</Button>
+                    <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => toast.success("Invoice downloading...")}><Download className="h-3 w-3 mr-1" />Invoice</Button>
                   </div>
                 </div>
                 <Table>
@@ -424,22 +430,48 @@ export default function BookingsPage() {
                 </Table>
               </Card>
 
-              {/* Cancellation Policy */}
+              {/* Cancellation Policy (DIDA table style) */}
               <Card className="p-4">
                 <h3 className="font-bold text-sm mb-3">Cancellation Policy</h3>
-                <p className="text-sm font-semibold mb-2">Cancellation D/L : Until {selectedBooking.cancelDeadline}</p>
-                <div className="space-y-1 text-xs">
-                  <p className="text-muted-foreground">- {selectedBooking.bookingDate} ~ {selectedBooking.cancelDeadline} Charge 0</p>
-                  <p className="text-red-500">- {selectedBooking.cancelDeadline} ~ {selectedBooking.checkIn} 23:59:59 Charge {selectedBooking.sumAmount.toLocaleString()}</p>
-                  <p className="text-muted-foreground">- After check-in date, full charge will be applied</p>
-                </div>
+                <Table>
+                  <TableHeader>
+                    <TableRow className="text-xs">
+                      <TableHead>Your Local Time</TableHead>
+                      <TableHead>Property's local time</TableHead>
+                      <TableHead>Days Left</TableHead>
+                      <TableHead>Fee</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    <TableRow>
+                      <TableCell className="text-xs text-green-600">Before {selectedBooking.cancelDeadline}</TableCell>
+                      <TableCell className="text-xs text-green-600">Before {selectedBooking.cancelDeadline}</TableCell>
+                      <TableCell className="text-xs text-primary">{Math.max(0, Math.ceil((new Date(selectedBooking.cancelDeadline).getTime() - Date.now()) / 86400000))} days</TableCell>
+                      <TableCell className="text-xs text-green-600 font-medium">Refundable</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell className="text-xs">From {selectedBooking.cancelDeadline}</TableCell>
+                      <TableCell className="text-xs">From {selectedBooking.cancelDeadline}</TableCell>
+                      <TableCell className="text-xs">{Math.max(0, Math.ceil((new Date(selectedBooking.cancelDeadline).getTime() - Date.now()) / 86400000))} days</TableCell>
+                      <TableCell className="text-xs text-red-500 font-medium">Non-Refundable</TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
               </Card>
 
-              {/* Policy Notice + Ticket */}
-              <Card className="p-3 bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800">
-                <p className="text-xs text-amber-800 dark:text-amber-200 font-medium">Bookings cannot be modified. To change dates or guest details, please cancel and rebook.</p>
-                <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">For special requests, please <button className="underline font-medium" onClick={() => { setSelectedBooking(null); navigate(`/app/tickets?booking=${selectedBooking.ellisCode}`); }}>submit a ticket</button>.</p>
-              </Card>
+              {/* Bottom Actions (DIDA style) */}
+              <div className="flex items-center justify-between pt-2">
+                <p className="text-xs text-muted-foreground">Friendly reminder: If your itinerary changes and you need to apply for partial cancellation, please consult our customer service team by <button className="text-primary underline" onClick={() => { setSelectedBooking(null); navigate(`/app/tickets?booking=${selectedBooking.ellisCode}`); }}>submitting a ticket</button>.</p>
+                <div className="flex gap-2 shrink-0 ml-4">
+                  {selectedBooking.bookingStatus !== "Cancelled" && selectedBooking.bookingStatus !== "Completed" && (
+                    <Button variant="outline" size="sm" className="border-red-300 text-red-500 hover:bg-red-50" onClick={() => {
+                      if (new Date(selectedBooking.cancelDeadline) > new Date()) setCancelOpen(true);
+                      else toast.error("Cancellation deadline has passed.", { description: "Full charge will be applied." });
+                    }}>Cancel</Button>
+                  )}
+                  <Button size="sm" style={{ background: "#FF6000" }} onClick={() => { setSelectedBooking(null); navigate(`/app/tickets?booking=${selectedBooking.ellisCode}`); }}>Submit Ticket</Button>
+                </div>
+              </div>
             </div>
           )}
         </DialogContent>
