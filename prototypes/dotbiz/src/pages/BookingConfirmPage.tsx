@@ -12,6 +12,8 @@ import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
 import { useScreenState } from "@/hooks/useScreenState";
 import { StateToolbar } from "@/components/StateToolbar";
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
+import { currentCompany } from "@/mocks/companies";
 import { hotels } from "@/mocks/hotels";
 import { getRoomsByHotel } from "@/mocks/rooms";
 
@@ -29,6 +31,8 @@ export default function BookingConfirmPage() {
   const { state, setState } = useScreenState("success");
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { user } = useAuth();
+  const billingType = user?.billingType || "POSTPAY";
   const [termsAgreed, setTermsAgreed] = useState(false);
   const [termsError, setTermsError] = useState<string | null>(null);
 
@@ -183,13 +187,30 @@ export default function BookingConfirmPage() {
         </div>
       </Card>
 
-      {/* ── Cancellation Policy ── */}
+      {/* ── Settlement Info ── */}
+      <Card className="p-4">
+        <div className="flex items-center gap-2 mb-2">
+          <Badge variant={billingType === "PREPAY" ? "destructive" : "default"} className="text-xs">{billingType}</Badge>
+          {billingType === "POSTPAY" && <span className="text-xs text-muted-foreground">Settlement: {currentCompany.settlementCycle} · Net-{currentCompany.paymentDueDays}</span>}
+        </div>
+        <p className="text-xs text-muted-foreground">
+          {billingType === "POSTPAY"
+            ? "This booking will be settled in your next billing cycle."
+            : isFreeCancel
+              ? `Payment required by ${freeCancelDate}. Booking will be cancelled if not paid.`
+              : "Payment received. Booking confirmed."}
+        </p>
+      </Card>
+
+      {/* ── Cancellation & Modification Policy ── */}
       <Alert>
-        <AlertTitle>Cancellation Policy</AlertTitle>
-        <AlertDescription>
-          {isFreeCancel
+        <AlertTitle>Cancellation & Modification Policy</AlertTitle>
+        <AlertDescription className="space-y-1">
+          <p>{isFreeCancel
             ? `Free cancellation until ${freeCancelDate}. After that, 1 night charge applies.`
-            : "This booking is non-refundable. No cancellation or modification allowed."}
+            : "This booking is non-refundable. No cancellation or modification allowed."}</p>
+          <p className="font-medium">Bookings cannot be modified. Please cancel and rebook if changes are needed.</p>
+          <p>For special requests, please submit a ticket.</p>
         </AlertDescription>
       </Alert>
 

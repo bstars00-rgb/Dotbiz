@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router";
-import { Search, X, Download, ChevronLeft, ChevronRight, Paperclip, Send, RefreshCw, List, LayoutGrid, MapPin, Calendar, Clock, FileText, Printer, Edit3, Users2 } from "lucide-react";
+import { Search, X, Download, ChevronLeft, ChevronRight, Paperclip, Send, RefreshCw, List, LayoutGrid, MapPin, Calendar, Clock, FileText, Printer, Users2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -39,11 +39,6 @@ export default function BookingsPage() {
   const [cancelOpen, setCancelOpen] = useState(false);
   const [exportHistoryOpen, setExportHistoryOpen] = useState(false);
   const [viewMode, setViewMode] = useState<"list" | "card">("list");
-  const [amendOpen, setAmendOpen] = useState(false);
-  const [amendCheckIn, setAmendCheckIn] = useState("");
-  const [amendCheckOut, setAmendCheckOut] = useState("");
-  const [amendRoomType, setAmendRoomType] = useState("");
-  const [amendGuestName, setAmendGuestName] = useState("");
   const [groupBookingOpen, setGroupBookingOpen] = useState(false);
   const [voucherOpen, setVoucherOpen] = useState(false);
 
@@ -330,20 +325,27 @@ export default function BookingsPage() {
                 </Card>
               ))}
               {selectedBooking.specialRequests && <Card className="p-4"><h3 className="font-semibold mb-2">Special Requests</h3><p className="text-sm">{selectedBooking.specialRequests}</p></Card>}
+
+              {/* Policy Notice */}
+              <Card className="p-3 bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800">
+                <p className="text-xs text-amber-800 dark:text-amber-200 font-medium">Booking Modification Policy</p>
+                <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">Bookings cannot be modified. To change dates or guest details, please cancel and rebook.</p>
+                <p className="text-xs text-amber-700 dark:text-amber-300">For special requests, please <button className="underline font-medium" onClick={() => { setSelectedBooking(null); navigate("/app/tickets"); }}>submit a ticket</button>.</p>
+              </Card>
+
               <div className="flex flex-wrap gap-2 pt-4 border-t">
                 <Button variant="outline" size="sm" onClick={() => { setVoucherOpen(true); }}><Printer className="h-3 w-3 mr-1" />Print Voucher</Button>
                 <Button variant="outline" size="sm"><Download className="h-3 w-3 mr-1" />Receipt</Button>
-                {selectedBooking.bookingStatus === "Confirmed" && (
-                  <Button variant="outline" size="sm" style={{ borderColor: "#FF6000", color: "#FF6000" }} onClick={() => {
-                    setAmendCheckIn(selectedBooking.checkIn);
-                    setAmendCheckOut(selectedBooking.checkOut || "");
-                    setAmendRoomType(selectedBooking.roomType);
-                    setAmendGuestName(selectedBooking.guestName);
-                    setAmendOpen(true);
-                  }}><Edit3 className="h-3 w-3 mr-1" />Amend Booking</Button>
-                )}
+                <Button variant="outline" size="sm" onClick={() => { setSelectedBooking(null); navigate("/app/tickets"); }}><FileText className="h-3 w-3 mr-1" />Request Change</Button>
+                {/* Cancel: only if free_cancel and not non-refundable */}
                 {selectedBooking.bookingStatus !== "Cancelled" && selectedBooking.bookingStatus !== "Completed" && (
-                  <Button variant="destructive" size="sm" onClick={() => setCancelOpen(true)}><X className="h-3 w-3 mr-1" />Cancel Booking</Button>
+                  selectedBooking.cancelDeadline && new Date(selectedBooking.cancelDeadline) > new Date() ? (
+                    <Button variant="destructive" size="sm" onClick={() => setCancelOpen(true)}><X className="h-3 w-3 mr-1" />Cancel Booking</Button>
+                  ) : (
+                    <Badge variant="secondary" className="text-xs py-1.5 px-3">
+                      {selectedBooking.freeCancelDeadline ? "Deadline passed — cancellation not available" : "Non-refundable — cancellation not available"}
+                    </Badge>
+                  )
                 )}
               </div>
             </div>
@@ -403,53 +405,7 @@ export default function BookingsPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* ── Amend Booking Dialog ── */}
-      <AlertDialog open={amendOpen} onOpenChange={setAmendOpen}>
-        <AlertDialogContent className="max-w-lg">
-          <AlertDialogHeader>
-            <AlertDialogTitle>Amend Booking</AlertDialogTitle>
-            <AlertDialogDescription>Modify booking details. Amendment fees may apply.</AlertDialogDescription>
-          </AlertDialogHeader>
-          <div className="space-y-3">
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-sm font-medium">Check-In</label>
-                <Input type="date" value={amendCheckIn} onChange={e => setAmendCheckIn(e.target.value)} className="mt-1" />
-              </div>
-              <div>
-                <label className="text-sm font-medium">Check-Out</label>
-                <Input type="date" value={amendCheckOut} onChange={e => setAmendCheckOut(e.target.value)} className="mt-1" />
-              </div>
-            </div>
-            <div>
-              <label className="text-sm font-medium">Room Type</label>
-              <select value={amendRoomType} onChange={e => setAmendRoomType(e.target.value)} className="w-full border rounded px-2 py-1.5 text-sm bg-background mt-1">
-                {["Superior Queen Room", "Deluxe Room", "Deluxe Twin Room", "Executive Suite", "Premier Suite"].map(r => <option key={r}>{r}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="text-sm font-medium">Guest Name</label>
-              <Input value={amendGuestName} onChange={e => setAmendGuestName(e.target.value)} className="mt-1" />
-            </div>
-            <Separator />
-            <Card className="p-3 bg-amber-50 dark:bg-amber-900/20 border-amber-200">
-              <h4 className="text-sm font-semibold mb-2">Amendment Fee Summary</h4>
-              <div className="flex justify-between text-sm"><span>Rate Difference</span><span>USD 0.00</span></div>
-              <div className="flex justify-between text-sm"><span>Amendment Fee</span><span className="text-amber-600">USD 25.00</span></div>
-              <Separator className="my-2" />
-              <div className="flex justify-between text-sm font-bold"><span>Total Additional</span><span style={{ color: "#FF6000" }}>USD 25.00</span></div>
-            </Card>
-          </div>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction style={{ background: "#FF6000" }} onClick={() => {
-              toast.success("Booking Amended", { description: "Amendment request submitted. Status changed to Amendment Pending." });
-              setAmendOpen(false);
-              setSelectedBooking(null);
-            }}>Confirm Amendment</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* ── (Amend Booking removed — bookings cannot be modified) ── */}
 
       {/* ── Print Voucher Dialog ── */}
       <Dialog open={voucherOpen} onOpenChange={setVoucherOpen}>

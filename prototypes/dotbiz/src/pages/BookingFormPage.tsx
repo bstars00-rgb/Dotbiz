@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router";
-import { ArrowLeft, RefreshCw, Search } from "lucide-react";
+import { ArrowLeft, RefreshCw, Search, CreditCard, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -19,6 +19,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { currentCompany } from "@/mocks/companies";
 import { hotels } from "@/mocks/hotels";
 import { getRoomsByHotel } from "@/mocks/rooms";
+import PaymentDialog from "@/components/PaymentDialog";
 import { toast } from "sonner";
 
 const FORM_STORAGE_KEY = "dotbiz_booking_form";
@@ -68,6 +69,10 @@ export default function BookingFormPage() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [travelerErrors, setTravelerErrors] = useState(false);
+  const [paymentOpen, setPaymentOpen] = useState(false);
+
+  /* Billing type from ELLIS (via auth context) */
+  const billingType = user?.billingType || "POSTPAY";
 
   /* Booking data from URL params → sessionStorage fallback → defaults */
   const hotelId = searchParams.get("hotel") || sessionStorage.getItem("dotbiz_booking_hotel") || "htl-007";
@@ -233,9 +238,23 @@ export default function BookingFormPage() {
       {/* ── Billing Rate ── */}
       <Card className="p-5">
         <h2 className="font-bold mb-3">Billing Rate</h2>
-        <div className="text-right">
-          <p className="text-xl font-bold" style={{ color: "#FF6000" }}>USD {totalPrice.toFixed(2)}</p>
-          <p className="text-xs text-muted-foreground">USD {room?.price.toFixed(2)} x {nights} night{nights > 1 ? "s" : ""}</p>
+        <div className="flex items-end justify-between">
+          <div>
+            <Badge variant={billingType === "PREPAY" ? "destructive" : "default"} className="text-xs">{billingType === "PREPAY" ? "PREPAY (선불)" : "POSTPAY (후불)"}</Badge>
+            {billingType === "POSTPAY" && (
+              <p className="text-xs text-muted-foreground mt-1">Settlement: {currentCompany.settlementCycle || "Monthly"} · Net-{currentCompany.paymentDueDays || 30}</p>
+            )}
+            {billingType === "PREPAY" && !isFreeCancel && (
+              <p className="text-xs text-red-500 mt-1 flex items-center gap-1"><AlertTriangle className="h-3 w-3" />Non-refundable: Payment required before booking</p>
+            )}
+            {billingType === "PREPAY" && isFreeCancel && (
+              <p className="text-xs text-amber-600 mt-1">Payment due by cancel deadline: {freeCancelDate}</p>
+            )}
+          </div>
+          <div className="text-right">
+            <p className="text-xl font-bold" style={{ color: "#FF6000" }}>USD {totalPrice.toFixed(2)}</p>
+            <p className="text-xs text-muted-foreground">USD {room?.price.toFixed(2)} x {nights} night{nights > 1 ? "s" : ""}</p>
+          </div>
         </div>
       </Card>
 
@@ -244,17 +263,32 @@ export default function BookingFormPage() {
         <h2 className="font-bold mb-3">Notice</h2>
         <div className="space-y-2">
           <h3 className="text-sm font-bold">Things to know</h3>
-          <p className="text-xs text-muted-foreground">The above list may not be comprehensive. Fees and deposits may not include tax and are subject to change.</p>
-          <p className="text-xs text-muted-foreground">• Additional charges may apply for extra beds or early check-in/late check-out.</p>
+          <p className="text-xs text-muted-foreground">• Bookings cannot be modified after creation. Please cancel and rebook if changes are needed.</p>
+          <p className="text-xs text-muted-foreground">• Non-refundable bookings cannot be cancelled.</p>
+          <p className="text-xs text-muted-foreground">• For special requests, please submit a ticket after booking.</p>
           <p className="text-xs text-muted-foreground">• Please present valid government-issued photo identification at check-in.</p>
         </div>
       </Card>
 
       {/* ── Actions ── */}
       <div className="flex justify-end gap-3 pb-4">
-        <Button onClick={handleCreate} style={{ background: "#FF6000" }} className="px-8">Create</Button>
+        {billingType === "PREPAY" && !isFreeCancel ? (
+          <Button onClick={handleCreate} style={{ background: "#DC2626" }} className="px-8"><CreditCard className="h-4 w-4 mr-2" />Pay & Book</Button>
+        ) : (
+          <Button onClick={handleCreate} style={{ background: "#FF6000" }} className="px-8">Create</Button>
+        )}
         <Button variant="outline" onClick={() => navigate(-1)}>Close</Button>
       </div>
+
+      {/* ── Payment Dialog (PREPAY only) ── */}
+      <PaymentDialog open={paymentOpen} onOpenChange={setPaymentOpen} amount={totalPrice} onPaymentComplete={() => {
+        sessionStorage.setItem("dotbiz_booking_hotel", hotelId);
+        sessionStorage.setItem("dotbiz_booking_room", roomId);
+        sessionStorage.setItem("dotbiz_booking_checkin", checkIn);
+        sessionStorage.setItem("dotbiz_booking_checkout", checkOut);
+        toast.success("Payment successful! Booking confirmed.", { description: "Redirecting to review..." });
+        navigate("/app/booking/confirm");
+      }} />
 
       {/* ── Confirm Dialog ── */}
       <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
@@ -264,7 +298,21 @@ export default function BookingFormPage() {
             <AlertDialogDescription className="text-[#FF6000]">Are you sure you want to create this booking?</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogAction onClick={() => { sessionStorage.setItem("dotbiz_booking_hotel", hotelId); sessionStorage.setItem("dotbiz_booking_room", roomId); sessionStorage.setItem("dotbiz_booking_checkin", checkIn); sessionStorage.setItem("dotbiz_booking_checkout", checkOut); toast.success("Booking created!", { description: "Redirecting to review..." }); navigate("/app/booking/confirm"); }} style={{ background: "#FF6000" }}>Confirm</AlertDialogAction>
+            <AlertDialogAction onClick={() => {
+              if (billingType === "PREPAY" && !isFreeCancel) {
+                setConfirmOpen(false);
+                setPaymentOpen(true);
+              } else {
+                sessionStorage.setItem("dotbiz_booking_hotel", hotelId);
+                sessionStorage.setItem("dotbiz_booking_room", roomId);
+                sessionStorage.setItem("dotbiz_booking_checkin", checkIn);
+                sessionStorage.setItem("dotbiz_booking_checkout", checkOut);
+                toast.success("Booking created!", { description: "Redirecting to review..." });
+                navigate("/app/booking/confirm");
+              }
+            }} style={{ background: billingType === "PREPAY" && !isFreeCancel ? "#DC2626" : "#FF6000" }}>
+              {billingType === "PREPAY" && !isFreeCancel ? "Proceed to Payment" : "Confirm"}
+            </AlertDialogAction>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
           </AlertDialogFooter>
         </AlertDialogContent>
