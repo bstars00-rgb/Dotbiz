@@ -725,6 +725,44 @@ export default function FindHotelPage() {
         );
       })()}
 
+      {/* ── Promo Banner (기획전 배너) ── */}
+      <div className="px-6 pt-8">
+        <div className="max-w-5xl mx-auto">
+          <div
+            className="relative rounded-2xl overflow-hidden cursor-pointer group"
+            style={{ height: 240 }}
+            onClick={() => navigate("/app/campaign/big-discounts")}
+          >
+            <div className="absolute inset-0" style={{ background: "linear-gradient(135deg, #0c4a6e 0%, #155e75 25%, #0f766e 50%, #134e4a 75%, #064e3b 100%)" }} />
+            <div className="absolute inset-0 overflow-hidden">
+              <div className="absolute -right-10 -top-10 w-72 h-72 rounded-full opacity-10" style={{ background: "#FF6000" }} />
+              <div className="absolute -left-10 -bottom-20 w-60 h-60 rounded-full opacity-10" style={{ background: "#009505" }} />
+              <div className="absolute right-8 bottom-0 flex gap-3 items-end opacity-15">
+                {["🌴","🏖️","🌴","🏨","🌴"].map((e, i) => (
+                  <span key={i} className="text-6xl" style={{ transform: `translateY(${i % 2 === 0 ? 8 : 0}px)` }}>{e}</span>
+                ))}
+              </div>
+            </div>
+            <div className="absolute inset-0 flex items-center px-10">
+              <div className="max-w-lg">
+                <p className="text-sm font-semibold tracking-widest mb-3" style={{ color: "#FF8C00" }}>DOTBIZ EXCLUSIVE</p>
+                <h2 className="text-4xl font-black text-white leading-tight mb-2">Singapore Spring Sale</h2>
+                <p className="text-lg text-white/70 mb-5">Curated Hotel Styles For Memorable Experience</p>
+                <Button size="lg" className="rounded-full px-8 text-white font-bold shadow-lg group-hover:shadow-xl transition-all" style={{ background: "#FF6000" }}>
+                  Book Now <ArrowRight className="h-4 w-4 ml-2" />
+                </Button>
+              </div>
+            </div>
+            <div className="absolute right-10 top-1/2 -translate-y-1/2 text-right hidden lg:block">
+              <div className="bg-white/10 backdrop-blur-sm rounded-xl px-6 py-4">
+                <p className="text-white/60 text-xs mb-1">Powered by</p>
+                <p className="text-white font-bold text-lg">OhMyHotel&Co</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* ── Campaigns / Promotions (기획전) ── */}
       <div className="px-6 pt-8 pb-2">
         <div className="max-w-5xl mx-auto">
@@ -939,54 +977,7 @@ export default function FindHotelPage() {
         </div>
       </div>
 
-      {/* ── Promo Banner (기획전 배너) ── */}
-      <div className="px-6 pt-8 pb-8">
-        <div className="max-w-5xl mx-auto">
-          <div
-            className="relative rounded-2xl overflow-hidden cursor-pointer group"
-            style={{ height: 240 }}
-            onClick={() => navigate("/app/campaign/big-discounts")}
-          >
-            {/* Background — tropical resort style gradient */}
-            <div className="absolute inset-0" style={{ background: "linear-gradient(135deg, #0c4a6e 0%, #155e75 25%, #0f766e 50%, #134e4a 75%, #064e3b 100%)" }} />
-            {/* Decorative shapes */}
-            <div className="absolute inset-0 overflow-hidden">
-              <div className="absolute -right-10 -top-10 w-72 h-72 rounded-full opacity-10" style={{ background: "#FF6000" }} />
-              <div className="absolute -left-10 -bottom-20 w-60 h-60 rounded-full opacity-10" style={{ background: "#009505" }} />
-              {/* Palm/resort silhouettes */}
-              <div className="absolute right-8 bottom-0 flex gap-3 items-end opacity-15">
-                {["🌴","🏖️","🌴","🏨","🌴"].map((e, i) => (
-                  <span key={i} className="text-6xl" style={{ transform: `translateY(${i % 2 === 0 ? 8 : 0}px)` }}>{e}</span>
-                ))}
-              </div>
-            </div>
-            {/* Text content */}
-            <div className="absolute inset-0 flex items-center px-10">
-              <div className="max-w-lg">
-                <p className="text-sm font-semibold tracking-widest mb-3" style={{ color: "#FF8C00" }}>DOTBIZ EXCLUSIVE</p>
-                <h2 className="text-4xl font-black text-white leading-tight mb-2">
-                  Singapore Spring Sale
-                </h2>
-                <p className="text-lg text-white/70 mb-5">Curated Hotel Styles For Memorable Experience</p>
-                <Button
-                  size="lg"
-                  className="rounded-full px-8 text-white font-bold shadow-lg group-hover:shadow-xl transition-all"
-                  style={{ background: "#FF6000" }}
-                >
-                  Book Now <ArrowRight className="h-4 w-4 ml-2" />
-                </Button>
-              </div>
-            </div>
-            {/* Far East Hospitality logo area */}
-            <div className="absolute right-10 top-1/2 -translate-y-1/2 text-right hidden lg:block">
-              <div className="bg-white/10 backdrop-blur-sm rounded-xl px-6 py-4">
-                <p className="text-white/60 text-xs mb-1">Powered by</p>
-                <p className="text-white font-bold text-lg">OhMyHotel&Co</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+      {/* Promo Banner moved above Recommended Accommodations */}
 
       <StateToolbar state={state} setState={setState} />
     </div>
