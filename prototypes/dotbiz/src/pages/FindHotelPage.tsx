@@ -63,11 +63,11 @@ export function clearRecentSearches() {
 /* Default data for first-time users */
 const defaultRecent: RecentSearch[] = [
   { id: "rs1", hotelId: "htl-001", hotel: "Grand Hyatt Seoul", checkin: "2026-03-30", checkout: "2026-04-02", price: 280, timestamp: Date.now() - 86400000 },
-  { id: "rs2", hotelId: "htl-013", hotel: "Hotel Nikko Bangkok", checkin: "2026-04-05", checkout: "2026-04-08", price: 195, timestamp: Date.now() - 172800000 },
-  { id: "rs3", hotelId: "htl-008", hotel: "Mandarin Oriental Tokyo", checkin: "2026-04-10", checkout: "2026-04-12", price: 450, timestamp: Date.now() - 259200000 },
-  { id: "rs4", hotelId: "htl-005", hotel: "Four Seasons Seoul", checkin: "2026-03-25", checkout: "2026-03-27", price: 520, timestamp: Date.now() - 345600000 },
-  { id: "rs5", hotelId: "htl-010", hotel: "Park Hyatt Tokyo", checkin: "2026-04-01", checkout: "2026-04-03", price: 480, timestamp: Date.now() - 432000000 },
-  { id: "rs6", hotelId: "htl-018", hotel: "Ritz-Carlton Bali", checkin: "2026-03-20", checkout: "2026-03-24", price: 350, timestamp: Date.now() - 518400000 },
+  { id: "rs2", hotelId: "htl-003", hotel: "Hotel Nikko Bangkok", checkin: "2026-04-05", checkout: "2026-04-08", price: 195, timestamp: Date.now() - 172800000 },
+  { id: "rs3", hotelId: "htl-005", hotel: "Mandarin Oriental Tokyo", checkin: "2026-04-10", checkout: "2026-04-12", price: 450, timestamp: Date.now() - 259200000 },
+  { id: "rs4", hotelId: "htl-018", hotel: "Park Hyatt Busan", checkin: "2026-03-25", checkout: "2026-03-27", price: 260, timestamp: Date.now() - 345600000 },
+  { id: "rs5", hotelId: "htl-009", hotel: "Park Hyatt Shanghai", checkin: "2026-04-01", checkout: "2026-04-03", price: 380, timestamp: Date.now() - 432000000 },
+  { id: "rs6", hotelId: "htl-016", hotel: "Four Seasons Bali at Sayan", checkin: "2026-03-20", checkout: "2026-03-24", price: 580, timestamp: Date.now() - 518400000 },
 ];
 
 const amenityIcons: Record<string, any> = {
