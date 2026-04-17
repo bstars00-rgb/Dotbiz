@@ -561,57 +561,75 @@ export default function BookingsPage() {
 
       {/* ── (Amend Booking removed — bookings cannot be modified) ── */}
 
-      {/* ── Print Voucher Dialog ── */}
+      {/* ── Booking Voucher Dialog (A4) ── */}
       <Dialog open={voucherOpen} onOpenChange={setVoucherOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader><DialogTitle>Booking Voucher</DialogTitle></DialogHeader>
-          {selectedBooking && (
-            <div id="printable-voucher" className="space-y-4 p-4">
-              <div className="text-center border-b pb-4">
-                <h2 className="text-2xl font-bold" style={{ color: "#FF6000" }}>DOTBIZ</h2>
-                <p className="text-sm text-muted-foreground">Hotel Booking Voucher</p>
-              </div>
-              <div className="text-center">
-                <p className="text-xs text-muted-foreground">Booking Reference</p>
-                <p className="text-xl font-mono font-bold">{selectedBooking.ellisCode}</p>
-              </div>
-              <Card className="p-3">
-                <h4 className="text-sm font-bold mb-2" style={{ color: "#FF6000" }}>Hotel Information</h4>
-                <p className="font-medium">{selectedBooking.hotelName}</p>
-                <p className="text-xs text-muted-foreground">{selectedBooking.hotelAddress}</p>
-              </Card>
-              <Card className="p-3">
-                <h4 className="text-sm font-bold mb-2" style={{ color: "#FF6000" }}>Stay Details</h4>
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                  <div><span className="text-muted-foreground">Check-In:</span> {selectedBooking.checkIn}</div>
-                  <div><span className="text-muted-foreground">Check-Out:</span> {selectedBooking.checkOut}</div>
-                  <div><span className="text-muted-foreground">Nights:</span> {selectedBooking.nights}</div>
-                  <div><span className="text-muted-foreground">Room:</span> {selectedBooking.roomType} x{selectedBooking.roomCount}</div>
+        <DialogContent className="max-h-[95vh] overflow-y-auto p-0" style={{ maxWidth: "900px", width: "90vw" }}>
+          <DialogHeader className="px-6 pt-4 pb-2 border-b"><DialogTitle>Booking Voucher</DialogTitle></DialogHeader>
+          {selectedBooking && (() => {
+            const checkOutDate = (() => { const d = new Date(selectedBooking.checkIn); d.setDate(d.getDate() + selectedBooking.nights); return d.toISOString().split("T")[0]; })();
+            const ciDay = new Date(selectedBooking.checkIn).toLocaleDateString("en-US", { weekday: "short" }).toUpperCase();
+            const coDay = new Date(checkOutDate).toLocaleDateString("en-US", { weekday: "short" }).toUpperCase();
+            return (
+              <div id="printable-voucher" className="bg-white text-slate-900 p-10" style={{ fontFamily: "Arial, sans-serif" }}>
+                {/* Title */}
+                <div className="mb-6">
+                  <h1 className="text-3xl font-bold" style={{ color: "#FF6000" }}>Voucher</h1>
                 </div>
-              </Card>
-              <Card className="p-3">
-                <h4 className="text-sm font-bold mb-2" style={{ color: "#FF6000" }}>Guest</h4>
-                <p className="text-sm">{selectedBooking.guestName} ({selectedBooking.guestEmail})</p>
-              </Card>
-              <Card className="p-3">
-                <h4 className="text-sm font-bold mb-2" style={{ color: "#FF6000" }}>Payment</h4>
-                <p className="text-lg font-bold">Total: USD {selectedBooking.sumAmount.toLocaleString()}</p>
-                <Badge variant={statusColors[selectedBooking.paymentStatus] as "default"}>{selectedBooking.paymentStatus}</Badge>
-              </Card>
-              {/* Barcode placeholder */}
-              <div className="flex justify-center py-2">
-                <div className="flex gap-[2px]">
-                  {Array.from({ length: 40 }).map((_, i) => (
-                    <div key={i} className="bg-foreground" style={{ width: i % 3 === 0 ? 2 : 1, height: 40 }} />
-                  ))}
+
+                {/* Booking Information */}
+                <h2 className="text-xl font-bold border-b-2 pb-2 mb-4" style={{ borderColor: "#FF6000" }}>Booking Information</h2>
+                <table className="w-full mb-8 text-sm">
+                  <tbody>
+                    <tr className="border-b"><td className="py-2.5 font-medium text-slate-600 w-48">Reference No.</td><td className="py-2.5 text-slate-900 font-medium">{selectedBooking.ellisCode} / {selectedBooking.hotelConfirmCode || "—"}</td></tr>
+                    <tr className="border-b"><td className="py-2.5 font-medium text-slate-600">Booking Code</td><td className="py-2.5 font-mono">{selectedBooking.ellisCode}</td></tr>
+                    <tr className="border-b"><td className="py-2.5 font-medium text-slate-600">Hotel</td><td className="py-2.5 font-medium">{selectedBooking.hotelName}</td></tr>
+                    <tr className="border-b"><td className="py-2.5 font-medium text-slate-600">Address</td><td className="py-2.5">{selectedBooking.hotelAddress}</td></tr>
+                    <tr className="border-b"><td className="py-2.5 font-medium text-slate-600">Tel.</td><td className="py-2.5">{selectedBooking.hotelContact}</td></tr>
+                    <tr className="border-b"><td className="py-2.5 font-medium text-slate-600">Rooms</td><td className="py-2.5">{selectedBooking.roomCount}</td></tr>
+                    <tr className="border-b"><td className="py-2.5 font-medium text-slate-600">Check In</td><td className="py-2.5 text-green-700 font-medium">{selectedBooking.checkIn}({ciDay})</td></tr>
+                    <tr className="border-b"><td className="py-2.5 font-medium text-slate-600">Check Out</td><td className="py-2.5 text-green-700 font-medium">{checkOutDate}({coDay})</td></tr>
+                    <tr className="border-b"><td className="py-2.5 font-medium text-slate-600">Room Type</td><td className="py-2.5">{selectedBooking.roomType}</td></tr>
+                    <tr className="border-b"><td className="py-2.5 font-medium text-slate-600">Meal &amp; Breakfast Type</td><td className="py-2.5">Room Only</td></tr>
+                    <tr className="border-b"><td className="py-2.5 font-medium text-slate-600">Guests</td><td className="py-2.5"><div className="font-medium">Room 1</div><div className="text-slate-700">{selectedBooking.traveler.split(" ").join("/")}, TBAAB/TBAAB</div></td></tr>
+                    <tr className="border-b"><td className="py-2.5 font-medium text-slate-600">Guest Requests</td><td className="py-2.5">{selectedBooking.specialRequests || "No additional requests"}</td></tr>
+                  </tbody>
+                </table>
+
+                {/* Guidelines */}
+                <div className="bg-orange-50 border border-orange-200 rounded p-4 mb-6">
+                  <h3 className="text-sm font-bold text-red-600 mb-2">[Guidelines]</h3>
+                  <ul className="space-y-1.5 text-xs text-slate-700">
+                    <li className="flex gap-2"><span className="text-orange-600 shrink-0">\u2611</span>Please present the Voucher to the Front desk along with your passport when checking in at the accommodation.</li>
+                    <li className="flex gap-2"><span className="text-orange-600 shrink-0">\u2611</span>Please check your Reservation details before cancelling as Cancellation charge can be applied. In case you do not check in on the check-in date, we will treat this as No-show and your payment will not be refunded. For smooth check-in, please contact the hotel in advance for late check-in after 9pm hotel local time.</li>
+                    <li className="flex gap-2"><span className="text-orange-600 shrink-0">\u2611</span>A room type set for 3 people allows up to 3 people to stay in 1 room, and does not necessarily mean that 3 beds are provided. In some cases, only one double bed or two single beds are provided without an extra bed/mattress, and breakfast can only be provided for two people.</li>
+                    <li className="flex gap-2"><span className="text-orange-600 shrink-0">\u2611</span>Based on the Policies of each hotel, a deposit amount might be required in cash or card. If there is no usage history for the in-room billing service and facilities, the hotel will check and process a refund upon departure.</li>
+                    <li className="flex gap-2"><span className="text-orange-600 shrink-0">\u2611</span>According to local tax regulation in some cities, accommodation tax/city tax/bathing tax, etc. surcharge might be required upon check-in. In addition, additional charges may be incurred due to write-offs/compulsory gala dinners for specific dates. Hotels reserve the right to deny access or apply additional surcharge for unresevred personnel(including infants).</li>
+                    <li className="flex gap-2"><span className="text-orange-600 shrink-0">\u2611</span>Membership point/mileage benefits and accumulation operated by the hotel itself are invalid.</li>
+                  </ul>
+                </div>
+
+                {/* Footer */}
+                <div className="border-t pt-4 text-xs text-slate-700 space-y-3">
+                  <div>
+                    <p className="font-bold text-slate-900 mb-1">Site Operator</p>
+                    <p>OHMYHOTEL GLOBAL PTE. LTD. (Business Registration No. 202543984E, CEO: LEE MISOON)</p>
+                    <p>111 SOMERSET ROAD, #06-01H, 111 SOMERSET, SINGAPORE 238164</p>
+                  </div>
+                  <div>
+                    <p className="font-bold text-slate-900 mb-1">Customer Service Center</p>
+                    <p>OHMYHOTEL &amp; CO., Ltd. (Business Registration No. 105-87-71311, CEO: Lee Misoon)</p>
+                    <p>GT Dongdaemun Building 6F, 328 Jongno, Jongno-gu, Seoul, Republic of Korea (Changsin-dong 330-1)</p>
+                    <p>Tel: +82-2-762-0552 (Korea Weekdays 09:00 ~ 18:00, Closed on Weekends &amp; Public Holidays)</p>
+                    <p>E-Commerce Registration No.: 2020-Seoul Jongno-0399 | Privacy Officer: Lee Misoon</p>
+                  </div>
+                  <p className="text-slate-500 pt-2 border-t">© 2026 OHMYHOTEL GLOBAL PTE. LTD. All rights reserved.</p>
                 </div>
               </div>
-              <p className="text-[10px] text-center text-muted-foreground">This voucher was generated by DOTBIZ Platform. Present this voucher at check-in.</p>
-            </div>
-          )}
-          <div className="flex justify-end gap-2 pt-2 border-t">
+            );
+          })()}
+          <div className="flex justify-end gap-2 px-6 py-3 border-t bg-muted/30 sticky bottom-0">
             <Button variant="outline" onClick={() => setVoucherOpen(false)}>Close</Button>
-            <Button style={{ background: "#FF6000" }} onClick={() => { window.print(); }}><Printer className="h-4 w-4 mr-1" />Print / Save PDF</Button>
+            <Button style={{ background: "#FF6000" }} onClick={() => window.print()}><Printer className="h-4 w-4 mr-1" />Print / Save PDF</Button>
           </div>
         </DialogContent>
       </Dialog>

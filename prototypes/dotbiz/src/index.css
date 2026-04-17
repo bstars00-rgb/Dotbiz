@@ -156,8 +156,10 @@
 
 /* Print styles */
 @media print {
+  @page { size: A4; margin: 15mm; }
+  html, body { background: white !important; color: black !important; }
   body * { visibility: hidden; }
   #printable-voucher, #printable-voucher * { visibility: visible; }
-  #printable-voucher { position: absolute; left: 0; top: 0; width: 100%; padding: 20px; }
+  #printable-voucher { position: absolute; left: 0; top: 0; width: 100%; padding: 0; background: white !important; }
   nav, header, footer, [role="banner"], .state-toolbar { display: none !important; }
 }
