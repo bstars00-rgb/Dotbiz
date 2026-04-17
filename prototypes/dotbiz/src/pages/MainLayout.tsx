@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { AnimatePresence } from "framer-motion";
 import PageTransition from "@/components/PageTransition";
 import Footer from "@/components/Footer";
-import { Search, Moon, Sun, Bell, User, LogOut, LayoutDashboard, CalendarCheck, Wallet, HelpCircle, Gift, Pen, Menu, Users, Ticket, Heart } from "lucide-react";
+import { Search, Moon, Sun, Bell, User, LogOut, LayoutDashboard, CalendarCheck, Wallet, HelpCircle, Gift, Pen, Menu, Users, Ticket, Heart, ChevronsLeft, ChevronsRight } from "lucide-react";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,6 +45,7 @@ export default function MainLayout() {
   }, [isAuthenticated, navigate]);
   const isMobile = !useMediaQuery("(min-width: 768px)");
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => localStorage.getItem("dotbiz_sidebar") === "collapsed");
   const [dark, setDark] = useState(() => {
     const saved = localStorage.getItem("dotbiz_dark");
     if (saved === "true") { document.documentElement.classList.add("dark"); return true; }
@@ -172,20 +173,19 @@ export default function MainLayout() {
 
       {/* Body */}
       <div className="flex flex-1 min-h-0">
-        {/* Sidebar — hidden on mobile */}
-        <nav className="w-60 border-r hidden md:flex flex-col shrink-0 bg-card" role="navigation">
-          <div className="p-4 cursor-pointer flex items-center gap-3" onClick={() => navigate("/app/dashboard")}>
+        {/* Sidebar — collapsible, hidden on mobile */}
+        <nav className={`${sidebarCollapsed ? "w-16" : "w-60"} border-r hidden md:flex flex-col shrink-0 bg-card transition-all duration-200`} role="navigation">
+          {/* Logo */}
+          <div className={`${sidebarCollapsed ? "p-2 justify-center" : "p-4"} cursor-pointer flex items-center gap-3`} onClick={() => navigate("/app/dashboard")}>
             <div className="relative w-9 h-9 shrink-0">
               <div className="absolute inset-0 rounded-full" style={{ background: "conic-gradient(from 180deg, #FF6000, #FF8C00, #FFCF8F, #FF6000)" }} />
               <div className="absolute inset-[2px] rounded-full bg-white dark:bg-slate-800 flex items-center justify-center">
-                <svg viewBox="0 0 24 24" className="w-4.5 h-4.5" fill="none">
-                  <path d="M12 3C7.5 3 4 6.5 4 11c0 3 1.5 5.5 4 7l1-2c-2-1-3-3-3-5 0-3.3 2.7-6 6-6s6 2.7 6 6c0 2-1 3.8-2.5 5l1 2c2.3-1.5 3.5-4 3.5-7 0-4.5-3.5-8-8-8z" fill="#FF6000" />
-                  <circle cx="12" cy="4" r="2.5" fill="#009505" />
-                </svg>
+                <svg viewBox="0 0 24 24" className="w-4.5 h-4.5" fill="none"><path d="M12 3C7.5 3 4 6.5 4 11c0 3 1.5 5.5 4 7l1-2c-2-1-3-3-3-5 0-3.3 2.7-6 6-6s6 2.7 6 6c0 2-1 3.8-2.5 5l1 2c2.3-1.5 3.5-4 3.5-7 0-4.5-3.5-8-8-8z" fill="#FF6000" /><circle cx="12" cy="4" r="2.5" fill="#009505" /></svg>
               </div>
             </div>
-            <span className="text-xl font-bold font-heading" style={{ color: "#FF6000" }}>DOTBIZ</span>
+            {!sidebarCollapsed && <span className="text-xl font-bold font-heading" style={{ color: "#FF6000" }}>DOTBIZ</span>}
           </div>
+          {/* Nav items */}
           <div className="flex flex-col gap-1 px-2">
             {navItems.map(item => {
               if (item.roles && !hasRole(item.roles)) return null;
@@ -194,34 +194,51 @@ export default function MainLayout() {
                 <button
                   key={item.path}
                   onClick={() => navigate(item.path)}
-                  className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors text-left ${active ? "bg-primary text-primary-foreground" : "hover:bg-accent text-foreground"}`}
+                  title={sidebarCollapsed ? t(item.i18nKey) : undefined}
+                  className={`flex items-center ${sidebarCollapsed ? "justify-center px-2" : "gap-3 px-3"} py-2 rounded-md text-sm font-medium transition-colors text-left ${active ? "bg-primary text-primary-foreground" : "hover:bg-accent text-foreground"}`}
                 >
-                  <item.icon className="h-4 w-4" aria-hidden="true" />
-                  {t(item.i18nKey)}
+                  <item.icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+                  {!sidebarCollapsed && <span className="truncate">{t(item.i18nKey)}</span>}
                 </button>
               );
             })}
           </div>
           <div className="flex-1" />
+          {/* Collapse toggle */}
+          <button
+            onClick={() => { const next = !sidebarCollapsed; setSidebarCollapsed(next); localStorage.setItem("dotbiz_sidebar", next ? "collapsed" : "expanded"); }}
+            className="mx-2 mb-2 p-2 rounded-md hover:bg-accent text-muted-foreground flex items-center justify-center"
+            title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            {sidebarCollapsed ? <ChevronsRight className="h-4 w-4" /> : <ChevronsLeft className="h-4 w-4" />}
+          </button>
           <Separator />
-          <div className="p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <Avatar className="h-8 w-8">
-                <AvatarFallback>JP</AvatarFallback>
-              </Avatar>
-              <div>
-                <p className="text-sm font-medium">{user?.name || currentUser.fullName}</p>
-                <Badge variant="secondary" className="text-xs">{user?.role || currentUser.role}</Badge>
+          {/* User section */}
+          <div className={`${sidebarCollapsed ? "p-2" : "p-4"}`}>
+            {sidebarCollapsed ? (
+              <div className="flex flex-col items-center gap-2">
+                <Avatar className="h-8 w-8 cursor-pointer" onClick={() => navigate("/app/my-account")}>
+                  <AvatarFallback className="text-xs">{(user?.name || "U").slice(0, 2).toUpperCase()}</AvatarFallback>
+                </Avatar>
+                <button onClick={() => setLogoutOpen(true)} className="p-1 rounded hover:bg-accent" title={t("nav.logout")}><LogOut className="h-4 w-4 text-muted-foreground" /></button>
               </div>
-            </div>
-            <Button variant="ghost" className="w-full justify-start text-xs" onClick={() => { logout(); navigate("/login"); }}>
-              <User className="h-4 w-4 mr-2" aria-hidden="true" />
-              {t("nav.switchAccount")}
-            </Button>
-            <Button variant="ghost" className="w-full justify-start" onClick={() => setLogoutOpen(true)}>
-              <LogOut className="h-4 w-4 mr-2" aria-hidden="true" />
-              {t("nav.logout")}
-            </Button>
+            ) : (
+              <>
+                <div className="flex items-center gap-2 mb-3">
+                  <Avatar className="h-8 w-8"><AvatarFallback>{(user?.name || "U").slice(0, 2).toUpperCase()}</AvatarFallback></Avatar>
+                  <div>
+                    <p className="text-sm font-medium">{user?.name || currentUser.fullName}</p>
+                    <Badge variant="secondary" className="text-xs">{user?.role || currentUser.role}</Badge>
+                  </div>
+                </div>
+                <Button variant="ghost" className="w-full justify-start text-xs" onClick={() => { logout(); navigate("/login"); }}>
+                  <User className="h-4 w-4 mr-2" aria-hidden="true" />{t("nav.switchAccount")}
+                </Button>
+                <Button variant="ghost" className="w-full justify-start" onClick={() => setLogoutOpen(true)}>
+                  <LogOut className="h-4 w-4 mr-2" aria-hidden="true" />{t("nav.logout")}
+                </Button>
+              </>
+            )}
           </div>
         </nav>
 
