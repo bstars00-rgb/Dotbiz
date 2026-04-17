@@ -1,5 +1,6 @@
 import { useState, useMemo, useRef, useEffect } from "react";
 import { useNavigate } from "react-router";
+import { bookings } from "@/mocks/bookings";
 import {
   MapPin, Calendar, Search, Globe, Star, RefreshCw, Users, ChevronDown, ChevronLeft, ChevronRight as ChevronRightIcon,
   Clock, X, Heart, ArrowRight, Flame, Shield, TrendingUp, Building2,
@@ -675,6 +676,16 @@ export default function FindHotelPage() {
       )}
 
       {/* ── Stats Section ── */}
+      {(() => {
+        const now = new Date();
+        const in24h = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+        const in3d = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
+        const confirmed = bookings.filter(b => b.bookingStatus === "Confirmed");
+        const fc24 = confirmed.filter(b => b.freeCancelDeadline && new Date(b.freeCancelDeadline) >= now && new Date(b.freeCancelDeadline) <= in24h).length;
+        const fc3d = confirmed.filter(b => b.freeCancelDeadline && new Date(b.freeCancelDeadline) >= now && new Date(b.freeCancelDeadline) <= in3d).length;
+        const up24 = confirmed.filter(b => new Date(b.checkIn) >= now && new Date(b.checkIn) <= in24h).length;
+        const up3d = confirmed.filter(b => new Date(b.checkIn) >= now && new Date(b.checkIn) <= in3d).length;
+        return (
       <div className={`px-6 ${recentList.length > 0 ? "pt-4" : "pt-6"}`}>
         <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-4">
           <Card className="p-5 border-l-4" style={{ borderLeftColor: "#009505" }}>
@@ -684,11 +695,11 @@ export default function FindHotelPage() {
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
               <button className="text-center hover:bg-green-50 dark:hover:bg-green-900/10 rounded-lg p-2 transition-colors" onClick={() => navigate("/app/bookings?filter=free_cancel_24h")}>
-                <p className="text-3xl font-bold">3</p>
+                <p className="text-3xl font-bold">{fc24}</p>
                 <p className="text-xs text-muted-foreground mt-1">Within 24 hours</p>
               </button>
               <button className="text-center hover:bg-green-50 dark:hover:bg-green-900/10 rounded-lg p-2 transition-colors" onClick={() => navigate("/app/bookings?filter=free_cancel_3d")}>
-                <p className="text-3xl font-bold">7</p>
+                <p className="text-3xl font-bold">{fc3d}</p>
                 <p className="text-xs text-muted-foreground mt-1">Within 3 days</p>
               </button>
             </div>
@@ -700,17 +711,19 @@ export default function FindHotelPage() {
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
               <button className="text-center hover:bg-orange-50 dark:hover:bg-orange-900/10 rounded-lg p-2 transition-colors" onClick={() => navigate("/app/bookings?filter=upcoming_24h")}>
-                <p className="text-3xl font-bold">2</p>
+                <p className="text-3xl font-bold">{up24}</p>
                 <p className="text-xs text-muted-foreground mt-1">Within 24 hours</p>
               </button>
               <button className="text-center hover:bg-orange-50 dark:hover:bg-orange-900/10 rounded-lg p-2 transition-colors" onClick={() => navigate("/app/bookings?filter=upcoming_3d")}>
-                <p className="text-3xl font-bold">5</p>
+                <p className="text-3xl font-bold">{up3d}</p>
                 <p className="text-xs text-muted-foreground mt-1">Within 3 days</p>
               </button>
             </div>
           </Card>
         </div>
       </div>
+        );
+      })()}
 
       {/* ── Campaigns / Promotions (기획전) ── */}
       <div className="px-6 pt-8 pb-2">
