@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router";
-import { Search, X, Download, ChevronLeft, ChevronRight, Paperclip, Send, RefreshCw, MapPin, Calendar, Clock, FileText, Printer } from "lucide-react";
+import { Search, X, Download, ChevronLeft, ChevronRight, RefreshCw, MapPin, Calendar, Clock, FileText, Printer, Ticket } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -11,7 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ScrollArea } from "@/components/ui/scroll-area";
+// ScrollArea removed (chat tab deleted)
 import { Separator } from "@/components/ui/separator";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useScreenState } from "@/hooks/useScreenState";
@@ -129,8 +129,6 @@ export default function BookingsPage() {
       <Tabs defaultValue="list">
         <TabsList>
           <TabsTrigger value="list">Booking List</TabsTrigger>
-          <TabsTrigger value="calendar">Calendar</TabsTrigger>
-          <TabsTrigger value="chat">Support Chat</TabsTrigger>
         </TabsList>
 
         <TabsContent value="list" className="space-y-4 mt-4">
@@ -232,6 +230,7 @@ export default function BookingsPage() {
                     <TableHead className="whitespace-nowrap">BKG Cancel Date</TableHead>
                     <TableHead className="whitespace-nowrap">Invoice No.</TableHead>
                     <TableHead className="whitespace-nowrap">Dispute</TableHead>
+                    <TableHead className="whitespace-nowrap text-center">Ticket</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -253,6 +252,11 @@ export default function BookingsPage() {
                       <TableCell className="whitespace-nowrap">{b.cancelDate || ""}</TableCell>
                       <TableCell className="whitespace-nowrap">{b.invoiceNo || ""}</TableCell>
                       <TableCell className="truncate max-w-[80px] text-red-500">{b.dispute || ""}</TableCell>
+                      <TableCell className="text-center">
+                        <Button variant="ghost" size="sm" className="h-6 px-2 text-[10px] text-[#FF6000] hover:bg-[#FF6000]/10" onClick={(e) => { e.stopPropagation(); navigate(`/app/tickets?booking=${b.ellisCode}`); }} title="Create ticket for this booking">
+                          <Ticket className="h-3 w-3 mr-1" />Ticket
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -328,51 +332,6 @@ export default function BookingsPage() {
           )}
         </TabsContent>
 
-        <TabsContent value="calendar" className="space-y-4 mt-4">
-          <div className="flex items-center gap-3">
-            <Button variant="outline" size="sm"><ChevronLeft className="h-4 w-4" />Prev</Button>
-            <Button variant="outline" size="sm">Today</Button>
-            <Button variant="outline" size="sm">Next<ChevronRight className="h-4 w-4" /></Button>
-            <h2 className="text-lg font-semibold">March 2026</h2>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-            {[{ l: "Confirmed", v: bookings.filter(b => b.bookingStatus === "Confirmed").length }, { l: "Cancelled", v: bookings.filter(b => b.bookingStatus === "Cancelled").length }, { l: "Room Nights", v: bookings.reduce((s, b) => s + b.nights, 0) }, { l: "Net Cost", v: "$" + bookings.reduce((s, b) => s + b.sumAmount, 0).toLocaleString() }, { l: "Unpaid", v: "$" + bookings.filter(b => b.paymentStatus !== "Fully Paid").reduce((s, b) => s + b.sumAmount, 0).toLocaleString() }].map(s => (
-              <Card key={s.l} className="p-3 text-center"><p className="text-sm">{s.l}</p><h3 className="text-xl font-bold">{s.v}</h3></Card>
-            ))}
-          </div>
-          <div className="grid grid-cols-7 gap-1 text-center text-sm">
-            {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(d => <div key={d} className="font-semibold py-2">{d}</div>)}
-            {Array.from({ length: 31 }, (_, i) => (
-              <div key={i} className="border rounded p-1 min-h-[60px] text-left"><span className="text-xs">{i + 1}</span></div>
-            ))}
-          </div>
-        </TabsContent>
-
-        <TabsContent value="chat" className="mt-4">
-          <div className="flex h-[600px] border rounded-lg overflow-hidden">
-            <div className="w-64 border-r overflow-auto">
-              {["ELS-2026-00142 Support", "ELS-2026-00155 Query", "General Inquiry"].map((title, i) => (
-                <div key={i} className="p-3 border-b cursor-pointer hover:bg-muted">
-                  <p className="font-medium text-sm">{title}</p>
-                  <p className="text-xs text-muted-foreground truncate">Last message preview...</p>
-                </div>
-              ))}
-            </div>
-            <div className="flex-1 flex flex-col">
-              <ScrollArea className="flex-1 p-4">
-                <div className="space-y-3">
-                  <div className="bg-muted rounded-lg p-3 max-w-xs"><p className="text-sm">Hello, I need help with my booking.</p></div>
-                  <div className="bg-primary text-primary-foreground rounded-lg p-3 max-w-xs ml-auto"><p className="text-sm">Sure! How can I help?</p></div>
-                </div>
-              </ScrollArea>
-              <div className="flex items-center gap-2 p-3 border-t">
-                <Button variant="ghost" size="icon"><Paperclip className="h-4 w-4" /></Button>
-                <Input placeholder="Type a message..." className="flex-1" />
-                <Button size="icon"><Send className="h-4 w-4" /></Button>
-              </div>
-            </div>
-          </div>
-        </TabsContent>
       </Tabs>
 
       {/* ── Booking Detail Modal ── */}
