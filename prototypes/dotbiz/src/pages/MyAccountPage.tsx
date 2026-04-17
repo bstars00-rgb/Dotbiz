@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { User, Mail, Phone, Lock, Plus, Save, RefreshCw, Bell, Shield, Ticket, AlertTriangle } from "lucide-react";
+import { useState, useEffect } from "react";
+import { User, Mail, Phone, Lock, Plus, Save, RefreshCw, Bell, Shield, Ticket, AlertTriangle, CreditCard, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -18,6 +18,7 @@ import { useI18n } from "@/contexts/I18nContext";
 import { currentUser } from "@/mocks/users";
 import { currentCompany } from "@/mocks/companies";
 import { operatingPartners } from "@/mocks/operatingPartners";
+import { getSavedCards, removeCard, type SavedCard } from "@/components/PaymentDialog";
 import { toast } from "sonner";
 
 const mockCoupons = {
@@ -62,6 +63,7 @@ export default function MyAccountPage() {
           <TabsTrigger value="profile">Profile</TabsTrigger>
           <TabsTrigger value="security">Security</TabsTrigger>
           <TabsTrigger value="notifications">Notification Settings</TabsTrigger>
+          <TabsTrigger value="cards"><CreditCard className="h-3.5 w-3.5 mr-1" />Card Management</TabsTrigger>
           <TabsTrigger value="coupons">My Coupons</TabsTrigger>
           {hasRole(["Master"]) && <TabsTrigger value="ops">OP Management</TabsTrigger>}
         </TabsList>
@@ -188,6 +190,19 @@ export default function MyAccountPage() {
           <Button onClick={() => toast.success("Notification settings saved!")}><Save className="h-4 w-4 mr-2" />Save Settings</Button>
         </TabsContent>
 
+        {/* ══════ Card Management Tab ══════ */}
+        <TabsContent value="cards" className="space-y-5 mt-4">
+          <Card className="p-6">
+            <h2 className="text-lg font-semibold mb-4 flex items-center gap-2"><CreditCard className="h-5 w-5 text-[#FF6000]" />Saved Payment Cards</h2>
+            <p className="text-sm text-muted-foreground mb-4">Cards saved during payment are listed here. These cards will be available for future Non-refundable bookings (PREPAY).</p>
+            <CardManagementSection />
+          </Card>
+          <Alert>
+            <AlertTitle>Security Notice</AlertTitle>
+            <AlertDescription>Card details are stored locally in your browser for demo purposes. In production, card tokens are securely stored via PG gateway (PCI-DSS compliant). Only the last 4 digits are visible.</AlertDescription>
+          </Alert>
+        </TabsContent>
+
         {/* ══════ Coupons Tab ══════ */}
         <TabsContent value="coupons" className="space-y-5 mt-4">
           <Card className="p-6">
@@ -302,6 +317,55 @@ export default function MyAccountPage() {
       </AlertDialog>
 
       <StateToolbar state={state} setState={setState} />
+    </div>
+  );
+}
+
+/* ── Card Management Sub-component ── */
+function CardManagementSection() {
+  const [cards, setCards] = useState<SavedCard[]>(getSavedCards());
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+
+  const handleDelete = (id: string) => {
+    removeCard(id);
+    setCards(getSavedCards());
+    toast.success("Card removed successfully.");
+    setDeleteConfirm(null);
+  };
+
+  if (cards.length === 0) {
+    return (
+      <div className="text-center py-8">
+        <CreditCard className="h-12 w-12 text-muted-foreground/30 mx-auto mb-3" />
+        <p className="text-sm text-muted-foreground">No saved cards yet.</p>
+        <p className="text-xs text-muted-foreground mt-1">Cards will appear here after your first payment with the "Save card" option enabled.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {cards.map(card => (
+        <div key={card.id} className="flex items-center gap-4 p-4 border rounded-lg">
+          <div className="h-10 w-14 rounded bg-gradient-to-br from-slate-700 to-slate-900 flex items-center justify-center shrink-0">
+            <CreditCard className="h-5 w-5 text-white" />
+          </div>
+          <div className="flex-1">
+            <p className="font-medium">{card.brand} •••• {card.last4}</p>
+            <p className="text-xs text-muted-foreground">{card.holderName} · Expires {card.expiry}</p>
+          </div>
+          <Badge variant="secondary" className="text-xs">Active</Badge>
+          {deleteConfirm === card.id ? (
+            <div className="flex gap-1">
+              <Button size="sm" variant="destructive" onClick={() => handleDelete(card.id)}>Delete</Button>
+              <Button size="sm" variant="outline" onClick={() => setDeleteConfirm(null)}>No</Button>
+            </div>
+          ) : (
+            <Button size="sm" variant="ghost" onClick={() => setDeleteConfirm(card.id)}><Trash2 className="h-4 w-4 text-muted-foreground" /></Button>
+          )}
+        </div>
+      ))}
+      <p className="text-xs text-muted-foreground">{cards.length} card{cards.length > 1 ? "s" : ""} saved</p>
     </div>
   );
 }
