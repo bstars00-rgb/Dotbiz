@@ -37,6 +37,7 @@ export default function BookingsPage() {
   const { state, setState } = useScreenState("success");
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const [localBookings, setLocalBookings] = useState([...bookings]);
   const [selectedBooking, setSelectedBooking] = useState<typeof bookings[0] | null>(null);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [exportHistoryOpen, setExportHistoryOpen] = useState(false);
@@ -73,7 +74,7 @@ export default function BookingsPage() {
 
   /* ── Filtering ── */
   const filtered = useMemo(() => {
-    let result = [...bookings];
+    let result = [...localBookings];
     const now = new Date();
     const in24h = new Date(now.getTime() + 24 * 60 * 60 * 1000);
     const in3d = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
@@ -99,7 +100,7 @@ export default function BookingsPage() {
       if (filterGroupId) result = result.filter(b => b.groupBookingId.toLowerCase().includes(filterGroupId.toLowerCase()));
     }
     return result;
-  }, [quickFilter, filterBookingStatus, filterPaymentStatus, filterPaymentChannel, filterEllisCode, filterHotelConfirm, filterHotelName, filterGuestName, filterGroupId]);
+  }, [localBookings, quickFilter, filterBookingStatus, filterPaymentStatus, filterPaymentChannel, filterEllisCode, filterHotelConfirm, filterHotelName, filterGuestName, filterGroupId]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / rowsPerPage));
   const paginated = filtered.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
@@ -522,6 +523,10 @@ export default function BookingsPage() {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => {
+              if (selectedBooking) {
+                const today = new Date().toISOString().split("T")[0];
+                setLocalBookings(prev => prev.map(b => b.id === selectedBooking.id ? { ...b, bookingStatus: "Cancelled" as const, cancelDate: today, paymentStatus: b.paymentStatus === "Fully Paid" ? "Refunded" as const : b.paymentStatus } : b));
+              }
               toast.success("Booking Cancelled", { description: "The booking has been cancelled and a notification has been created." });
               setSelectedBooking(null);
             }}>Confirm Cancellation</AlertDialogAction>
