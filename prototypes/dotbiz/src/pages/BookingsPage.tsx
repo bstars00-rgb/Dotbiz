@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router";
-import { Search, X, Download, ChevronLeft, ChevronRight, RefreshCw, MapPin, Calendar, Clock, FileText, Printer, Ticket } from "lucide-react";
+import { Search, X, Download, ChevronLeft, ChevronRight, RefreshCw, MapPin, Calendar, Clock, FileText, Printer, Ticket, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -62,6 +62,19 @@ export default function BookingsPage() {
   const [filterGuestName, setFilterGuestName] = useState("");
   const [filterGroupId, setFilterGroupId] = useState("");
 
+  /* Applied filters — only update when Search is clicked */
+  const [appliedFilters, setAppliedFilters] = useState({
+    bookingStatus: "All", paymentStatus: "All", paymentChannel: "All",
+    ellisCode: "", hotelConfirm: "", hotelName: "", guestName: "", groupId: "",
+  });
+  const applySearch = () => {
+    setAppliedFilters({
+      bookingStatus: filterBookingStatus, paymentStatus: filterPaymentStatus, paymentChannel: filterPaymentChannel,
+      ellisCode: filterEllisCode, hotelConfirm: filterHotelConfirm, hotelName: filterHotelName, guestName: filterGuestName, groupId: filterGroupId,
+    });
+    toast.success("Search applied");
+  };
+
   /* ── Batch selection ── */
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const toggleSelect = (id: string) => setSelectedIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
@@ -70,6 +83,7 @@ export default function BookingsPage() {
   const resetFilters = () => {
     setFilterDateType("Booking"); setFilterBookingStatus("All"); setFilterPaymentStatus("All"); setFilterPaymentChannel("All");
     setFilterEllisCode(""); setFilterHotelConfirm(""); setFilterHotelName(""); setFilterGuestName(""); setFilterGroupId("");
+    setAppliedFilters({ bookingStatus: "All", paymentStatus: "All", paymentChannel: "All", ellisCode: "", hotelConfirm: "", hotelName: "", guestName: "", groupId: "" });
   };
 
   /* ── Filtering ── */
@@ -89,18 +103,18 @@ export default function BookingsPage() {
     } else if (quickFilter === "upcoming_3d") {
       result = result.filter(b => b.bookingStatus === "Confirmed" && new Date(b.checkIn) <= in3d && new Date(b.checkIn) >= now);
     } else {
-      /* Standard filters */
-      if (filterBookingStatus !== "All") result = result.filter(b => b.bookingStatus === filterBookingStatus);
-      if (filterPaymentStatus !== "All") result = result.filter(b => b.paymentStatus === filterPaymentStatus);
-      if (filterPaymentChannel !== "All") result = result.filter(b => b.paymentChannel === filterPaymentChannel);
-      if (filterEllisCode) result = result.filter(b => b.ellisCode.toLowerCase().includes(filterEllisCode.toLowerCase()));
-      if (filterHotelConfirm) result = result.filter(b => b.hotelConfirmCode.toLowerCase().includes(filterHotelConfirm.toLowerCase()));
-      if (filterHotelName) result = result.filter(b => b.hotelName.toLowerCase().includes(filterHotelName.toLowerCase()));
-      if (filterGuestName) result = result.filter(b => b.guestName.toLowerCase().includes(filterGuestName.toLowerCase()) || b.traveler.toLowerCase().includes(filterGuestName.toLowerCase()));
-      if (filterGroupId) result = result.filter(b => b.groupBookingId.toLowerCase().includes(filterGroupId.toLowerCase()));
+      /* Applied filters — only changes when Search button is clicked */
+      if (appliedFilters.bookingStatus !== "All") result = result.filter(b => b.bookingStatus === appliedFilters.bookingStatus);
+      if (appliedFilters.paymentStatus !== "All") result = result.filter(b => b.paymentStatus === appliedFilters.paymentStatus);
+      if (appliedFilters.paymentChannel !== "All") result = result.filter(b => b.paymentChannel === appliedFilters.paymentChannel);
+      if (appliedFilters.ellisCode) result = result.filter(b => b.ellisCode.toLowerCase().includes(appliedFilters.ellisCode.toLowerCase()));
+      if (appliedFilters.hotelConfirm) result = result.filter(b => b.hotelConfirmCode.toLowerCase().includes(appliedFilters.hotelConfirm.toLowerCase()));
+      if (appliedFilters.hotelName) result = result.filter(b => b.hotelName.toLowerCase().includes(appliedFilters.hotelName.toLowerCase()));
+      if (appliedFilters.guestName) result = result.filter(b => b.guestName.toLowerCase().includes(appliedFilters.guestName.toLowerCase()) || b.traveler.toLowerCase().includes(appliedFilters.guestName.toLowerCase()));
+      if (appliedFilters.groupId) result = result.filter(b => b.groupBookingId.toLowerCase().includes(appliedFilters.groupId.toLowerCase()));
     }
     return result;
-  }, [localBookings, quickFilter, filterBookingStatus, filterPaymentStatus, filterPaymentChannel, filterEllisCode, filterHotelConfirm, filterHotelName, filterGuestName, filterGroupId]);
+  }, [localBookings, quickFilter, appliedFilters]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / rowsPerPage));
   const paginated = filtered.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
@@ -156,7 +170,7 @@ export default function BookingsPage() {
                 </select>
               </div>
               <div className="flex items-center gap-2 ml-auto">
-                <Button size="sm" className="h-8" onClick={() => toast.success("Search applied")} style={{ background: "#FF6000" }}><Search className="h-3.5 w-3.5 mr-1" />Search</Button>
+                <Button size="sm" className="h-8" onClick={applySearch} style={{ background: "#FF6000" }}><Search className="h-3.5 w-3.5 mr-1" />Search</Button>
                 <Button size="sm" variant="outline" className="h-8" onClick={resetFilters}>Reset</Button>
               </div>
             </div>
@@ -242,10 +256,15 @@ export default function BookingsPage() {
                 </TableHeader>
                 <TableBody>
                   {paginated.map(b => (
-                    <TableRow key={b.id} className="cursor-pointer hover:bg-muted/50 text-xs" onClick={() => setSelectedBooking(b)}>
-                      <TableCell><Checkbox checked={selectedIds.has(b.id)} onCheckedChange={() => toggleSelect(b.id)} onClick={e => e.stopPropagation()} /></TableCell>
+                    <TableRow key={b.id} className="group hover:bg-muted/50 text-xs">
+                      <TableCell><Checkbox checked={selectedIds.has(b.id)} onCheckedChange={() => toggleSelect(b.id)} /></TableCell>
                       <TableCell className="whitespace-nowrap">{b.bookingDate}</TableCell>
-                      <TableCell className="font-mono text-[#0066cc] hover:underline whitespace-nowrap">{b.ellisCode}</TableCell>
+                      <TableCell className="whitespace-nowrap">
+                        <span className="font-mono text-[#0066cc] hover:underline cursor-pointer" onClick={() => setSelectedBooking(b)}>{b.ellisCode}</span>
+                        <button className="ml-1 text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100" title="Copy booking code" onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(b.ellisCode); toast.success("Copied!", { description: b.ellisCode }); }}>
+                          <Copy className="h-3 w-3 inline" />
+                        </button>
+                      </TableCell>
                       <TableCell className="whitespace-nowrap">{b.hotelConfirmCode || ""}</TableCell>
                       <TableCell><Badge variant={statusColors[b.bookingStatus] as "default" | "destructive" | "secondary"} className="text-[10px]">{b.bookingStatus}</Badge></TableCell>
                       <TableCell><Badge variant={statusColors[b.paymentStatus] as "default" | "destructive" | "secondary"} className="text-[10px]">{b.paymentStatus}</Badge></TableCell>
