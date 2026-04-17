@@ -336,7 +336,7 @@ export default function BookingsPage() {
 
       {/* ── Booking Detail Modal (DIDA style) ── */}
       <Dialog open={!!selectedBooking} onOpenChange={() => setSelectedBooking(null)}>
-        <DialogContent className="max-w-[90vw] w-[1200px] max-h-[90vh] overflow-y-auto p-0">
+        <DialogContent className="max-h-[90vh] overflow-y-auto p-0" style={{ maxWidth: "1200px", width: "90vw" }}>
           {/* Dark header */}
           <div className="px-5 py-3" style={{ background: "linear-gradient(90deg, #1a1a2e, #16213e)" }}>
             <DialogHeader><DialogTitle className="text-white text-sm font-mono">{selectedBooking?.ellisCode}</DialogTitle></DialogHeader>
