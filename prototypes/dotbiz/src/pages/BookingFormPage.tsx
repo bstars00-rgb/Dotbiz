@@ -286,7 +286,7 @@ export default function BookingFormPage() {
         sessionStorage.setItem("dotbiz_booking_room", roomId);
         sessionStorage.setItem("dotbiz_booking_checkin", checkIn);
         sessionStorage.setItem("dotbiz_booking_checkout", checkOut);
-        navigate("/app/booking/confirm");
+        navigate("/app/booking/complete");
       }} />
 
       {/* ── Confirm Dialog ── */}
