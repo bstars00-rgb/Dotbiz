@@ -191,9 +191,15 @@ export default function BookingsPage() {
             <div className="flex items-center gap-3 p-3 bg-primary/5 border border-primary/20 rounded-lg">
               <span className="text-sm font-medium">{selectedIds.size} booking{selectedIds.size > 1 ? "s" : ""} selected</span>
               <Separator orientation="vertical" className="h-5" />
-              <Button size="sm" variant="outline" onClick={() => toast.success("Batch cancelled", { description: `${selectedIds.size} bookings cancelled.` })}><X className="h-3 w-3 mr-1" />Batch Cancel</Button>
-              <Button size="sm" variant="outline" onClick={() => toast.success("Vouchers downloading...")}><Download className="h-3 w-3 mr-1" />Batch Voucher</Button>
-              <Button size="sm" variant="outline" onClick={() => toast.success("Exporting...")}><Download className="h-3 w-3 mr-1" />Batch Export</Button>
+              <select className="border rounded px-3 py-1.5 text-xs bg-background" style={{ borderColor: "#FF6000", color: "#FF6000" }} defaultValue="" onChange={e => { const v = e.target.value; e.target.value = ""; if (v === "export_bookings") toast.success("Exporting hotel bookings...", { description: `${selectedIds.size} bookings exported.` }); else if (v === "export_confirmation") toast.success("Exporting confirmation letters...", { description: `${selectedIds.size} letters generated.` }); else if (v === "export_voucher") toast.success("Exporting booking vouchers...", { description: `${selectedIds.size} vouchers generated.` }); else if (v === "get_confirm_no") toast.success("Obtaining hotel confirmation numbers...", { description: "Request submitted to suppliers." }); else if (v === "download_invoice") toast.success("Downloading invoices...", { description: `${selectedIds.size} invoices downloading.` }); }} aria-label="Batch operation">
+                <option value="" disabled>Batch Operation</option>
+                <option value="export_bookings">Export Hotel Bookings</option>
+                <option value="export_confirmation">Export Booking Confirmation Letter</option>
+                <option value="export_voucher">Export Booking Voucher</option>
+                <option value="get_confirm_no">Obtain hotel confirmation number</option>
+                <option value="download_invoice">Download Invoice</option>
+              </select>
+              <Button size="sm" variant="outline" onClick={() => setExportHistoryOpen(true)}><FileText className="h-3 w-3 mr-1" />Export History</Button>
               <Button size="sm" variant="ghost" className="ml-auto" onClick={() => setSelectedIds(new Set())}>Clear Selection</Button>
             </div>
           )}
