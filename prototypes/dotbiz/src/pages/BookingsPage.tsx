@@ -17,7 +17,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useScreenState } from "@/hooks/useScreenState";
 import { StateToolbar } from "@/components/StateToolbar";
 import { bookings } from "@/mocks/bookings";
-import DateRangePicker from "@/components/DateRangePicker";
+// DateRangePicker replaced with native date inputs for compact DIDA-style filter
 // GroupBookingDialog removed — feature intent unclear
 import { toast } from "sonner";
 
@@ -135,48 +135,54 @@ export default function BookingsPage() {
 
         <TabsContent value="list" className="space-y-4 mt-4">
           {/* ── Filters (DIDA style) ── */}
-          <Card className="p-4">
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-x-4 gap-y-2.5 items-end">
-              {/* Row 1 */}
-              <div className="flex items-end gap-2 col-span-2">
-                <select value={filterDateType} onChange={e => setFilterDateType(e.target.value)} className="border rounded px-2 py-1.5 text-xs bg-background shrink-0">
-                  {["Booking Date", "Check In", "Check Out", "Free Cancel Deadline", "Cancel Date"].map(o => <option key={o}>{o}</option>)}
+          <Card className="p-4 overflow-visible">
+            {/* Row 1: Date + ELLIS Code + Status + Search/Reset */}
+            <div className="flex items-center gap-3 flex-wrap mb-3">
+              <div className="flex items-center gap-2">
+                <select value={filterDateType} onChange={e => setFilterDateType(e.target.value)} className="border rounded px-2 py-1.5 text-xs bg-background h-8" aria-label="Date type">
+                  {["Booking Date", "Check In", "Check Out", "Free Cancel DL", "Cancel Date"].map(o => <option key={o}>{o}</option>)}
                 </select>
-                <DateRangePicker checkIn={filterDateFrom} checkOut={filterDateTo} onCheckInChange={setFilterDateFrom} onCheckOutChange={setFilterDateTo} />
+                <Input type="date" value={filterDateFrom} onChange={e => setFilterDateFrom(e.target.value)} className="text-xs h-8 w-36" />
+                <span className="text-xs text-muted-foreground">→</span>
+                <Input type="date" value={filterDateTo} onChange={e => setFilterDateTo(e.target.value)} className="text-xs h-8 w-36" />
               </div>
-              <div className="flex items-end gap-1.5">
-                <label className="text-xs text-muted-foreground whitespace-nowrap">ELLIS BKG Code</label>
-                <Input placeholder="" value={filterEllisCode} onChange={e => setFilterEllisCode(e.target.value)} className="text-xs h-8" />
+              <div className="flex items-center gap-1.5">
+                <label className="text-xs text-muted-foreground">ELLIS BKG Code</label>
+                <Input placeholder="" value={filterEllisCode} onChange={e => setFilterEllisCode(e.target.value)} className="text-xs h-8 w-40" />
               </div>
-              <div className="flex items-end gap-1.5">
-                <label className="text-xs text-muted-foreground whitespace-nowrap">BKG Status</label>
-                <select value={filterBookingStatus} onChange={e => setFilterBookingStatus(e.target.value)} className="flex-1 border rounded px-2 py-1.5 text-xs bg-background">
+              <div className="flex items-center gap-1.5">
+                <label className="text-xs text-muted-foreground">BKG Status</label>
+                <select value={filterBookingStatus} onChange={e => setFilterBookingStatus(e.target.value)} className="border rounded px-2 py-1.5 text-xs bg-background h-8" aria-label="Booking status">
                   {["All", "Confirmed", "Cancelled", "Pending", "No-show", "Completed"].map(o => <option key={o}>{o}</option>)}
                 </select>
               </div>
-              <div className="flex items-end gap-2 col-span-2 justify-end">
-                <Button size="sm" onClick={() => toast.success("Search applied")} style={{ background: "#FF6000" }}><Search className="h-3.5 w-3.5 mr-1" />Search</Button>
-                <Button size="sm" variant="outline" onClick={resetFilters}>Reset</Button>
+              <div className="flex items-center gap-2 ml-auto">
+                <Button size="sm" className="h-8" onClick={() => toast.success("Search applied")} style={{ background: "#FF6000" }}><Search className="h-3.5 w-3.5 mr-1" />Search</Button>
+                <Button size="sm" variant="outline" className="h-8" onClick={resetFilters}>Reset</Button>
               </div>
-              {/* Row 2 */}
-              <div className="flex items-end gap-1.5">
-                <label className="text-xs text-muted-foreground whitespace-nowrap">Payment Status</label>
-                <select value={filterPaymentStatus} onChange={e => setFilterPaymentStatus(e.target.value)} className="flex-1 border rounded px-2 py-1.5 text-xs bg-background">
+            </div>
+            {/* Row 2: Payment + Booker + Hotel Name */}
+            <div className="flex items-center gap-3 flex-wrap mb-3">
+              <div className="flex items-center gap-1.5">
+                <label className="text-xs text-muted-foreground">Payment Status</label>
+                <select value={filterPaymentStatus} onChange={e => setFilterPaymentStatus(e.target.value)} className="border rounded px-2 py-1.5 text-xs bg-background h-8" aria-label="Payment status">
                   {["All", "Not Paid", "Partially Paid", "Fully Paid", "Refunded", "Partially Refunded", "Pending"].map(o => <option key={o}>{o}</option>)}
                 </select>
               </div>
-              <div className="flex items-end gap-1.5">
-                <label className="text-xs text-muted-foreground whitespace-nowrap">Booker</label>
-                <Input placeholder="Name" value={filterGuestName} onChange={e => setFilterGuestName(e.target.value)} className="text-xs h-8" />
+              <div className="flex items-center gap-1.5">
+                <label className="text-xs text-muted-foreground">Booker</label>
+                <Input placeholder="Name" value={filterGuestName} onChange={e => setFilterGuestName(e.target.value)} className="text-xs h-8 w-36" />
               </div>
-              <div className="flex items-end gap-1.5">
-                <label className="text-xs text-muted-foreground whitespace-nowrap">Hotel Name</label>
-                <Input placeholder="" value={filterHotelName} onChange={e => setFilterHotelName(e.target.value)} className="text-xs h-8" />
+              <div className="flex items-center gap-1.5">
+                <label className="text-xs text-muted-foreground">Hotel Name</label>
+                <Input placeholder="" value={filterHotelName} onChange={e => setFilterHotelName(e.target.value)} className="text-xs h-8 w-44" />
               </div>
-              {/* Row 3 */}
-              <div className="flex items-end gap-1.5">
-                <label className="text-xs text-muted-foreground whitespace-nowrap">Seller BKG Code</label>
-                <Input placeholder="" value={filterHotelConfirm} onChange={e => setFilterHotelConfirm(e.target.value)} className="text-xs h-8" />
+            </div>
+            {/* Row 3: Seller Code */}
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1.5">
+                <label className="text-xs text-muted-foreground">Seller BKG Code</label>
+                <Input placeholder="" value={filterHotelConfirm} onChange={e => setFilterHotelConfirm(e.target.value)} className="text-xs h-8 w-40" />
               </div>
             </div>
           </Card>
