@@ -1,5 +1,6 @@
 import { HashRouter, Routes, Route, Navigate } from "react-router";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { I18nProvider } from "@/contexts/I18nContext";
 import { Toaster } from "@/components/ui/sonner";
 import ScrollToTop from "@/components/ScrollToTop";
 import MainLayout from "@/pages/MainLayout";
@@ -32,6 +33,7 @@ import MonthlyRatePage from "@/pages/MonthlyRatePage";
 function App() {
   return (
     <AuthProvider>
+    <I18nProvider>
       <HashRouter>
         <ScrollToTop />
         <Routes>
@@ -72,6 +74,7 @@ function App() {
         </Routes>
       </HashRouter>
       <Toaster position="top-right" />
+    </I18nProvider>
     </AuthProvider>
   );
 }

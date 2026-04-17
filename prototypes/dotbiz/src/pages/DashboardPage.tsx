@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import { Search, Gift, RefreshCw, CalendarDays } from "lucide-react";
+import { useI18n } from "@/contexts/I18nContext";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, AreaChart, Area, PieChart, Pie, LineChart, Line, Legend } from "recharts";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -24,6 +25,7 @@ const DEST_COLORS = ["#FF6000", "#FF8C00", "#0369A1", "#009505", "#7C3AED", "#F5
 
 export default function DashboardPage() {
   const { state, setState } = useScreenState("success");
+  const { t } = useI18n();
   const navigate = useNavigate();
   const [dateBase, setDateBase] = useState<string>("Booking Date");
   const [period, setPeriod] = useState<string>("This Month");
@@ -76,7 +78,7 @@ export default function DashboardPage() {
   return (
     <div className="p-6 space-y-6">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-        <h1 className="text-2xl font-bold">Dashboard</h1>
+        <h1 className="text-2xl font-bold">{t("dashboard.title")}</h1>
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex items-center gap-1.5 text-sm">
             <CalendarDays className="h-4 w-4 text-muted-foreground" />
@@ -121,21 +123,21 @@ export default function DashboardPage() {
 
       <Tabs defaultValue="overview">
         <TabsList className="flex-wrap">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="dc-booking">Booking Statistics</TabsTrigger>
-          <TabsTrigger value="dc-cancel">Cancellation</TabsTrigger>
-          <TabsTrigger value="dc-daily">Daily Booking</TabsTrigger>
-          <TabsTrigger value="dc-yearend">Year-End</TabsTrigger>
+          <TabsTrigger value="overview">{t("dashboard.overview")}</TabsTrigger>
+          <TabsTrigger value="dc-booking">{t("dashboard.bookingStats")}</TabsTrigger>
+          <TabsTrigger value="dc-cancel">{t("dashboard.cancelStats")}</TabsTrigger>
+          <TabsTrigger value="dc-daily">{t("dashboard.dailyStats")}</TabsTrigger>
+          <TabsTrigger value="dc-yearend">{t("dashboard.yearEnd")}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6 mt-4">
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: "Total Bookings", value: kpi.totalBookings, change: kpi.bookingsChange },
-          { label: "Revenue (TTV)", value: `$${kpi.revenue.toLocaleString()}`, change: kpi.revenueChange },
+          { label: t("dashboard.totalBookings"), value: kpi.totalBookings, change: kpi.bookingsChange },
+          { label: t("dashboard.totalRevenue"), value: `$${kpi.revenue.toLocaleString()}`, change: kpi.revenueChange },
           { label: "Room Nights", value: kpi.roomNights, change: kpi.nightsChange },
-          { label: "Avg Booking Value", value: `$${kpi.avgBookingValue}`, change: kpi.avgChange },
+          { label: t("dashboard.avgBookingValue"), value: `$${kpi.avgBookingValue}`, change: kpi.avgChange },
         ].map(k => (
           <Card key={k.label} className="p-4 card-hover">
             <p className="text-sm text-muted-foreground">{k.label}</p>

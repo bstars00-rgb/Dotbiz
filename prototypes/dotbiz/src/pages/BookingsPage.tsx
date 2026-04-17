@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router";
-import { Search, X, Download, ChevronLeft, ChevronRight, Paperclip, Send, RefreshCw, List, LayoutGrid, MapPin, Calendar, Clock, FileText } from "lucide-react";
+import { Search, X, Download, ChevronLeft, ChevronRight, Paperclip, Send, RefreshCw, List, LayoutGrid, MapPin, Calendar, Clock, FileText, Printer, Edit3, Users2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -17,6 +17,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useScreenState } from "@/hooks/useScreenState";
 import { StateToolbar } from "@/components/StateToolbar";
 import { bookings } from "@/mocks/bookings";
+import GroupBookingDialog from "@/components/GroupBookingDialog";
 import { toast } from "sonner";
 
 const statusColors: Record<string, string> = {
@@ -38,6 +39,13 @@ export default function BookingsPage() {
   const [cancelOpen, setCancelOpen] = useState(false);
   const [exportHistoryOpen, setExportHistoryOpen] = useState(false);
   const [viewMode, setViewMode] = useState<"list" | "card">("list");
+  const [amendOpen, setAmendOpen] = useState(false);
+  const [amendCheckIn, setAmendCheckIn] = useState("");
+  const [amendCheckOut, setAmendCheckOut] = useState("");
+  const [amendRoomType, setAmendRoomType] = useState("");
+  const [amendGuestName, setAmendGuestName] = useState("");
+  const [groupBookingOpen, setGroupBookingOpen] = useState(false);
+  const [voucherOpen, setVoucherOpen] = useState(false);
 
   /* ── Filters ── */
   const [filterDateType, setFilterDateType] = useState("Booking");
@@ -80,7 +88,10 @@ export default function BookingsPage() {
 
   return (
     <div className="p-6 space-y-4">
-      <h1 className="text-2xl font-bold">Bookings</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold">Bookings</h1>
+        <Button style={{ background: "#FF6000" }} onClick={() => setGroupBookingOpen(true)}><Users2 className="h-4 w-4 mr-1" />Group Booking</Button>
+      </div>
 
       <Tabs defaultValue="list">
         <TabsList>
@@ -319,9 +330,18 @@ export default function BookingsPage() {
                 </Card>
               ))}
               {selectedBooking.specialRequests && <Card className="p-4"><h3 className="font-semibold mb-2">Special Requests</h3><p className="text-sm">{selectedBooking.specialRequests}</p></Card>}
-              <div className="flex gap-2 pt-4 border-t">
-                <Button variant="outline" size="sm"><Download className="h-3 w-3 mr-1" />Voucher</Button>
+              <div className="flex flex-wrap gap-2 pt-4 border-t">
+                <Button variant="outline" size="sm" onClick={() => { setVoucherOpen(true); }}><Printer className="h-3 w-3 mr-1" />Print Voucher</Button>
                 <Button variant="outline" size="sm"><Download className="h-3 w-3 mr-1" />Receipt</Button>
+                {selectedBooking.bookingStatus === "Confirmed" && (
+                  <Button variant="outline" size="sm" style={{ borderColor: "#FF6000", color: "#FF6000" }} onClick={() => {
+                    setAmendCheckIn(selectedBooking.checkIn);
+                    setAmendCheckOut(selectedBooking.checkOut || "");
+                    setAmendRoomType(selectedBooking.roomType);
+                    setAmendGuestName(selectedBooking.guestName);
+                    setAmendOpen(true);
+                  }}><Edit3 className="h-3 w-3 mr-1" />Amend Booking</Button>
+                )}
                 {selectedBooking.bookingStatus !== "Cancelled" && selectedBooking.bookingStatus !== "Completed" && (
                   <Button variant="destructive" size="sm" onClick={() => setCancelOpen(true)}><X className="h-3 w-3 mr-1" />Cancel Booking</Button>
                 )}
@@ -382,6 +402,112 @@ export default function BookingsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* ── Amend Booking Dialog ── */}
+      <AlertDialog open={amendOpen} onOpenChange={setAmendOpen}>
+        <AlertDialogContent className="max-w-lg">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Amend Booking</AlertDialogTitle>
+            <AlertDialogDescription>Modify booking details. Amendment fees may apply.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-sm font-medium">Check-In</label>
+                <Input type="date" value={amendCheckIn} onChange={e => setAmendCheckIn(e.target.value)} className="mt-1" />
+              </div>
+              <div>
+                <label className="text-sm font-medium">Check-Out</label>
+                <Input type="date" value={amendCheckOut} onChange={e => setAmendCheckOut(e.target.value)} className="mt-1" />
+              </div>
+            </div>
+            <div>
+              <label className="text-sm font-medium">Room Type</label>
+              <select value={amendRoomType} onChange={e => setAmendRoomType(e.target.value)} className="w-full border rounded px-2 py-1.5 text-sm bg-background mt-1">
+                {["Superior Queen Room", "Deluxe Room", "Deluxe Twin Room", "Executive Suite", "Premier Suite"].map(r => <option key={r}>{r}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-sm font-medium">Guest Name</label>
+              <Input value={amendGuestName} onChange={e => setAmendGuestName(e.target.value)} className="mt-1" />
+            </div>
+            <Separator />
+            <Card className="p-3 bg-amber-50 dark:bg-amber-900/20 border-amber-200">
+              <h4 className="text-sm font-semibold mb-2">Amendment Fee Summary</h4>
+              <div className="flex justify-between text-sm"><span>Rate Difference</span><span>USD 0.00</span></div>
+              <div className="flex justify-between text-sm"><span>Amendment Fee</span><span className="text-amber-600">USD 25.00</span></div>
+              <Separator className="my-2" />
+              <div className="flex justify-between text-sm font-bold"><span>Total Additional</span><span style={{ color: "#FF6000" }}>USD 25.00</span></div>
+            </Card>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction style={{ background: "#FF6000" }} onClick={() => {
+              toast.success("Booking Amended", { description: "Amendment request submitted. Status changed to Amendment Pending." });
+              setAmendOpen(false);
+              setSelectedBooking(null);
+            }}>Confirm Amendment</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* ── Print Voucher Dialog ── */}
+      <Dialog open={voucherOpen} onOpenChange={setVoucherOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader><DialogTitle>Booking Voucher</DialogTitle></DialogHeader>
+          {selectedBooking && (
+            <div id="printable-voucher" className="space-y-4 p-4">
+              <div className="text-center border-b pb-4">
+                <h2 className="text-2xl font-bold" style={{ color: "#FF6000" }}>DOTBIZ</h2>
+                <p className="text-sm text-muted-foreground">Hotel Booking Voucher</p>
+              </div>
+              <div className="text-center">
+                <p className="text-xs text-muted-foreground">Booking Reference</p>
+                <p className="text-xl font-mono font-bold">{selectedBooking.ellisCode}</p>
+              </div>
+              <Card className="p-3">
+                <h4 className="text-sm font-bold mb-2" style={{ color: "#FF6000" }}>Hotel Information</h4>
+                <p className="font-medium">{selectedBooking.hotelName}</p>
+                <p className="text-xs text-muted-foreground">{selectedBooking.hotelAddress}</p>
+              </Card>
+              <Card className="p-3">
+                <h4 className="text-sm font-bold mb-2" style={{ color: "#FF6000" }}>Stay Details</h4>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div><span className="text-muted-foreground">Check-In:</span> {selectedBooking.checkIn}</div>
+                  <div><span className="text-muted-foreground">Check-Out:</span> {selectedBooking.checkOut}</div>
+                  <div><span className="text-muted-foreground">Nights:</span> {selectedBooking.nights}</div>
+                  <div><span className="text-muted-foreground">Room:</span> {selectedBooking.roomType} x{selectedBooking.roomCount}</div>
+                </div>
+              </Card>
+              <Card className="p-3">
+                <h4 className="text-sm font-bold mb-2" style={{ color: "#FF6000" }}>Guest</h4>
+                <p className="text-sm">{selectedBooking.guestName} ({selectedBooking.guestEmail})</p>
+              </Card>
+              <Card className="p-3">
+                <h4 className="text-sm font-bold mb-2" style={{ color: "#FF6000" }}>Payment</h4>
+                <p className="text-lg font-bold">Total: USD {selectedBooking.sumAmount.toLocaleString()}</p>
+                <Badge variant={statusColors[selectedBooking.paymentStatus] as "default"}>{selectedBooking.paymentStatus}</Badge>
+              </Card>
+              {/* Barcode placeholder */}
+              <div className="flex justify-center py-2">
+                <div className="flex gap-[2px]">
+                  {Array.from({ length: 40 }).map((_, i) => (
+                    <div key={i} className="bg-foreground" style={{ width: i % 3 === 0 ? 2 : 1, height: 40 }} />
+                  ))}
+                </div>
+              </div>
+              <p className="text-[10px] text-center text-muted-foreground">This voucher was generated by DOTBIZ Platform. Present this voucher at check-in.</p>
+            </div>
+          )}
+          <div className="flex justify-end gap-2 pt-2 border-t">
+            <Button variant="outline" onClick={() => setVoucherOpen(false)}>Close</Button>
+            <Button style={{ background: "#FF6000" }} onClick={() => { window.print(); }}><Printer className="h-4 w-4 mr-1" />Print / Save PDF</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Group Booking Dialog ── */}
+      <GroupBookingDialog open={groupBookingOpen} onOpenChange={setGroupBookingOpen} />
 
       <StateToolbar state={state} setState={setState} />
     </div>

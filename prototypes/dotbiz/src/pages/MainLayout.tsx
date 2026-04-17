@@ -13,26 +13,29 @@ import { Separator } from "@/components/ui/separator";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { useAuth } from "@/contexts/AuthContext";
+import { useI18n } from "@/contexts/I18nContext";
+import type { Locale } from "@/i18n/strings";
 import { currentUser } from "@/mocks/users";
 
 const navItems = [
-  { label: "Find Hotel", icon: Search, path: "/app/find-hotel" },
-  { label: "Dashboard", icon: LayoutDashboard, path: "/app/dashboard" },
-  { label: "Bookings", icon: CalendarCheck, path: "/app/bookings" },
-  { label: "Settlement", icon: Wallet, path: "/app/settlement", roles: ["Master"] },
-  { label: "Client Mgmt", icon: Users, path: "/app/client", roles: ["Master"] },
-  { label: "Tickets", icon: Ticket, path: "/app/tickets" },
-  { label: "Notifications", icon: Bell, path: "/app/notifications" },
-  { label: "FAQ Board", icon: HelpCircle, path: "/app/faq" },
-  { label: "My Account", icon: User, path: "/app/my-account" },
-  { label: "Rewards Mall", icon: Gift, path: "/app/rewards" },
-  { label: "OhMy Blog", icon: Pen, path: "/app/blog" },
+  { i18nKey: "nav.findHotel", label: "Find Hotel", icon: Search, path: "/app/find-hotel" },
+  { i18nKey: "nav.dashboard", label: "Dashboard", icon: LayoutDashboard, path: "/app/dashboard" },
+  { i18nKey: "nav.bookings", label: "Bookings", icon: CalendarCheck, path: "/app/bookings" },
+  { i18nKey: "nav.settlement", label: "Settlement", icon: Wallet, path: "/app/settlement", roles: ["Master"] },
+  { i18nKey: "nav.clientMgmt", label: "Client Mgmt", icon: Users, path: "/app/client", roles: ["Master"] },
+  { i18nKey: "nav.tickets", label: "Tickets", icon: Ticket, path: "/app/tickets" },
+  { i18nKey: "nav.notifications", label: "Notifications", icon: Bell, path: "/app/notifications" },
+  { i18nKey: "nav.faq", label: "FAQ Board", icon: HelpCircle, path: "/app/faq" },
+  { i18nKey: "nav.myAccount", label: "My Account", icon: User, path: "/app/my-account" },
+  { i18nKey: "nav.rewards", label: "Rewards Mall", icon: Gift, path: "/app/rewards" },
+  { i18nKey: "nav.blog", label: "OhMy Blog", icon: Pen, path: "/app/blog" },
 ];
 
 export default function MainLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const { hasRole, isAuthenticated, user, logout } = useAuth();
+  const { locale, setLocale, t } = useI18n();
 
   /* Auth guard — redirect to login if not authenticated */
   useEffect(() => {
@@ -71,7 +74,7 @@ export default function MainLayout() {
         <select className="text-sm border rounded px-2 py-1 bg-card hidden md:block" defaultValue="USD" aria-label="Currency">
           {["USD","KRW","JPY","CNY","VND","EUR","GBP","THB","SGD","HKD"].map(c => <option key={c}>{c}</option>)}
         </select>
-        <select className="text-sm border rounded px-2 py-1 bg-card hidden md:block" defaultValue="EN" aria-label="Language">
+        <select className="text-sm border rounded px-2 py-1 bg-card hidden md:block" value={locale} onChange={e => setLocale(e.target.value as Locale)} aria-label="Language">
           {["EN","KO","JA","ZH","VI"].map(l => <option key={l}>{l}</option>)}
         </select>
         <Button variant="ghost" size="icon" onClick={toggleDark} aria-label="Toggle dark mode">
@@ -119,7 +122,7 @@ export default function MainLayout() {
                   className={`flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors text-left ${active ? "bg-primary text-primary-foreground" : "hover:bg-accent text-foreground"}`}
                 >
                   <item.icon className="h-4 w-4" aria-hidden="true" />
-                  {item.label}
+                  {t(item.i18nKey)}
                 </button>
               );
             })}
@@ -137,7 +140,7 @@ export default function MainLayout() {
             </div>
             <Button variant="ghost" className="w-full justify-start" onClick={() => { setMobileNavOpen(false); setLogoutOpen(true); }}>
               <LogOut className="h-4 w-4 mr-2" aria-hidden="true" />
-              Logout
+              {t("nav.logout")}
             </Button>
           </div>
         </SheetContent>
@@ -170,7 +173,7 @@ export default function MainLayout() {
                   className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors text-left ${active ? "bg-primary text-primary-foreground" : "hover:bg-accent text-foreground"}`}
                 >
                   <item.icon className="h-4 w-4" aria-hidden="true" />
-                  {item.label}
+                  {t(item.i18nKey)}
                 </button>
               );
             })}
@@ -189,11 +192,11 @@ export default function MainLayout() {
             </div>
             <Button variant="ghost" className="w-full justify-start text-xs" onClick={() => { logout(); navigate("/login"); }}>
               <User className="h-4 w-4 mr-2" aria-hidden="true" />
-              Switch Account
+              {t("nav.switchAccount")}
             </Button>
             <Button variant="ghost" className="w-full justify-start" onClick={() => setLogoutOpen(true)}>
               <LogOut className="h-4 w-4 mr-2" aria-hidden="true" />
-              Logout
+              {t("nav.logout")}
             </Button>
           </div>
         </nav>
