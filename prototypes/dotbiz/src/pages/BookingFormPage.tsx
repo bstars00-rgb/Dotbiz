@@ -64,19 +64,6 @@ export default function BookingFormPage() {
   const [expectedCheckIn, setExpectedCheckIn] = useState(() => loadSavedForm()?.expectedCheckIn ?? "");
   const toggleReq = (req: string) => setSpecialReqs(prev => { const n = new Set(prev); n.has(req) ? n.delete(req) : n.add(req); return n; });
 
-  /* Auto-save form data + booking params to sessionStorage */
-  useEffect(() => {
-    const data = {
-      bookerName, bookerEmail, bookerMobile, bookerCode, mobileCountry,
-      travelers, specialReqs: Array.from(specialReqs), customRequest, expectedCheckIn,
-    };
-    sessionStorage.setItem(FORM_STORAGE_KEY, JSON.stringify(data));
-    sessionStorage.setItem("dotbiz_booking_hotel", hotelId);
-    sessionStorage.setItem("dotbiz_booking_room", roomId);
-    sessionStorage.setItem("dotbiz_booking_checkin", checkIn);
-    sessionStorage.setItem("dotbiz_booking_checkout", checkOut);
-  }, [bookerName, bookerEmail, bookerMobile, bookerCode, mobileCountry, travelers, specialReqs, customRequest, expectedCheckIn, hotelId, roomId, checkIn, checkOut]);
-
   /* Confirm dialog */
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -90,6 +77,19 @@ export default function BookingFormPage() {
   const room = allRooms.find(r => r.id === roomId) || allRooms[0];
   const checkIn = searchParams.get("checkin") || sessionStorage.getItem("dotbiz_booking_checkin") || "2026-04-22";
   const checkOut = searchParams.get("checkout") || sessionStorage.getItem("dotbiz_booking_checkout") || "2026-04-23";
+
+  /* Auto-save form data + booking params to sessionStorage */
+  useEffect(() => {
+    const data = {
+      bookerName, bookerEmail, bookerMobile, bookerCode, mobileCountry,
+      travelers, specialReqs: Array.from(specialReqs), customRequest, expectedCheckIn,
+    };
+    sessionStorage.setItem(FORM_STORAGE_KEY, JSON.stringify(data));
+    sessionStorage.setItem("dotbiz_booking_hotel", hotelId);
+    sessionStorage.setItem("dotbiz_booking_room", roomId);
+    sessionStorage.setItem("dotbiz_booking_checkin", checkIn);
+    sessionStorage.setItem("dotbiz_booking_checkout", checkOut);
+  }, [bookerName, bookerEmail, bookerMobile, bookerCode, mobileCountry, travelers, specialReqs, customRequest, expectedCheckIn, hotelId, roomId, checkIn, checkOut]);
   const nights = Math.max(1, Math.round((new Date(checkOut).getTime() - new Date(checkIn).getTime()) / 86400000));
   const totalPrice = room ? room.price * nights : 0;
   const isFreeCancel = room?.cancellationPolicy === "free_cancel";
