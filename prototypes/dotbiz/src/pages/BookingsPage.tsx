@@ -334,49 +334,112 @@ export default function BookingsPage() {
 
       </Tabs>
 
-      {/* ── Booking Detail Modal ── */}
+      {/* ── Booking Detail Modal (DIDA style) ── */}
       <Dialog open={!!selectedBooking} onOpenChange={() => setSelectedBooking(null)}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>{selectedBooking?.ellisCode}</DialogTitle></DialogHeader>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto p-0">
+          {/* Dark header */}
+          <div className="px-5 py-3" style={{ background: "linear-gradient(90deg, #1a1a2e, #16213e)" }}>
+            <DialogHeader><DialogTitle className="text-white text-sm font-mono">{selectedBooking?.ellisCode}</DialogTitle></DialogHeader>
+          </div>
           {selectedBooking && (
-            <div className="space-y-4">
-              {[
-                { title: "Booking Summary", items: [["Status", <Badge key="s" variant={statusColors[selectedBooking.bookingStatus] as "default"}>{selectedBooking.bookingStatus}</Badge>], ["Date", selectedBooking.bookingDate], ["ELLIS Code", selectedBooking.ellisCode], ["Hotel Confirm", selectedBooking.hotelConfirmCode || "—"], ["Group", selectedBooking.groupBookingId || "—"]] },
-                { title: "Hotel Information", items: [["Hotel", selectedBooking.hotelName], ["Address", selectedBooking.hotelAddress], ["Contact", selectedBooking.hotelContact], ["Check-in", `${selectedBooking.checkIn} (${selectedBooking.nights}N)`], ["Room", `${selectedBooking.roomType} x${selectedBooking.roomCount}`], ["Free Cancel By", selectedBooking.freeCancelDeadline]] },
-                { title: "Guest Information", items: [["Name", selectedBooking.guestName], ["Email", selectedBooking.guestEmail], ["Mobile", selectedBooking.guestMobile]] },
-                { title: "Payment Information", items: [["Amount", `$${selectedBooking.sumAmount.toLocaleString()}`], ["Status", <Badge key="ps" variant={statusColors[selectedBooking.paymentStatus] as "default"}>{selectedBooking.paymentStatus}</Badge>], ["Channel", selectedBooking.paymentChannel], ["Method", selectedBooking.paymentMethod]] },
-              ].map(section => (
-                <Card key={section.title} className="p-4">
-                  <h3 className="font-semibold mb-2">{section.title}</h3>
-                  {section.items.map(([label, value]) => (
-                    <div key={String(label)} className="flex justify-between py-1"><span className="text-sm text-muted-foreground">{label}</span><span className="text-sm">{value}</span></div>
-                  ))}
-                </Card>
-              ))}
-              {selectedBooking.specialRequests && <Card className="p-4"><h3 className="font-semibold mb-2">Special Requests</h3><p className="text-sm">{selectedBooking.specialRequests}</p></Card>}
+            <div className="p-5 space-y-4">
+              {/* OMH Reservation number */}
+              <p className="text-sm font-semibold border-b pb-2">OMH Reservation number : <span className="font-mono">{selectedBooking.ellisCode}</span></p>
 
-              {/* Policy Notice */}
-              <Card className="p-3 bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800">
-                <p className="text-xs text-amber-800 dark:text-amber-200 font-medium">Booking Modification Policy</p>
-                <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">Bookings cannot be modified. To change dates or guest details, please cancel and rebook.</p>
-                <p className="text-xs text-amber-700 dark:text-amber-300">For special requests, please <button className="underline font-medium" onClick={() => { setSelectedBooking(null); navigate("/app/tickets"); }}>submit a ticket</button>.</p>
+              {/* Booker */}
+              <Card className="p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-bold text-sm">Booker</h3>
+                </div>
+                <Table>
+                  <TableBody>
+                    <TableRow><TableCell className="text-sm font-medium w-36">Name</TableCell><TableCell className="text-sm">{selectedBooking.guestName}</TableCell></TableRow>
+                    <TableRow><TableCell className="text-sm font-medium">Email</TableCell><TableCell className="text-sm text-primary">{selectedBooking.guestEmail}</TableCell></TableRow>
+                    <TableRow><TableCell className="text-sm font-medium">Tel</TableCell><TableCell className="text-sm">{selectedBooking.guestMobile}</TableCell></TableRow>
+                    <TableRow><TableCell className="text-sm font-medium">Seller Booking Code</TableCell><TableCell className="text-sm">{selectedBooking.hotelConfirmCode || ""}</TableCell></TableRow>
+                  </TableBody>
+                </Table>
               </Card>
 
-              <div className="flex flex-wrap gap-2 pt-4 border-t">
-                <Button variant="outline" size="sm" onClick={() => { setVoucherOpen(true); }}><Printer className="h-3 w-3 mr-1" />Print Voucher</Button>
-                <Button variant="outline" size="sm"><Download className="h-3 w-3 mr-1" />Receipt</Button>
-                <Button variant="outline" size="sm" onClick={() => { setSelectedBooking(null); navigate("/app/tickets"); }}><FileText className="h-3 w-3 mr-1" />Request Change</Button>
-                {/* Cancel: only if free_cancel and not non-refundable */}
-                {selectedBooking.bookingStatus !== "Cancelled" && selectedBooking.bookingStatus !== "Completed" && (
-                  selectedBooking.cancelDeadline && new Date(selectedBooking.cancelDeadline) > new Date() ? (
-                    <Button variant="destructive" size="sm" onClick={() => setCancelOpen(true)}><X className="h-3 w-3 mr-1" />Cancel Booking</Button>
-                  ) : (
-                    <Badge variant="secondary" className="text-xs py-1.5 px-3">
-                      {selectedBooking.freeCancelDeadline ? "Deadline passed — cancellation not available" : "Non-refundable — cancellation not available"}
-                    </Badge>
-                  )
-                )}
-              </div>
+              {/* Reservation Details */}
+              <Card className="p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-bold text-sm">Reservation Details</h3>
+                  <div className="flex gap-2">
+                    {selectedBooking.bookingStatus !== "Cancelled" && selectedBooking.bookingStatus !== "Completed" && selectedBooking.cancelDeadline && new Date(selectedBooking.cancelDeadline) > new Date() && (
+                      <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setCancelOpen(true)}>Cancel</Button>
+                    )}
+                    <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setVoucherOpen(true)}>Voucher</Button>
+                    <Button variant="outline" size="sm" className="h-7 text-xs"><Download className="h-3 w-3 mr-1" />Invoice</Button>
+                  </div>
+                </div>
+                <Table>
+                  <TableBody>
+                    <TableRow><TableCell className="text-sm font-medium w-48">Booking Status / Payment Status</TableCell><TableCell className="text-sm font-bold">{selectedBooking.bookingStatus} / {selectedBooking.paymentStatus}</TableCell></TableRow>
+                    <TableRow><TableCell className="text-sm font-medium">Check in / Out Date</TableCell><TableCell className="text-sm">{selectedBooking.checkIn} ~ {(() => { const d = new Date(selectedBooking.checkIn); d.setDate(d.getDate() + selectedBooking.nights); return d.toISOString().split("T")[0]; })()} [{selectedBooking.nights}NTS]</TableCell></TableRow>
+                    <TableRow><TableCell className="text-sm font-medium">Region name</TableCell><TableCell className="text-sm">{selectedBooking.hotelAddress.split(",").pop()?.trim()}</TableCell></TableRow>
+                    <TableRow><TableCell className="text-sm font-medium">Hotel Name</TableCell><TableCell className="text-sm">{selectedBooking.hotelName}</TableCell></TableRow>
+                    <TableRow><TableCell className="text-sm font-medium">Rooms / Travelers</TableCell><TableCell className="text-sm text-primary">{selectedBooking.roomCount} Rooms / 2 Travelers</TableCell></TableRow>
+                    <TableRow><TableCell className="text-sm font-medium">Room Type</TableCell><TableCell className="text-sm">{selectedBooking.roomType}</TableCell></TableRow>
+                    <TableRow><TableCell className="text-sm font-medium">Meal Type</TableCell><TableCell className="text-sm">None</TableCell></TableRow>
+                    <TableRow><TableCell className="text-sm font-medium">Cancellation D/L</TableCell><TableCell className={`text-sm font-medium ${new Date(selectedBooking.cancelDeadline) > new Date() ? "text-[#FF6000]" : "text-red-500"}`}>{selectedBooking.cancelDeadline}</TableCell></TableRow>
+                  </TableBody>
+                </Table>
+              </Card>
+
+              {/* Travelers */}
+              <Card className="p-4">
+                <h3 className="font-bold text-sm mb-3">Travelers</h3>
+                <Table>
+                  <TableHeader>
+                    <TableRow className="text-xs">
+                      <TableHead>Rooms</TableHead><TableHead>Gender</TableHead><TableHead>Name(Local Language)</TableHead><TableHead>Last Name / First Name (EN)</TableHead><TableHead>Child Birthday</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    <TableRow>
+                      <TableCell className="text-xs">Rooms 1</TableCell><TableCell className="text-xs">M</TableCell><TableCell className="text-xs">—</TableCell><TableCell className="text-xs font-medium">{selectedBooking.traveler.split(" ").map(n => n.toUpperCase()).join(" / ")}</TableCell><TableCell className="text-xs">—</TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </Card>
+
+              {/* Special Request */}
+              <Card className="p-4">
+                <h3 className="font-bold text-sm mb-3">Special Request</h3>
+                <p className="text-sm text-muted-foreground">{selectedBooking.specialRequests || "No special requests"}</p>
+              </Card>
+
+              {/* Billing & Payment */}
+              <Card className="p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-bold text-sm">Billing & Payment</h3>
+                  <Badge variant="outline" className="text-xs">{selectedBooking.paymentChannel}</Badge>
+                </div>
+                <Table>
+                  <TableBody>
+                    <TableRow><TableCell className="text-sm font-medium w-48">Billing total</TableCell><TableCell className="text-sm text-right font-medium">{selectedBooking.currency} {selectedBooking.sumAmount.toLocaleString()}</TableCell></TableRow>
+                    <TableRow><TableCell className="text-sm font-medium">Balance</TableCell><TableCell className="text-sm text-right font-medium">{selectedBooking.currency} {selectedBooking.paymentStatus === "Fully Paid" ? "0" : selectedBooking.sumAmount.toLocaleString()}</TableCell></TableRow>
+                  </TableBody>
+                </Table>
+              </Card>
+
+              {/* Cancellation Policy */}
+              <Card className="p-4">
+                <h3 className="font-bold text-sm mb-3">Cancellation Policy</h3>
+                <p className="text-sm font-semibold mb-2">Cancellation D/L : Until {selectedBooking.cancelDeadline}</p>
+                <div className="space-y-1 text-xs">
+                  <p className="text-muted-foreground">- {selectedBooking.bookingDate} ~ {selectedBooking.cancelDeadline} Charge 0</p>
+                  <p className="text-red-500">- {selectedBooking.cancelDeadline} ~ {selectedBooking.checkIn} 23:59:59 Charge {selectedBooking.sumAmount.toLocaleString()}</p>
+                  <p className="text-muted-foreground">- After check-in date, full charge will be applied</p>
+                </div>
+              </Card>
+
+              {/* Policy Notice + Ticket */}
+              <Card className="p-3 bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800">
+                <p className="text-xs text-amber-800 dark:text-amber-200 font-medium">Bookings cannot be modified. To change dates or guest details, please cancel and rebook.</p>
+                <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">For special requests, please <button className="underline font-medium" onClick={() => { setSelectedBooking(null); navigate(`/app/tickets?booking=${selectedBooking.ellisCode}`); }}>submit a ticket</button>.</p>
+              </Card>
             </div>
           )}
         </DialogContent>
