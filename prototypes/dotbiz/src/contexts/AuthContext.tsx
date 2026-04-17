@@ -26,7 +26,7 @@ export const ALL_ROLES = ["Master", "OP"] as const;
 const MOCK_USERS: { email: string; password: string; user: User }[] = [
   { email: "master@dotbiz.com", password: "master123", user: { email: "master@dotbiz.com", name: "James Park", role: "Master", company: "OHMYHOTEL & CO.", billingType: "POSTPAY" } },
   { email: "op@dotbiz.com", password: "op123", user: { email: "op@dotbiz.com", name: "Sarah Kim", role: "OP", company: "OHMYHOTEL & CO.", billingType: "POSTPAY" } },
-  { email: "demo", password: "demo", user: { email: "demo@dotbiz.com", name: "Demo User", role: "Master", company: "OHMYHOTEL & CO.", billingType: "POSTPAY" } },
+  { email: "postpay@dotbiz.com", password: "postpay123", user: { email: "postpay@dotbiz.com", name: "Demo User", role: "Master", company: "OHMYHOTEL & CO.", billingType: "POSTPAY" } },
   { email: "prepay@dotbiz.com", password: "prepay123", user: { email: "prepay@dotbiz.com", name: "Kevin Lee", role: "Master", company: "Asia Tours Ltd.", billingType: "PREPAY" } },
 ];
 
