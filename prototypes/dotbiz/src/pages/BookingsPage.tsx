@@ -40,8 +40,9 @@ export default function BookingsPage() {
   const [cancelOpen, setCancelOpen] = useState(false);
   const [exportHistoryOpen, setExportHistoryOpen] = useState(false);
   const [viewMode, setViewMode] = useState<"list" | "card">("list");
-  // groupBookingOpen removed
   const [voucherOpen, setVoucherOpen] = useState(false);
+  const [rowsPerPage, setRowsPerPage] = useState(20);
+  const [currentPage, setCurrentPage] = useState(1);
 
   /* ── Filters ── */
   const [filterDateType, setFilterDateType] = useState(searchParams.get("dateType") || "Booking");
@@ -96,6 +97,12 @@ export default function BookingsPage() {
     }
     return result;
   }, [quickFilter, filterBookingStatus, filterPaymentStatus, filterPaymentChannel, filterEllisCode, filterHotelConfirm, filterHotelName, filterGuestName, filterGroupId]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / rowsPerPage));
+  const paginated = filtered.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
+
+  // Reset page when filters change
+  useEffect(() => { setCurrentPage(1); }, [filtered.length, rowsPerPage]);
 
   if (state === "loading") return (<div className="p-6 space-y-4"><Skeleton className="h-10 w-96" /><Skeleton className="h-24 w-full" /><Skeleton className="h-96 w-full" /><StateToolbar state={state} setState={setState} /></div>);
   if (state === "empty") return (<div className="p-6"><Card className="max-w-md mx-auto mt-20 p-6 text-center"><h2 className="text-xl font-semibold">No Bookings Yet</h2><p className="text-muted-foreground mt-2">Start searching for hotels to create your first booking.</p><Button className="mt-4" onClick={() => navigate("/app/find-hotel")}><Search className="h-4 w-4 mr-2" />Find Hotel</Button></Card><StateToolbar state={state} setState={setState} /></div>);
@@ -187,13 +194,13 @@ export default function BookingsPage() {
             </div>
           )}
 
-          {/* ── Toolbar ── */}
+          {/* ── Toolbar + Pagination ── */}
           <div className="flex items-center justify-between">
             <span className="text-sm" style={{ color: "#FF6000" }}>{filtered.length}</span>
             <div className="flex items-center gap-2">
               <Button variant="outline" size="sm" onClick={() => toast.success("Exporting to Excel...")}><Download className="h-3 w-3 mr-1" />Excel</Button>
-              <select className="text-xs border rounded px-2 py-1 bg-background" defaultValue="20" aria-label="Rows per page">
-                <option>20</option><option>50</option><option>100</option>
+              <select className="text-xs border rounded px-2 py-1 bg-background" value={rowsPerPage} onChange={e => setRowsPerPage(Number(e.target.value))} aria-label="Rows per page">
+                {[20, 40, 60, 80, 100].map(n => <option key={n} value={n}>{n}</option>)}
               </select>
             </div>
           </div>
@@ -223,7 +230,7 @@ export default function BookingsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filtered.map(b => (
+                  {paginated.map(b => (
                     <TableRow key={b.id} className="cursor-pointer hover:bg-muted/50 text-xs" onClick={() => setSelectedBooking(b)}>
                       <TableCell><Checkbox checked={selectedIds.has(b.id)} onCheckedChange={() => toggleSelect(b.id)} onClick={e => e.stopPropagation()} /></TableCell>
                       <TableCell className="whitespace-nowrap">{b.bookingDate}</TableCell>
@@ -249,7 +256,7 @@ export default function BookingsPage() {
           ) : (
             /* ── Card View ── */
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {filtered.map(b => (
+              {paginated.map(b => (
                 <Card key={b.id} className="p-4 cursor-pointer card-hover" onClick={() => setSelectedBooking(b)}>
                   <div className="flex items-start justify-between mb-2">
                     <div>
@@ -277,6 +284,41 @@ export default function BookingsPage() {
                   </div>
                 </Card>
               ))}
+            </div>
+          )}
+
+          {/* ── Pagination ── */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between pt-2">
+              <p className="text-xs text-muted-foreground">
+                {(currentPage - 1) * rowsPerPage + 1} – {Math.min(currentPage * rowsPerPage, filtered.length)} of {filtered.length}
+              </p>
+              <div className="flex items-center gap-1">
+                <Button variant="outline" size="sm" className="h-7 w-7 p-0" disabled={currentPage === 1} onClick={() => setCurrentPage(1)}>
+                  <ChevronLeft className="h-3 w-3" /><ChevronLeft className="h-3 w-3 -ml-2" />
+                </Button>
+                <Button variant="outline" size="sm" className="h-7 w-7 p-0" disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)}>
+                  <ChevronLeft className="h-3.5 w-3.5" />
+                </Button>
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  let page: number;
+                  if (totalPages <= 5) page = i + 1;
+                  else if (currentPage <= 3) page = i + 1;
+                  else if (currentPage >= totalPages - 2) page = totalPages - 4 + i;
+                  else page = currentPage - 2 + i;
+                  return (
+                    <Button key={page} variant={page === currentPage ? "default" : "outline"} size="sm" className="h-7 w-7 p-0 text-xs" onClick={() => setCurrentPage(page)}>
+                      {page}
+                    </Button>
+                  );
+                })}
+                <Button variant="outline" size="sm" className="h-7 w-7 p-0" disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)}>
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </Button>
+                <Button variant="outline" size="sm" className="h-7 w-7 p-0" disabled={currentPage === totalPages} onClick={() => setCurrentPage(totalPages)}>
+                  <ChevronRight className="h-3 w-3" /><ChevronRight className="h-3 w-3 -ml-2" />
+                </Button>
+              </div>
             </div>
           )}
         </TabsContent>
