@@ -17,6 +17,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useScreenState } from "@/hooks/useScreenState";
 import { StateToolbar } from "@/components/StateToolbar";
 import { bookings } from "@/mocks/bookings";
+import DateRangePicker from "@/components/DateRangePicker";
 // GroupBookingDialog removed — feature intent unclear
 import { toast } from "sonner";
 
@@ -43,6 +44,8 @@ export default function BookingsPage() {
   const [voucherOpen, setVoucherOpen] = useState(false);
   const [rowsPerPage, setRowsPerPage] = useState(20);
   const [currentPage, setCurrentPage] = useState(1);
+  const [filterDateFrom, setFilterDateFrom] = useState("2026-04-17");
+  const [filterDateTo, setFilterDateTo] = useState("2026-04-17");
 
   /* ── Filters ── */
   const [filterDateType, setFilterDateType] = useState(searchParams.get("dateType") || "Booking");
@@ -135,15 +138,11 @@ export default function BookingsPage() {
           <Card className="p-4">
             <div className="grid grid-cols-2 md:grid-cols-5 gap-x-4 gap-y-2.5 items-end">
               {/* Row 1 */}
-              <div className="flex items-end gap-2">
-                <div>
-                  <select value={filterDateType} onChange={e => setFilterDateType(e.target.value)} className="border rounded px-2 py-1.5 text-xs bg-background">
-                    {["Booking Date", "Check In", "Check Out", "Free Cancel Deadline", "Cancel Date"].map(o => <option key={o}>{o}</option>)}
-                  </select>
-                </div>
-                <Input type="date" defaultValue="2026-04-17" className="text-xs h-8" />
-                <span className="text-xs text-muted-foreground">-</span>
-                <Input type="date" defaultValue="2026-04-17" className="text-xs h-8" />
+              <div className="flex items-end gap-2 col-span-2">
+                <select value={filterDateType} onChange={e => setFilterDateType(e.target.value)} className="border rounded px-2 py-1.5 text-xs bg-background shrink-0">
+                  {["Booking Date", "Check In", "Check Out", "Free Cancel Deadline", "Cancel Date"].map(o => <option key={o}>{o}</option>)}
+                </select>
+                <DateRangePicker checkIn={filterDateFrom} checkOut={filterDateTo} onCheckInChange={setFilterDateFrom} onCheckOutChange={setFilterDateTo} />
               </div>
               <div className="flex items-end gap-1.5">
                 <label className="text-xs text-muted-foreground whitespace-nowrap">ELLIS BKG Code</label>
