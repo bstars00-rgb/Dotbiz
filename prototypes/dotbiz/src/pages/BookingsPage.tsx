@@ -1,5 +1,5 @@
-import { useState, useMemo } from "react";
-import { useNavigate } from "react-router";
+import { useState, useMemo, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router";
 import { Search, X, Download, ChevronLeft, ChevronRight, Paperclip, Send, RefreshCw, List, LayoutGrid, MapPin, Calendar, Clock, FileText, Printer, Users2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -35,6 +35,7 @@ const exportHistory = [
 export default function BookingsPage() {
   const { state, setState } = useScreenState("success");
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [selectedBooking, setSelectedBooking] = useState<typeof bookings[0] | null>(null);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [exportHistoryOpen, setExportHistoryOpen] = useState(false);
@@ -43,8 +44,11 @@ export default function BookingsPage() {
   const [voucherOpen, setVoucherOpen] = useState(false);
 
   /* ── Filters ── */
-  const [filterDateType, setFilterDateType] = useState("Booking");
-  const [filterBookingStatus, setFilterBookingStatus] = useState("All");
+  const [filterDateType, setFilterDateType] = useState(searchParams.get("dateType") || "Booking");
+  const [filterBookingStatus, setFilterBookingStatus] = useState(searchParams.get("status") || "All");
+
+  /* URL param quick filters: free_cancel_24h, free_cancel_3d, upcoming_24h, upcoming_3d */
+  const quickFilter = searchParams.get("filter") || "";
   const [filterPaymentStatus, setFilterPaymentStatus] = useState("All");
   const [filterPaymentChannel, setFilterPaymentChannel] = useState("All");
   const [filterEllisCode, setFilterEllisCode] = useState("");
@@ -66,16 +70,32 @@ export default function BookingsPage() {
   /* ── Filtering ── */
   const filtered = useMemo(() => {
     let result = [...bookings];
-    if (filterBookingStatus !== "All") result = result.filter(b => b.bookingStatus === filterBookingStatus);
-    if (filterPaymentStatus !== "All") result = result.filter(b => b.paymentStatus === filterPaymentStatus);
-    if (filterPaymentChannel !== "All") result = result.filter(b => b.paymentChannel === filterPaymentChannel);
-    if (filterEllisCode) result = result.filter(b => b.ellisCode.toLowerCase().includes(filterEllisCode.toLowerCase()));
-    if (filterHotelConfirm) result = result.filter(b => b.hotelConfirmCode.toLowerCase().includes(filterHotelConfirm.toLowerCase()));
-    if (filterHotelName) result = result.filter(b => b.hotelName.toLowerCase().includes(filterHotelName.toLowerCase()));
-    if (filterGuestName) result = result.filter(b => b.guestName.toLowerCase().includes(filterGuestName.toLowerCase()) || b.traveler.toLowerCase().includes(filterGuestName.toLowerCase()));
-    if (filterGroupId) result = result.filter(b => b.groupBookingId.toLowerCase().includes(filterGroupId.toLowerCase()));
+    const now = new Date();
+    const in24h = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+    const in3d = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
+
+    /* Quick filters from URL params */
+    if (quickFilter === "free_cancel_24h") {
+      result = result.filter(b => b.bookingStatus === "Confirmed" && b.freeCancelDeadline && new Date(b.freeCancelDeadline) <= in24h && new Date(b.freeCancelDeadline) >= now);
+    } else if (quickFilter === "free_cancel_3d") {
+      result = result.filter(b => b.bookingStatus === "Confirmed" && b.freeCancelDeadline && new Date(b.freeCancelDeadline) <= in3d && new Date(b.freeCancelDeadline) >= now);
+    } else if (quickFilter === "upcoming_24h") {
+      result = result.filter(b => b.bookingStatus === "Confirmed" && new Date(b.checkIn) <= in24h && new Date(b.checkIn) >= now);
+    } else if (quickFilter === "upcoming_3d") {
+      result = result.filter(b => b.bookingStatus === "Confirmed" && new Date(b.checkIn) <= in3d && new Date(b.checkIn) >= now);
+    } else {
+      /* Standard filters */
+      if (filterBookingStatus !== "All") result = result.filter(b => b.bookingStatus === filterBookingStatus);
+      if (filterPaymentStatus !== "All") result = result.filter(b => b.paymentStatus === filterPaymentStatus);
+      if (filterPaymentChannel !== "All") result = result.filter(b => b.paymentChannel === filterPaymentChannel);
+      if (filterEllisCode) result = result.filter(b => b.ellisCode.toLowerCase().includes(filterEllisCode.toLowerCase()));
+      if (filterHotelConfirm) result = result.filter(b => b.hotelConfirmCode.toLowerCase().includes(filterHotelConfirm.toLowerCase()));
+      if (filterHotelName) result = result.filter(b => b.hotelName.toLowerCase().includes(filterHotelName.toLowerCase()));
+      if (filterGuestName) result = result.filter(b => b.guestName.toLowerCase().includes(filterGuestName.toLowerCase()) || b.traveler.toLowerCase().includes(filterGuestName.toLowerCase()));
+      if (filterGroupId) result = result.filter(b => b.groupBookingId.toLowerCase().includes(filterGroupId.toLowerCase()));
+    }
     return result;
-  }, [filterBookingStatus, filterPaymentStatus, filterPaymentChannel, filterEllisCode, filterHotelConfirm, filterHotelName, filterGuestName, filterGroupId]);
+  }, [quickFilter, filterBookingStatus, filterPaymentStatus, filterPaymentChannel, filterEllisCode, filterHotelConfirm, filterHotelName, filterGuestName, filterGroupId]);
 
   if (state === "loading") return (<div className="p-6 space-y-4"><Skeleton className="h-10 w-96" /><Skeleton className="h-24 w-full" /><Skeleton className="h-96 w-full" /><StateToolbar state={state} setState={setState} /></div>);
   if (state === "empty") return (<div className="p-6"><Card className="max-w-md mx-auto mt-20 p-6 text-center"><h2 className="text-xl font-semibold">No Bookings Yet</h2><p className="text-muted-foreground mt-2">Start searching for hotels to create your first booking.</p><Button className="mt-4" onClick={() => navigate("/app/find-hotel")}><Search className="h-4 w-4 mr-2" />Find Hotel</Button></Card><StateToolbar state={state} setState={setState} /></div>);
@@ -84,7 +104,18 @@ export default function BookingsPage() {
   return (
     <div className="p-6 space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Bookings</h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl font-bold">Bookings</h1>
+          {quickFilter && (
+            <Badge style={{ background: quickFilter.startsWith("free") ? "#009505" : "#FF6000" }} className="text-xs text-white">
+              {quickFilter === "free_cancel_24h" && "Free Cancel — Within 24h"}
+              {quickFilter === "free_cancel_3d" && "Free Cancel — Within 3 days"}
+              {quickFilter === "upcoming_24h" && "Upcoming — Within 24h"}
+              {quickFilter === "upcoming_3d" && "Upcoming — Within 3 days"}
+              <button className="ml-2 hover:opacity-70" onClick={() => navigate("/app/bookings")}>✕</button>
+            </Badge>
+          )}
+        </div>
         <Button style={{ background: "#FF6000" }} onClick={() => setGroupBookingOpen(true)}><Users2 className="h-4 w-4 mr-1" />Group Booking</Button>
       </div>
 

@@ -683,14 +683,14 @@ export default function FindHotelPage() {
               Free Cancellation
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
-              <div className="text-center">
+              <button className="text-center hover:bg-green-50 dark:hover:bg-green-900/10 rounded-lg p-2 transition-colors" onClick={() => navigate("/app/bookings?filter=free_cancel_24h")}>
                 <p className="text-3xl font-bold">3</p>
                 <p className="text-xs text-muted-foreground mt-1">Within 24 hours</p>
-              </div>
-              <div className="text-center">
+              </button>
+              <button className="text-center hover:bg-green-50 dark:hover:bg-green-900/10 rounded-lg p-2 transition-colors" onClick={() => navigate("/app/bookings?filter=free_cancel_3d")}>
                 <p className="text-3xl font-bold">7</p>
                 <p className="text-xs text-muted-foreground mt-1">Within 3 days</p>
-              </div>
+              </button>
             </div>
           </Card>
           <Card className="p-5 border-l-4" style={{ borderLeftColor: "#FF6000" }}>
@@ -699,14 +699,14 @@ export default function FindHotelPage() {
               Upcoming Bookings
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
-              <div className="text-center">
+              <button className="text-center hover:bg-orange-50 dark:hover:bg-orange-900/10 rounded-lg p-2 transition-colors" onClick={() => navigate("/app/bookings?filter=upcoming_24h")}>
                 <p className="text-3xl font-bold">2</p>
                 <p className="text-xs text-muted-foreground mt-1">Within 24 hours</p>
-              </div>
-              <div className="text-center">
+              </button>
+              <button className="text-center hover:bg-orange-50 dark:hover:bg-orange-900/10 rounded-lg p-2 transition-colors" onClick={() => navigate("/app/bookings?filter=upcoming_3d")}>
                 <p className="text-3xl font-bold">5</p>
                 <p className="text-xs text-muted-foreground mt-1">Within 3 days</p>
-              </div>
+              </button>
             </div>
           </Card>
         </div>
