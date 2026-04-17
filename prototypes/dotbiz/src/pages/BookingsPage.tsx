@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router";
-import { Search, X, Download, ChevronLeft, ChevronRight, Paperclip, Send, RefreshCw, List, LayoutGrid, MapPin, Calendar, Clock, FileText, Printer, Users2 } from "lucide-react";
+import { Search, X, Download, ChevronLeft, ChevronRight, Paperclip, Send, RefreshCw, MapPin, Calendar, Clock, FileText, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -17,7 +17,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useScreenState } from "@/hooks/useScreenState";
 import { StateToolbar } from "@/components/StateToolbar";
 import { bookings } from "@/mocks/bookings";
-import GroupBookingDialog from "@/components/GroupBookingDialog";
+// GroupBookingDialog removed — feature intent unclear
 import { toast } from "sonner";
 
 const statusColors: Record<string, string> = {
@@ -40,7 +40,7 @@ export default function BookingsPage() {
   const [cancelOpen, setCancelOpen] = useState(false);
   const [exportHistoryOpen, setExportHistoryOpen] = useState(false);
   const [viewMode, setViewMode] = useState<"list" | "card">("list");
-  const [groupBookingOpen, setGroupBookingOpen] = useState(false);
+  // groupBookingOpen removed
   const [voucherOpen, setVoucherOpen] = useState(false);
 
   /* ── Filters ── */
@@ -103,20 +103,17 @@ export default function BookingsPage() {
 
   return (
     <div className="p-6 space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-bold">Bookings</h1>
-          {quickFilter && (
-            <Badge style={{ background: quickFilter.startsWith("free") ? "#009505" : "#FF6000" }} className="text-xs text-white">
-              {quickFilter === "free_cancel_24h" && "Free Cancel — Within 24h"}
-              {quickFilter === "free_cancel_3d" && "Free Cancel — Within 3 days"}
-              {quickFilter === "upcoming_24h" && "Upcoming — Within 24h"}
-              {quickFilter === "upcoming_3d" && "Upcoming — Within 3 days"}
-              <button className="ml-2 hover:opacity-70" onClick={() => navigate("/app/bookings")}>✕</button>
-            </Badge>
-          )}
-        </div>
-        <Button style={{ background: "#FF6000" }} onClick={() => setGroupBookingOpen(true)}><Users2 className="h-4 w-4 mr-1" />Group Booking</Button>
+      <div className="flex items-center gap-3">
+        <h1 className="text-2xl font-bold">Bookings</h1>
+        {quickFilter && (
+          <Badge style={{ background: quickFilter.startsWith("free") ? "#009505" : "#FF6000" }} className="text-xs text-white">
+            {quickFilter === "free_cancel_24h" && "Free Cancel — Within 24h"}
+            {quickFilter === "free_cancel_3d" && "Free Cancel — Within 3 days"}
+            {quickFilter === "upcoming_24h" && "Upcoming — Within 24h"}
+            {quickFilter === "upcoming_3d" && "Upcoming — Within 3 days"}
+            <button className="ml-2 hover:opacity-70" onClick={() => navigate("/app/bookings")}>✕</button>
+          </Badge>
+        )}
       </div>
 
       <Tabs defaultValue="list">
@@ -127,56 +124,53 @@ export default function BookingsPage() {
         </TabsList>
 
         <TabsContent value="list" className="space-y-4 mt-4">
-          {/* ── Filters ── */}
+          {/* ── Filters (DIDA style) ── */}
           <Card className="p-4">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <div>
-                <label className="text-sm font-medium">Date Type</label>
-                <select value={filterDateType} onChange={e => setFilterDateType(e.target.value)} className="w-full border rounded px-2 py-1.5 text-sm bg-background mt-1">
-                  {["Booking", "Check In", "Check Out", "Free Cancel Deadline", "Cancel Date"].map(o => <option key={o}>{o}</option>)}
-                </select>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-x-4 gap-y-2.5 items-end">
+              {/* Row 1 */}
+              <div className="flex items-end gap-2">
+                <div>
+                  <select value={filterDateType} onChange={e => setFilterDateType(e.target.value)} className="border rounded px-2 py-1.5 text-xs bg-background">
+                    {["Booking Date", "Check In", "Check Out", "Free Cancel Deadline", "Cancel Date"].map(o => <option key={o}>{o}</option>)}
+                  </select>
+                </div>
+                <Input type="date" defaultValue="2026-04-17" className="text-xs h-8" />
+                <span className="text-xs text-muted-foreground">-</span>
+                <Input type="date" defaultValue="2026-04-17" className="text-xs h-8" />
               </div>
-              <div>
-                <label className="text-sm font-medium">Booking Status</label>
-                <select value={filterBookingStatus} onChange={e => setFilterBookingStatus(e.target.value)} className="w-full border rounded px-2 py-1.5 text-sm bg-background mt-1">
+              <div className="flex items-end gap-1.5">
+                <label className="text-xs text-muted-foreground whitespace-nowrap">ELLIS BKG Code</label>
+                <Input placeholder="" value={filterEllisCode} onChange={e => setFilterEllisCode(e.target.value)} className="text-xs h-8" />
+              </div>
+              <div className="flex items-end gap-1.5">
+                <label className="text-xs text-muted-foreground whitespace-nowrap">BKG Status</label>
+                <select value={filterBookingStatus} onChange={e => setFilterBookingStatus(e.target.value)} className="flex-1 border rounded px-2 py-1.5 text-xs bg-background">
                   {["All", "Confirmed", "Cancelled", "Pending", "No-show", "Completed"].map(o => <option key={o}>{o}</option>)}
                 </select>
               </div>
-              <div>
-                <label className="text-sm font-medium">Payment Status</label>
-                <select value={filterPaymentStatus} onChange={e => setFilterPaymentStatus(e.target.value)} className="w-full border rounded px-2 py-1.5 text-sm bg-background mt-1">
+              <div className="flex items-end gap-2 col-span-2 justify-end">
+                <Button size="sm" onClick={() => toast.success("Search applied")} style={{ background: "#FF6000" }}><Search className="h-3.5 w-3.5 mr-1" />Search</Button>
+                <Button size="sm" variant="outline" onClick={resetFilters}>Reset</Button>
+              </div>
+              {/* Row 2 */}
+              <div className="flex items-end gap-1.5">
+                <label className="text-xs text-muted-foreground whitespace-nowrap">Payment Status</label>
+                <select value={filterPaymentStatus} onChange={e => setFilterPaymentStatus(e.target.value)} className="flex-1 border rounded px-2 py-1.5 text-xs bg-background">
                   {["All", "Not Paid", "Partially Paid", "Fully Paid", "Refunded", "Partially Refunded", "Pending"].map(o => <option key={o}>{o}</option>)}
                 </select>
               </div>
-              <div>
-                <label className="text-sm font-medium">Payment Channel</label>
-                <select value={filterPaymentChannel} onChange={e => setFilterPaymentChannel(e.target.value)} className="w-full border rounded px-2 py-1.5 text-sm bg-background mt-1">
-                  {["All", "Credit Card", "Bank Transfer", "Credit Balance", "Floating Deposit"].map(o => <option key={o}>{o}</option>)}
-                </select>
+              <div className="flex items-end gap-1.5">
+                <label className="text-xs text-muted-foreground whitespace-nowrap">Booker</label>
+                <Input placeholder="Name" value={filterGuestName} onChange={e => setFilterGuestName(e.target.value)} className="text-xs h-8" />
               </div>
-              <div>
-                <label className="text-sm font-medium">ELLIS Code</label>
-                <Input placeholder="ELS-2026-..." value={filterEllisCode} onChange={e => setFilterEllisCode(e.target.value)} className="mt-1" />
+              <div className="flex items-end gap-1.5">
+                <label className="text-xs text-muted-foreground whitespace-nowrap">Hotel Name</label>
+                <Input placeholder="" value={filterHotelName} onChange={e => setFilterHotelName(e.target.value)} className="text-xs h-8" />
               </div>
-              <div>
-                <label className="text-sm font-medium">Hotel Confirm Code</label>
-                <Input placeholder="HC-..." value={filterHotelConfirm} onChange={e => setFilterHotelConfirm(e.target.value)} className="mt-1" />
-              </div>
-              <div>
-                <label className="text-sm font-medium">Hotel Name</label>
-                <Input placeholder="Hotel name..." value={filterHotelName} onChange={e => setFilterHotelName(e.target.value)} className="mt-1" />
-              </div>
-              <div>
-                <label className="text-sm font-medium">Guest / Traveler</label>
-                <Input placeholder="Name..." value={filterGuestName} onChange={e => setFilterGuestName(e.target.value)} className="mt-1" />
-              </div>
-              <div>
-                <label className="text-sm font-medium">Group Booking ID</label>
-                <Input placeholder="GRP-..." value={filterGroupId} onChange={e => setFilterGroupId(e.target.value)} className="mt-1" />
-              </div>
-              <div className="flex items-end gap-2">
-                <Button onClick={() => toast.success("Search applied")}><Search className="h-4 w-4 mr-1" />Search</Button>
-                <Button variant="outline" onClick={resetFilters}><X className="h-4 w-4 mr-1" />Reset</Button>
+              {/* Row 3 */}
+              <div className="flex items-end gap-1.5">
+                <label className="text-xs text-muted-foreground whitespace-nowrap">Seller BKG Code</label>
+                <Input placeholder="" value={filterHotelConfirm} onChange={e => setFilterHotelConfirm(e.target.value)} className="text-xs h-8" />
               </div>
             </div>
           </Card>
@@ -195,18 +189,10 @@ export default function BookingsPage() {
 
           {/* ── Toolbar ── */}
           <div className="flex items-center justify-between">
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={() => toast.success("Exporting to Excel...")}><Download className="h-3 w-3 mr-1" />Excel Export</Button>
-              <Button variant="outline" size="sm" onClick={() => toast.success("Generating vouchers...")}><Download className="h-3 w-3 mr-1" />Bulk Voucher</Button>
-              <Button variant="outline" size="sm" onClick={() => setExportHistoryOpen(true)}><FileText className="h-3 w-3 mr-1" />Export History</Button>
-            </div>
+            <span className="text-sm" style={{ color: "#FF6000" }}>{filtered.length}</span>
             <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">{filtered.length} results</span>
-              <div className="flex border rounded-md overflow-hidden">
-                <button onClick={() => setViewMode("list")} className={`p-1.5 ${viewMode === "list" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}><List className="h-4 w-4" /></button>
-                <button onClick={() => setViewMode("card")} className={`p-1.5 ${viewMode === "card" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}><LayoutGrid className="h-4 w-4" /></button>
-              </div>
-              <select className="text-sm border rounded px-2 py-1 bg-background" defaultValue="20">
+              <Button variant="outline" size="sm" onClick={() => toast.success("Exporting to Excel...")}><Download className="h-3 w-3 mr-1" />Excel</Button>
+              <select className="text-xs border rounded px-2 py-1 bg-background" defaultValue="20" aria-label="Rows per page">
                 <option>20</option><option>50</option><option>100</option>
               </select>
             </div>
@@ -217,38 +203,44 @@ export default function BookingsPage() {
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-10"><Checkbox checked={selectedIds.size === filtered.length && filtered.length > 0} onCheckedChange={selectAll} /></TableHead>
-                    <TableHead>Booking Date</TableHead>
-                    <TableHead>ELLIS Code</TableHead>
-                    <TableHead>Hotel Confirm</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Payment</TableHead>
-                    <TableHead>Channel</TableHead>
-                    <TableHead>Hotel</TableHead>
-                    <TableHead>Check-in</TableHead>
-                    <TableHead>Room</TableHead>
-                    <TableHead>Traveler</TableHead>
-                    <TableHead>Amount</TableHead>
-                    <TableHead>Group</TableHead>
+                  <TableRow className="text-[11px]">
+                    <TableHead className="w-8"><Checkbox checked={selectedIds.size === filtered.length && filtered.length > 0} onCheckedChange={selectAll} /></TableHead>
+                    <TableHead className="whitespace-nowrap">Booking Date</TableHead>
+                    <TableHead className="whitespace-nowrap">ELLIS Booking Code</TableHead>
+                    <TableHead className="whitespace-nowrap">Seller Booking Code</TableHead>
+                    <TableHead className="whitespace-nowrap">Booking Status</TableHead>
+                    <TableHead className="whitespace-nowrap">Payment Status</TableHead>
+                    <TableHead className="whitespace-nowrap">Hotel Name</TableHead>
+                    <TableHead className="whitespace-nowrap">Client Cancel DL</TableHead>
+                    <TableHead className="whitespace-nowrap">Check-in Date / Nts</TableHead>
+                    <TableHead className="whitespace-nowrap">Room Type / Count</TableHead>
+                    <TableHead className="whitespace-nowrap">1st Traveler Name</TableHead>
+                    <TableHead className="whitespace-nowrap">B.Currency</TableHead>
+                    <TableHead className="whitespace-nowrap text-right">B.Sum Amt</TableHead>
+                    <TableHead className="whitespace-nowrap">BKG Cancel Date</TableHead>
+                    <TableHead className="whitespace-nowrap">Invoice No.</TableHead>
+                    <TableHead className="whitespace-nowrap">Dispute</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filtered.map(b => (
-                    <TableRow key={b.id} className="cursor-pointer hover:bg-muted/50" onClick={() => setSelectedBooking(b)}>
+                    <TableRow key={b.id} className="cursor-pointer hover:bg-muted/50 text-xs" onClick={() => setSelectedBooking(b)}>
                       <TableCell><Checkbox checked={selectedIds.has(b.id)} onCheckedChange={() => toggleSelect(b.id)} onClick={e => e.stopPropagation()} /></TableCell>
-                      <TableCell className="text-xs">{b.bookingDate}</TableCell>
-                      <TableCell className="font-mono text-xs">{b.ellisCode}</TableCell>
-                      <TableCell className="font-mono text-xs">{b.hotelConfirmCode || "—"}</TableCell>
+                      <TableCell className="whitespace-nowrap">{b.bookingDate}</TableCell>
+                      <TableCell className="font-mono text-[#0066cc] hover:underline whitespace-nowrap">{b.ellisCode}</TableCell>
+                      <TableCell className="whitespace-nowrap">{b.hotelConfirmCode || ""}</TableCell>
                       <TableCell><Badge variant={statusColors[b.bookingStatus] as "default" | "destructive" | "secondary"} className="text-[10px]">{b.bookingStatus}</Badge></TableCell>
                       <TableCell><Badge variant={statusColors[b.paymentStatus] as "default" | "destructive" | "secondary"} className="text-[10px]">{b.paymentStatus}</Badge></TableCell>
-                      <TableCell className="text-xs">{b.paymentChannel}</TableCell>
-                      <TableCell className="truncate max-w-[130px] text-xs">{b.hotelName}</TableCell>
-                      <TableCell className="text-xs">{b.checkIn} ({b.nights}N)</TableCell>
-                      <TableCell className="text-xs">{b.roomType} x{b.roomCount}</TableCell>
-                      <TableCell className="truncate max-w-[90px] text-xs">{b.traveler}</TableCell>
-                      <TableCell className="text-xs font-medium">${b.sumAmount.toLocaleString()}</TableCell>
-                      <TableCell className="text-xs">{b.groupBookingId ? <Badge variant="outline" className="text-[10px]">{b.groupBookingId}</Badge> : "—"}</TableCell>
+                      <TableCell className="truncate max-w-[150px]">{b.hotelName}</TableCell>
+                      <TableCell className="whitespace-nowrap">{b.cancelDeadline}</TableCell>
+                      <TableCell className="whitespace-nowrap">{b.checkIn}[{b.nights}]</TableCell>
+                      <TableCell className="whitespace-nowrap">{b.roomType} x{b.roomCount}</TableCell>
+                      <TableCell className="truncate max-w-[100px]">{b.traveler}</TableCell>
+                      <TableCell className="whitespace-nowrap">{b.currency}</TableCell>
+                      <TableCell className="text-right font-medium whitespace-nowrap">{b.sumAmount.toLocaleString()}</TableCell>
+                      <TableCell className="whitespace-nowrap">{b.cancelDate || ""}</TableCell>
+                      <TableCell className="whitespace-nowrap">{b.invoiceNo || ""}</TableCell>
+                      <TableCell className="truncate max-w-[80px] text-red-500">{b.dispute || ""}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -494,7 +486,7 @@ export default function BookingsPage() {
       </Dialog>
 
       {/* ── Group Booking Dialog ── */}
-      <GroupBookingDialog open={groupBookingOpen} onOpenChange={setGroupBookingOpen} />
+      {/* GroupBookingDialog removed */}
 
       <StateToolbar state={state} setState={setState} />
     </div>
