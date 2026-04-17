@@ -71,9 +71,7 @@ export default function MainLayout() {
           </Button>
         )}
         <div className="flex-1" />
-        <select className="text-sm border rounded px-2 py-1 bg-card hidden md:block" defaultValue="USD" aria-label="Currency">
-          {["USD","KRW","JPY","CNY","VND","EUR","GBP","THB","SGD","HKD"].map(c => <option key={c}>{c}</option>)}
-        </select>
+        <span className="text-sm font-medium px-2 py-1 border rounded bg-card hidden md:block cursor-default" title="Currency is set by ELLIS. Contact admin to change.">USD</span>
         <select className="text-sm border rounded px-2 py-1 bg-card hidden md:block" value={locale} onChange={e => setLocale(e.target.value as Locale)} aria-label="Language">
           {["EN","KO","JA","ZH","VI"].map(l => <option key={l}>{l}</option>)}
         </select>
