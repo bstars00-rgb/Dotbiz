@@ -246,7 +246,7 @@ export default function RegistrationPage() {
               <label htmlFor="terms" className="text-sm">I agree to the B2B Terms of Service <span className="text-destructive">*</span></label>
             </div>
             {errors.terms && <p className="text-sm text-destructive mt-1">{errors.terms}</p>}
-            <Button variant="outline" onClick={() => console.log("Download contract")}>
+            <Button variant="outline" onClick={() => toast.success("Contract PDF downloading...")}>
               <Download className="h-4 w-4 mr-2" aria-hidden="true" />Download Contract PDF
             </Button>
           </div>

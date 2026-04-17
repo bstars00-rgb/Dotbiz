@@ -10,6 +10,7 @@ import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useAuth } from "@/contexts/AuthContext";
+import { useI18n } from "@/contexts/I18nContext";
 import { subAccounts, departments, balanceTransactions, creditSummary, voucherSettings } from "@/mocks/clientManagement";
 import { toast } from "sonner";
 
@@ -17,6 +18,7 @@ const statusColors: Record<string, string> = { Active: "default", Pending: "seco
 
 export default function ClientManagementPage() {
   const { hasRole } = useAuth();
+  const { t } = useI18n();
 
   /* ── Sub-account state ── */
   const [subSearch, setSubSearch] = useState("");
@@ -43,7 +45,7 @@ export default function ClientManagementPage() {
 
   return (
     <div className="p-6 space-y-4">
-      <h1 className="text-2xl font-bold">Client Management</h1>
+      <h1 className="text-2xl font-bold">{t("page.clientMgmt")}</h1>
 
       <Tabs defaultValue="subaccounts">
         <TabsList className="flex-wrap">

@@ -43,7 +43,7 @@ export default function BookingCompletePage() {
       </Card>
 
       <div className="flex flex-wrap gap-3 justify-center">
-        <Button variant="outline" onClick={() => console.log("Download voucher")}><Download className="h-4 w-4 mr-2" aria-hidden="true" />Download Voucher</Button>
+        <Button variant="outline" onClick={() => toast.success("Voucher downloading...", { description: "Your booking voucher is being prepared." })}><Download className="h-4 w-4 mr-2" aria-hidden="true" />Download Voucher</Button>
         <Button variant="outline" onClick={() => toast.success("Voucher Sent", { description: "The voucher has been sent to the guest email." })}><Mail className="h-4 w-4 mr-2" aria-hidden="true" />Email Voucher</Button>
         <Button onClick={() => navigate("/app/bookings")}><CalendarCheck className="h-4 w-4 mr-2" aria-hidden="true" />My Bookings</Button>
         <Button onClick={() => navigate("/app/find-hotel")}><Plus className="h-4 w-4 mr-2" aria-hidden="true" />New Booking</Button>

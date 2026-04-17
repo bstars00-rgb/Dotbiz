@@ -289,12 +289,132 @@ interface Company {
 interface Notification {
   id: string;
   title: string;
-  message: string;
-  type: "booking" | "payment" | "system" | "promotion";
-  read: boolean;
-  createdAt: string;
+  description: string;
+  priority: "Critical" | "High" | "Medium" | "Low";
+  category: "Deadlines" | "Payment" | "CheckIn" | "Bookings" | "Cancelled" | "System";
+  time: string;              // relative time string, e.g. "2 hours ago"
+  isRead: boolean;
 }
 ```
+
+**Records**: 7 notifications across 6 categories
+
+---
+
+## 11. Traveler
+
+```typescript
+interface Traveler {
+  id: string;              // "t-1"
+  room: number;            // room index (1-based)
+  gender: string;          // "M" | "F"
+  localName: string;       // name in local script
+  lastName: string;
+  firstName: string;
+  childBirthday: string;   // "" for adults, date string for children
+}
+```
+
+**Usage**: Embedded in BookingForm state; each booking contains N travelers matching the adult + child count.
+
+---
+
+## 12. FAQ
+
+```typescript
+interface FAQ {
+  id: string;              // "faq-001"
+  question: string;
+  answer: string;
+  category: "Booking" | "Payment" | "Cancellation" | "Account" | "Technical";
+}
+```
+
+**Records**: 8 FAQs across 5 categories
+
+---
+
+## 13. Product (Rewards Mall)
+
+```typescript
+interface Product {
+  id: string;              // "prod-001"
+  name: string;            // "Amazon Gift Card $50"
+  category: "GiftCards" | "Travel" | "Electronics" | "Lifestyle" | "Dining" | "Entertainment";
+  pointsCost: number;      // OP Points required for redemption
+}
+```
+
+**Records**: 8 products across 6 categories
+
+---
+
+## 14. OperatingPartner
+
+```typescript
+interface OperatingPartner {
+  id: string;              // "op-001"
+  name: string;
+  email: string;
+  status: "Active" | "Pending" | "Deactivated";
+  shareRatio: number;      // percentage (e.g. 35 = 35%)
+}
+```
+
+**Records**: 4 operating partners
+
+---
+
+## 15. Campaign
+
+```typescript
+interface Campaign {
+  title: string;           // "Big discounts are LIVE"
+  subtitle: string;        // "Great deals on hotels around the world"
+  gradient: string;        // Tailwind gradient classes
+  icon: string;            // emoji icon
+  countries: {
+    name: string;          // "Thailand"
+    cities: string[];      // ["Bangkok", "Pattaya", ...]
+  }[];
+}
+```
+
+**Records**: Keyed by slug (e.g. "big-discounts", "prebuy-hotels", "managers-choice")
+
+---
+
+## 16. BlogArticle
+
+```typescript
+interface BlogArticle {
+  id: string;              // "blog-001"
+  hotelId: string;         // linked hotel
+  title: string;
+  category: string;        // "Featured Review" | "New Opening"
+  tag: string;             // "Editor's Pick" | "Instagram Famous"
+  tagColor: string;        // hex color
+  author: string;
+  authorRole: string;      // "Travel Editor" | "Hotel Critic"
+  date: string;            // "Mar 25, 2026"
+  readTime: string;        // "8 min read"
+  views: number;
+  likes: number;
+  comments: number;
+  coverGradient: string;   // Tailwind gradient classes
+  excerpt: string;
+  sections: {
+    type: "intro" | "highlight" | "rooms" | "tip" | "verdict";
+    title?: string;
+    content?: string;
+    items?: string[];
+    rating?: number;
+  }[];
+  photos: number;
+}
+```
+
+**Records**: Inline in OhMyBlogPage, linked to hotels via hotelId
 
 ---
 
@@ -306,9 +426,11 @@ Company (1) ──── (N) Department
 Company (1) ──── (N) Booking
 Company (1) ──── (1) VoucherSetting
 Company (1) ──── (N) BalanceTransaction
+Company (1) ──── (N) OperatingPartner
 
 Hotel (1) ──── (N) Room
 Hotel (1) ──── (N) Booking
+Hotel (1) ──── (N) BlogArticle
 
 Booking (1) ──── (1) Hotel
 Booking (1) ──── (1) Room
@@ -319,4 +441,9 @@ Ticket (1) ──── (N) TicketTrace
 User (1) ──── (1) Company
 User (1) ──── (N) Booking
 User (1) ──── (N) Ticket
+User (1) ──── (N) Notification
+
+Campaign (1) ──── (N) Hotel          (filtered by country/city)
+Product (1) ──── (N) OperatingPartner (redeemed via OP Points)
+FAQ ──── standalone (categorized)
 ```

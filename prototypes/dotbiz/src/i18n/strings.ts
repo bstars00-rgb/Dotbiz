@@ -72,6 +72,16 @@ const strings: Record<string, Record<Locale, string>> = {
   "label.destination": { EN: "Destination", KO: "목적지", JA: "目的地", ZH: "目的地", VI: "Điểm đến" },
   "label.price": { EN: "Price", KO: "가격", JA: "価格", ZH: "价格", VI: "Giá" },
   "label.total": { EN: "Total", KO: "합계", JA: "合計", ZH: "总计", VI: "Tổng cộng" },
+
+  // ── Page Titles ──
+  "page.settlement": { EN: "Settlement & Billing", KO: "정산 및 청구", JA: "精算・請求", ZH: "结算与账单", VI: "Thanh toán & Hóa đơn" },
+  "page.clientMgmt": { EN: "Client Management", KO: "고객 관리", JA: "顧客管理", ZH: "客户管理", VI: "Quản lý khách hàng" },
+  "page.tickets": { EN: "Hotel Ticket Management", KO: "호텔 티켓 관리", JA: "ホテルチケット管理", ZH: "酒店工单管理", VI: "Quản lý yêu cầu khách sạn" },
+  "page.myAccount": { EN: "My Account", KO: "내 계정", JA: "マイアカウント", ZH: "我的账户", VI: "Tài khoản của tôi" },
+  "page.faq": { EN: "FAQ Board", KO: "FAQ 게시판", JA: "FAQ", ZH: "常见问题", VI: "Câu hỏi thường gặp" },
+  "page.notifications": { EN: "Notifications", KO: "알림", JA: "通知", ZH: "通知", VI: "Thông báo" },
+  "page.favorites": { EN: "My Favorites", KO: "즐겨찾기", JA: "お気に入り", ZH: "我的收藏", VI: "Yêu thích" },
+  "page.rewards": { EN: "Rewards Mall", KO: "리워드몰", JA: "リワードモール", ZH: "积分商城", VI: "Cửa hàng điểm thưởng" },
 };
 
 export default strings;

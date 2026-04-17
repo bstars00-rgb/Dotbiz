@@ -267,7 +267,7 @@ export default function LoginPage() {
                   <Checkbox id="remember" />
                   <label htmlFor="remember" className="text-sm text-muted-foreground cursor-pointer">Remember me</label>
                 </div>
-                <button onClick={() => console.log("Forgot password")} className="text-sm font-medium hover:underline" style={{ color: "#FF6000" }}>
+                <button onClick={() => toast.info("Password reset link sent to your email.")} className="text-sm font-medium hover:underline" style={{ color: "#FF6000" }}>
                   Forgot password?
                 </button>
               </div>

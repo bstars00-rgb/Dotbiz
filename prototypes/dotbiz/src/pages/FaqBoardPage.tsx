@@ -9,9 +9,11 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useScreenState } from "@/hooks/useScreenState";
 import { StateToolbar } from "@/components/StateToolbar";
 import { faqs } from "@/mocks/faqs";
+import { useI18n } from "@/contexts/I18nContext";
 
 export default function FaqBoardPage() {
   const { state, setState } = useScreenState("success");
+  const { t } = useI18n();
   const [openId, setOpenId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [category, setCategory] = useState("all");
@@ -28,7 +30,7 @@ export default function FaqBoardPage() {
 
   return (
     <div className="p-6 space-y-4">
-      <h1 className="text-2xl font-bold">FAQ Board</h1>
+      <h1 className="text-2xl font-bold">{t("page.faq")}</h1>
 
       <div className="relative max-w-md">
         <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" aria-hidden="true" />

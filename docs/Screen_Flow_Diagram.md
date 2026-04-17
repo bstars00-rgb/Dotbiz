@@ -132,3 +132,112 @@ HotelDetail → MarkupSharing (new tab)
 HotelDetail → MonthlyRates (new tab)
   /monthly-rates?hotel=htl-007
 ```
+
+## Settlement Sub-flow (6 tabs)
+
+```
+[Settlement]
+    │
+    ├── [Billing Summary] (default)
+    │       └── Overview cards + monthly totals
+    │
+    ├── [Billing Details]
+    │       ├── Filter by date range
+    │       ├── Filter by hotel
+    │       └── [Export] → CSV / PDF download
+    │
+    ├── [Pre-Payment]
+    │       └── Top-up history list
+    │              ├── Date / Amount / Method / Status
+    │              └── [Top-up] → Payment flow
+    │
+    ├── [Applications]
+    │       ├── [New Application] → Application form
+    │       │                          └── [Submit] → Status tracking
+    │       └── Application list
+    │              └── Status: Approved / Pending / Rejected
+    │
+    ├── [Receipts]
+    │       └── Receipt list
+    │              └── [Download] → PDF receipt
+    │
+    └── [Credit Notes]
+            └── Credit note list
+                   └── [Download] → PDF credit note
+```
+
+## Client Management Sub-flow (5 tabs)
+
+```
+[Client Management]
+    │
+    ├── [Sub-Accounts]
+    │       ├── User table (name / email / role / status / last login)
+    │       ├── [Add User] → Add/Edit modal
+    │       │                    ├── Name / Email / Role / Department
+    │       │                    └── [Save] → Refresh list
+    │       └── [Edit] → Add/Edit modal
+    │       └── [Status Toggle] → Active / Inactive
+    │
+    ├── [Departments]
+    │       ├── Department table (name / head / members / budget)
+    │       ├── [Create] → Department form
+    │       ├── [Edit] → Department form
+    │       └── [Delete] → Confirm dialog
+    │
+    ├── [Balance]
+    │       ├── Current balance card
+    │       ├── Transaction history table
+    │       │       └── Type: Top-up / Deduction / Refund
+    │       └── [Top-up] → Top-up flow
+    │
+    ├── [Voucher Setting]
+    │       ├── Company info fields
+    │       │       └── Name / Logo / Address / Phone / Email
+    │       ├── Terms & Conditions editor
+    │       └── [Save] → Template config saved
+    │
+    └── [API Keys]
+            ├── Key list (name / key / created / status)
+            ├── [Generate] → New API key modal
+            │                    └── Key displayed once → copy
+            └── [Revoke] → Confirm dialog → Key deactivated
+```
+
+## My Account Sub-flow (5 tabs)
+
+```
+[My Account]
+    │
+    ├── [Profile]
+    │       ├── Personal info (name / email / phone / avatar)
+    │       ├── Company info (read-only)
+    │       └── [Edit] → Edit form → [Save]
+    │
+    ├── [Security]
+    │       ├── [Change Password] → Current + New + Confirm
+    │       │                          └── [Save] → Password updated
+    │       └── [2FA Toggle] → Enable / Disable
+    │              └── QR code setup (when enabling)
+    │
+    ├── [Notifications]
+    │       └── Preference toggles per category
+    │              ├── Booking confirmations
+    │              ├── Cancellation alerts
+    │              ├── Payment updates
+    │              ├── Check-in reminders
+    │              ├── System announcements
+    │              └── Promotional offers
+    │
+    ├── [Coupons]
+    │       ├── [Available] → Active coupons list
+    │       │       └── Code / Discount / Expiry / Conditions
+    │       └── [History] → Used + Expired coupons
+    │
+    └── [OP Management] (Master only)
+            ├── Partner list table
+            │       └── Name / Email / Status / Share Ratio
+            ├── [Add OP] → Partner form → Activation email sent
+            ├── [Edit] → Partner form → [Save]
+            └── [Assignment] → Booking ↔ OP assignment
+```

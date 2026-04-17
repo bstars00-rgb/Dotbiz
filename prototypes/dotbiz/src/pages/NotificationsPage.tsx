@@ -9,12 +9,14 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useScreenState } from "@/hooks/useScreenState";
 import { StateToolbar } from "@/components/StateToolbar";
 import { notifications, notificationSummary } from "@/mocks/notifications";
+import { useI18n } from "@/contexts/I18nContext";
 import { toast } from "sonner";
 
 const priorityColors: Record<string, string> = { Critical: "destructive", High: "default", Medium: "secondary", Low: "outline" };
 
 export default function NotificationsPage() {
   const { state, setState } = useScreenState("success");
+  const { t } = useI18n();
 
   if (state === "loading") return (<div className="p-6 space-y-4"><div className="grid grid-cols-2 md:grid-cols-4 gap-4">{[1,2,3,4].map(i => <Skeleton key={i} className="h-20" />)}</div><Skeleton className="h-10 w-full" /><Skeleton className="h-96 w-full" /><StateToolbar state={state} setState={setState} /></div>);
   if (state === "empty") return (<div className="p-6"><Card className="max-w-md mx-auto mt-20 p-6 text-center"><h2 className="text-xl font-semibold">No Notifications</h2><p className="text-muted-foreground mt-2">You are all caught up! No new notifications.</p></Card><StateToolbar state={state} setState={setState} /></div>);
@@ -22,7 +24,7 @@ export default function NotificationsPage() {
 
   return (
     <div className="p-6 space-y-4">
-      <h1 className="text-2xl font-bold">Notifications</h1>
+      <h1 className="text-2xl font-bold">{t("page.notifications")}</h1>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card className="p-4 text-center border-red-200"><p className="text-sm">Critical</p><h3 className="text-2xl font-bold text-red-600">{notificationSummary.critical}</h3></Card>

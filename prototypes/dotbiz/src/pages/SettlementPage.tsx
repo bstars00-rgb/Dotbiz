@@ -14,6 +14,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useScreenState } from "@/hooks/useScreenState";
 import { StateToolbar } from "@/components/StateToolbar";
 import { useAuth } from "@/contexts/AuthContext";
+import { useI18n } from "@/contexts/I18nContext";
 import { monthlySummary, dailyDetails, settlementApplications, billingDetails, invoices, accountsReceivable, pointsHistory, purchaseByHotel } from "@/mocks/settlement";
 import { toast } from "sonner";
 
@@ -23,6 +24,7 @@ const appStatusColors: Record<string, string> = { Eligible: "default", Pending: 
 
 export default function SettlementPage() {
   const { state, setState } = useScreenState("success");
+  const { t } = useI18n();
   const { hasRole } = useAuth();
 
   /* ── Applications state ── */
@@ -70,7 +72,7 @@ export default function SettlementPage() {
 
   return (
     <div className="p-6 space-y-4">
-      <h1 className="text-2xl font-bold">Settlement & Billing</h1>
+      <h1 className="text-2xl font-bold">{t("page.settlement")}</h1>
 
       <Tabs defaultValue="applications">
         <TabsList className="flex-wrap">

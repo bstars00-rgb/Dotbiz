@@ -11,6 +11,7 @@ import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { tickets } from "@/mocks/tickets";
 import type { Ticket } from "@/mocks/tickets";
+import { useI18n } from "@/contexts/I18nContext";
 
 const statusColors: Record<string, string> = { Pending: "secondary", Processing: "default", Completed: "default", Rejected: "destructive" };
 const statusIcons: Record<string, typeof Clock> = { Pending: Clock, Processing: AlertTriangle, Completed: CheckCircle2, Rejected: XCircle };
@@ -19,6 +20,7 @@ const typeColors: Record<string, string> = { "Cancellation Request": "#DC2626", 
 
 export default function TicketManagementPage() {
   const [statusTab, setStatusTab] = useState("All");
+  const { t } = useI18n();
   const [typeFilter, setTypeFilter] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
@@ -45,7 +47,7 @@ export default function TicketManagementPage() {
   return (
     <div className="p-6 space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Hotel Ticket Management</h1>
+        <h1 className="text-2xl font-bold">{t("page.tickets")}</h1>
         <Button><Plus className="h-4 w-4 mr-1" />New Ticket</Button>
       </div>
 

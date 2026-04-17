@@ -14,6 +14,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useScreenState } from "@/hooks/useScreenState";
 import { StateToolbar } from "@/components/StateToolbar";
 import { useAuth } from "@/contexts/AuthContext";
+import { useI18n } from "@/contexts/I18nContext";
 import { currentUser } from "@/mocks/users";
 import { currentCompany } from "@/mocks/companies";
 import { operatingPartners } from "@/mocks/operatingPartners";
@@ -34,6 +35,7 @@ const mockCoupons = {
 
 export default function MyAccountPage() {
   const { state, setState } = useScreenState("success");
+  const { t } = useI18n();
   const { hasRole } = useAuth();
   const [addOpOpen, setAddOpOpen] = useState(false);
   const [deactivateOpen, setDeactivateOpen] = useState(false);
@@ -53,7 +55,7 @@ export default function MyAccountPage() {
 
   return (
     <div className="p-6 space-y-6 max-w-4xl">
-      <h1 className="text-2xl font-bold">My Account</h1>
+      <h1 className="text-2xl font-bold">{t("page.myAccount")}</h1>
 
       <Tabs defaultValue="profile">
         <TabsList className="flex-wrap">
