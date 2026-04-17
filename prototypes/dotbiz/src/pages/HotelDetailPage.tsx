@@ -28,6 +28,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useScreenState } from "@/hooks/useScreenState";
 import { StateToolbar } from "@/components/StateToolbar";
 import { hotels } from "@/mocks/hotels";
+import { addRecentSearch } from "@/pages/FindHotelPage";
 import { voucherSettings } from "@/mocks/clientManagement";
 import { getRoomsByHotel } from "@/mocks/rooms";
 
@@ -504,7 +505,7 @@ export default function HotelDetailPage() {
                               </>
                             ) : (
                               <>
-                                <Button size="sm" className="rounded-md text-white px-4" style={{ background: "#0891b2" }} onClick={(e) => { e.stopPropagation(); navigate(`/app/booking/form?hotel=${hotel.id}&room=${room.id}&checkin=${appliedCheckIn}&checkout=${appliedCheckOut}`); }}>
+                                <Button size="sm" className="rounded-md text-white px-4" style={{ background: "#0891b2" }} onClick={(e) => { e.stopPropagation(); addRecentSearch({ hotelId: hotel.id, hotel: hotel.name, checkin: appliedCheckIn, checkout: appliedCheckOut, price: room.price }); navigate(`/app/booking/form?hotel=${hotel.id}&room=${room.id}&checkin=${appliedCheckIn}&checkout=${appliedCheckOut}`); }}>
                                   Reserve now
                                 </Button>
                                 {room.remaining && room.remaining <= 3 && (

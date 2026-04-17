@@ -27,10 +27,47 @@ const popularCities = [
   { name: "Shanghai", country: "China", emoji: "🇨🇳", hotels: 3450, landmark: "🌆", gradient: "from-violet-700 to-purple-400", desc: "The Bund" },
 ];
 
-const recentSearches = [
-  { id: "rs1", hotel: "Grand Hyatt Seoul", dates: "03-30 ~ 04-02", price: "$280/night" },
-  { id: "rs2", hotel: "Hotel Nikko Bangkok", dates: "04-05 ~ 04-08", price: "$195/night" },
-  { id: "rs3", hotel: "Mandarin Oriental Tokyo", dates: "04-10 ~ 04-12", price: "Quote Details" },
+export interface RecentSearch {
+  id: string;
+  hotelId: string;
+  hotel: string;
+  checkin: string;
+  checkout: string;
+  price: number;
+  timestamp: number;
+}
+
+const RECENT_KEY = "dotbiz_recent_searches";
+const MAX_RECENT = 6;
+
+export function getRecentSearches(): RecentSearch[] {
+  try { const s = localStorage.getItem(RECENT_KEY); return s ? JSON.parse(s) : []; }
+  catch { return []; }
+}
+
+export function addRecentSearch(item: Omit<RecentSearch, "id" | "timestamp">) {
+  const all = getRecentSearches().filter(r => r.hotelId !== item.hotelId);
+  all.unshift({ ...item, id: `rs-${Date.now()}`, timestamp: Date.now() });
+  localStorage.setItem(RECENT_KEY, JSON.stringify(all.slice(0, MAX_RECENT)));
+}
+
+export function removeRecentSearch(id: string) {
+  const all = getRecentSearches().filter(r => r.id !== id);
+  localStorage.setItem(RECENT_KEY, JSON.stringify(all));
+}
+
+export function clearRecentSearches() {
+  localStorage.removeItem(RECENT_KEY);
+}
+
+/* Default data for first-time users */
+const defaultRecent: RecentSearch[] = [
+  { id: "rs1", hotelId: "htl-001", hotel: "Grand Hyatt Seoul", checkin: "2026-03-30", checkout: "2026-04-02", price: 280, timestamp: Date.now() - 86400000 },
+  { id: "rs2", hotelId: "htl-013", hotel: "Hotel Nikko Bangkok", checkin: "2026-04-05", checkout: "2026-04-08", price: 195, timestamp: Date.now() - 172800000 },
+  { id: "rs3", hotelId: "htl-008", hotel: "Mandarin Oriental Tokyo", checkin: "2026-04-10", checkout: "2026-04-12", price: 450, timestamp: Date.now() - 259200000 },
+  { id: "rs4", hotelId: "htl-005", hotel: "Four Seasons Seoul", checkin: "2026-03-25", checkout: "2026-03-27", price: 520, timestamp: Date.now() - 345600000 },
+  { id: "rs5", hotelId: "htl-010", hotel: "Park Hyatt Tokyo", checkin: "2026-04-01", checkout: "2026-04-03", price: 480, timestamp: Date.now() - 432000000 },
+  { id: "rs6", hotelId: "htl-018", hotel: "Ritz-Carlton Bali", checkin: "2026-03-20", checkout: "2026-03-24", price: 350, timestamp: Date.now() - 518400000 },
 ];
 
 const amenityIcons: Record<string, any> = {
@@ -77,7 +114,11 @@ export default function FindHotelPage() {
   const [showRoomPicker, setShowRoomPicker] = useState(false);
   const [childAges, setChildAges] = useState<number[]>([]);
   const roomPickerRef = useRef<HTMLDivElement>(null);
-  const [visibleRecent, setVisibleRecent] = useState(true);
+  const [recentList, setRecentList] = useState<RecentSearch[]>(() => {
+    const saved = getRecentSearches();
+    if (saved.length === 0) { localStorage.setItem(RECENT_KEY, JSON.stringify(defaultRecent)); return defaultRecent; }
+    return saved;
+  });
 
   // Close pickers on outside click
   useEffect(() => {
@@ -594,25 +635,38 @@ export default function FindHotelPage() {
       </div>
 
       {/* ── Recent Searches ── */}
-      {visibleRecent && (
+      {recentList.length > 0 && (
         <div className="px-6 -mt-6 relative z-20">
           <div className="max-w-5xl mx-auto">
-            <div className="flex items-center gap-3">
-              {recentSearches.map(rs => (
-                <div key={rs.id} className="group flex-1 bg-white dark:bg-slate-800 border rounded-xl px-4 py-3 shadow-lg hover:shadow-xl transition-all cursor-pointer flex items-center justify-between">
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold truncate">{rs.hotel}</p>
-                    <div className="flex items-center gap-3 mt-0.5">
-                      <span className="text-xs text-muted-foreground">{rs.dates}</span>
-                      <span className="text-xs font-bold" style={{ color: "#FF6000" }}>{rs.price}</span>
+            <div className="grid grid-cols-3 gap-3">
+              {recentList.map(rs => {
+                /* 체크인이 오늘 이전이면 오늘 날짜로 보정 */
+                const today = getTodayStr();
+                const ci = rs.checkin < today ? today : rs.checkin;
+                const originalNights = calcNights(rs.checkin, rs.checkout);
+                const co = ci === rs.checkin ? rs.checkout : (() => { const d = new Date(ci); d.setDate(d.getDate() + Math.max(1, originalNights)); return d.toISOString().split("T")[0]; })();
+                const displayCI = ci.slice(5); // MM-DD
+                const displayCO = co.slice(5);
+                return (
+                  <div key={rs.id} className="group bg-white dark:bg-slate-800 border rounded-xl px-4 py-3 shadow-lg hover:shadow-xl transition-all cursor-pointer flex items-center justify-between"
+                    onClick={() => navigate(`/app/hotel/${rs.hotelId}?checkin=${ci}&checkout=${co}`)}>
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold truncate">{rs.hotel}</p>
+                      <div className="flex items-center gap-3 mt-0.5">
+                        <span className="text-xs text-muted-foreground">{displayCI} ~ {displayCO}</span>
+                        <span className="text-xs font-bold" style={{ color: "#FF6000" }}>${rs.price}/night</span>
+                      </div>
                     </div>
+                    <button className="h-5 w-5 flex items-center justify-center rounded-full hover:bg-muted opacity-0 group-hover:opacity-100 transition-opacity shrink-0 ml-2"
+                      onClick={(e) => { e.stopPropagation(); removeRecentSearch(rs.id); setRecentList(getRecentSearches()); }}>
+                      <X className="h-3 w-3 text-muted-foreground" />
+                    </button>
                   </div>
-                  <X className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0 ml-2" />
-                </div>
-              ))}
+                );
+              })}
             </div>
             <div className="flex justify-end mt-2">
-              <button onClick={() => setVisibleRecent(false)} className="text-xs text-muted-foreground hover:text-foreground underline">
+              <button onClick={() => { clearRecentSearches(); setRecentList([]); }} className="text-xs text-muted-foreground hover:text-foreground underline">
                 Clear History
               </button>
             </div>
@@ -621,7 +675,7 @@ export default function FindHotelPage() {
       )}
 
       {/* ── Stats Section ── */}
-      <div className={`px-6 ${visibleRecent ? "pt-4" : "pt-6"}`}>
+      <div className={`px-6 ${recentList.length > 0 ? "pt-4" : "pt-6"}`}>
         <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-4">
           <Card className="p-5 border-l-4" style={{ borderLeftColor: "#009505" }}>
             <h3 className="font-bold text-sm flex items-center gap-2">
