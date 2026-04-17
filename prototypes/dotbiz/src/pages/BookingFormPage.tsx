@@ -286,7 +286,6 @@ export default function BookingFormPage() {
         sessionStorage.setItem("dotbiz_booking_room", roomId);
         sessionStorage.setItem("dotbiz_booking_checkin", checkIn);
         sessionStorage.setItem("dotbiz_booking_checkout", checkOut);
-        toast.success("Payment successful! Booking confirmed.", { description: "Redirecting to review..." });
         navigate("/app/booking/confirm");
       }} />
 

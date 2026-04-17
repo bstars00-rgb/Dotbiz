@@ -122,9 +122,9 @@ export default function PaymentDialog({ open, onOpenChange, amount, currency = "
 
     setTimeout(() => {
       setLoading(false);
-      toast.success("Payment completed successfully!");
-      onPaymentComplete();
       onOpenChange(false);
+      toast.success("Payment completed successfully!", { description: "Booking confirmed. Redirecting..." });
+      setTimeout(() => onPaymentComplete(), 300);
     }, 2000);
   };
 
