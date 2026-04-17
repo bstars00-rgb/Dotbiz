@@ -38,29 +38,30 @@ export default function BookingFormPage() {
   const { errors, validate } = useFormValidation();
   const { user } = useAuth();
 
-  const saved = loadSavedForm();
-
   /* Booker — pre-filled from company registration data, restored from session */
-  const [bookerName, setBookerName] = useState(saved?.bookerName ?? user?.name ?? currentCompany.name);
-  const [bookerEmail, setBookerEmail] = useState(saved?.bookerEmail ?? user?.email ?? currentCompany.email);
-  const [bookerMobile, setBookerMobile] = useState(saved?.bookerMobile ?? "");
-  const [bookerCode, setBookerCode] = useState(saved?.bookerCode ?? "");
-  const [mobileCountry, setMobileCountry] = useState(saved?.mobileCountry ?? "82");
+  const [bookerName, setBookerName] = useState(() => { const s = loadSavedForm(); return s?.bookerName ?? user?.name ?? currentCompany.name; });
+  const [bookerEmail, setBookerEmail] = useState(() => { const s = loadSavedForm(); return s?.bookerEmail ?? user?.email ?? currentCompany.email; });
+  const [bookerMobile, setBookerMobile] = useState(() => loadSavedForm()?.bookerMobile ?? "");
+  const [bookerCode, setBookerCode] = useState(() => loadSavedForm()?.bookerCode ?? "");
+  const [mobileCountry, setMobileCountry] = useState(() => loadSavedForm()?.mobileCountry ?? "82");
 
   /* Travelers — restored from session */
-  const [travelers, setTravelers] = useState(saved?.travelers ?? [
-    { id: "t-1", room: 1, gender: "M", localName: "", lastName: "", firstName: "", childBirthday: "" },
-    { id: "t-2", room: 1, gender: "M", localName: "", lastName: "", firstName: "", childBirthday: "" },
-  ]);
+  const [travelers, setTravelers] = useState(() => {
+    const s = loadSavedForm();
+    return s?.travelers ?? [
+      { id: "t-1", room: 1, gender: "M", localName: "", lastName: "", firstName: "", childBirthday: "" },
+      { id: "t-2", room: 1, gender: "M", localName: "", lastName: "", firstName: "", childBirthday: "" },
+    ];
+  });
 
   const updateTraveler = (idx: number, field: string, value: string) => {
     setTravelers(prev => prev.map((t, i) => i === idx ? { ...t, [field]: value } : t));
   };
 
   /* Special Requests — restored from session */
-  const [specialReqs, setSpecialReqs] = useState<Set<string>>(new Set(saved?.specialReqs ?? []));
-  const [customRequest, setCustomRequest] = useState(saved?.customRequest ?? "");
-  const [expectedCheckIn, setExpectedCheckIn] = useState(saved?.expectedCheckIn ?? "");
+  const [specialReqs, setSpecialReqs] = useState<Set<string>>(() => new Set(loadSavedForm()?.specialReqs ?? []));
+  const [customRequest, setCustomRequest] = useState(() => loadSavedForm()?.customRequest ?? "");
+  const [expectedCheckIn, setExpectedCheckIn] = useState(() => loadSavedForm()?.expectedCheckIn ?? "");
   const toggleReq = (req: string) => setSpecialReqs(prev => { const n = new Set(prev); n.has(req) ? n.delete(req) : n.add(req); return n; });
 
   /* Auto-save form data to sessionStorage */
