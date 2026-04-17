@@ -63,33 +63,59 @@ export default function MainLayout() {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Top Bar */}
-      <header className="flex items-center h-14 border-b px-4 gap-2 md:gap-4 shrink-0 bg-card" role="banner">
+      {/* Top Bar (DIDA style) */}
+      <header className="flex items-center h-12 px-4 gap-1 shrink-0 text-white" style={{ background: "linear-gradient(90deg, #1a1a2e, #16213e)" }} role="banner">
+        {/* Left: Logo + Nav */}
         {isMobile && (
-          <Button variant="ghost" size="icon" onClick={() => setMobileNavOpen(true)} aria-label="Open menu">
+          <Button variant="ghost" size="icon" onClick={() => setMobileNavOpen(true)} aria-label="Open menu" className="text-white hover:bg-white/10">
             <Menu className="h-5 w-5" />
           </Button>
         )}
+        <div className="hidden md:flex items-center gap-1 cursor-pointer mr-4" onClick={() => navigate("/app/dashboard")}>
+          <div className="relative w-7 h-7 shrink-0">
+            <div className="absolute inset-0 rounded-full" style={{ background: "conic-gradient(from 180deg, #FF6000, #FF8C00, #FFCF8F, #FF6000)" }} />
+            <div className="absolute inset-[2px] rounded-full bg-[#1a1a2e] flex items-center justify-center">
+              <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none"><path d="M12 3C7.5 3 4 6.5 4 11c0 3 1.5 5.5 4 7l1-2c-2-1-3-3-3-5 0-3.3 2.7-6 6-6s6 2.7 6 6c0 2-1 3.8-2.5 5l1 2c2.3-1.5 3.5-4 3.5-7 0-4.5-3.5-8-8-8z" fill="#FF6000" /><circle cx="12" cy="4" r="2.5" fill="#009505" /></svg>
+            </div>
+          </div>
+          <span className="text-base font-bold" style={{ color: "#FF6000" }}>DOTBIZ</span>
+        </div>
+        <nav className="hidden md:flex items-center gap-1">
+          <button onClick={() => navigate("/app/find-hotel")} className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${isActive("/app/find-hotel") ? "bg-white/20 text-white" : "text-white/70 hover:text-white hover:bg-white/10"}`}>
+            {t("nav.findHotel")}
+          </button>
+          <button onClick={() => navigate("/app/bookings")} className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${isActive("/app/bookings") ? "bg-white/20 text-white" : "text-white/70 hover:text-white hover:bg-white/10"}`}>
+            {t("nav.bookings")}
+          </button>
+        </nav>
+
         <div className="flex-1" />
-        <span className="text-sm font-medium px-2 py-1 border rounded bg-card hidden md:block cursor-default" title="Currency is set by ELLIS. Contact admin to change.">USD</span>
-        <select className="text-sm border rounded px-2 py-1 bg-card hidden md:block" value={locale} onChange={e => setLocale(e.target.value as Locale)} aria-label="Language">
-          {["EN","KO","JA","ZH","VI"].map(l => <option key={l}>{l}</option>)}
-        </select>
-        <Button variant="ghost" size="icon" onClick={toggleDark} aria-label="Toggle dark mode">
-          {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-        </Button>
-        <Button variant="ghost" size="icon" onClick={() => navigate("/app/favorites")} aria-label="My Favorites">
-          <Heart className="h-4 w-4" />
-        </Button>
-        <Button variant="ghost" size="icon" className="relative" onClick={() => navigate("/app/notifications")} aria-label="Notifications">
-          <Bell className="h-4 w-4" />
-          <Badge variant="destructive" className="absolute -top-1 -right-1 h-5 w-5 p-0 text-xs flex items-center justify-center">3</Badge>
-        </Button>
-        <Button variant="ghost" size="icon" onClick={() => navigate("/app/my-account")} aria-label="My Account">
-          <Avatar className="h-8 w-8">
-            <AvatarFallback>JP</AvatarFallback>
-          </Avatar>
-        </Button>
+
+        {/* Right: Language + Icons + User */}
+        <div className="flex items-center gap-1">
+          <select className="text-xs border border-white/20 rounded px-2 py-1 bg-transparent text-white hidden md:block" value={locale} onChange={e => setLocale(e.target.value as Locale)} aria-label="Language">
+            {["EN","KO","JA","ZH","VI"].map(l => <option key={l} className="text-foreground bg-background">{l}</option>)}
+          </select>
+          <Button variant="ghost" size="icon" className="text-white/70 hover:text-white hover:bg-white/10 h-8 w-8" onClick={() => navigate("/app/favorites")} aria-label="My Favorites">
+            <Heart className="h-4 w-4" />
+          </Button>
+          <Button variant="ghost" size="icon" className="text-white/70 hover:text-white hover:bg-white/10 h-8 w-8" onClick={toggleDark} aria-label="Toggle dark mode">
+            {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          </Button>
+          <Button variant="ghost" size="icon" className="text-white/70 hover:text-white hover:bg-white/10 h-8 w-8 relative" onClick={() => navigate("/app/notifications")} aria-label="Notifications">
+            <Bell className="h-4 w-4" />
+            <span className="absolute -top-0.5 -right-0.5 h-4 w-4 rounded-full bg-red-500 text-[9px] text-white flex items-center justify-center">3</span>
+          </Button>
+          <div className="hidden md:flex items-center gap-2 ml-2 pl-2 border-l border-white/20 cursor-pointer hover:bg-white/10 rounded px-2 py-1" onClick={() => navigate("/app/my-account")}>
+            <Avatar className="h-7 w-7">
+              <AvatarFallback className="text-xs bg-[#FF6000] text-white">{(user?.name || "U").slice(0, 2).toUpperCase()}</AvatarFallback>
+            </Avatar>
+            <div className="text-right">
+              <p className="text-xs font-medium text-white leading-tight">{user?.company || "OHMYHOTEL"}</p>
+              <p className="text-[10px] text-white/60 leading-tight">{user?.name}</p>
+            </div>
+          </div>
+        </div>
       </header>
 
       {/* Mobile Nav Drawer */}
