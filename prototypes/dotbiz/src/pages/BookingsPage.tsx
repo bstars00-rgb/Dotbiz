@@ -44,6 +44,9 @@ export default function BookingsPage() {
   const [exportHistoryOpen, setExportHistoryOpen] = useState(false);
   const [viewMode, setViewMode] = useState<"list" | "card">("list");
   const [voucherOpen, setVoucherOpen] = useState(false);
+  const [voucherShowLogo, setVoucherShowLogo] = useState(true);
+  const [voucherShowQR, setVoucherShowQR] = useState(false);
+  const [voucherLang, setVoucherLang] = useState<"EN" | "KO" | "JA" | "ZH" | "VI">("EN");
   const [ticketOpen, setTicketOpen] = useState(false);
   const [ticketBooking, setTicketBooking] = useState<typeof bookings[0] | null>(null);
   const [rowsPerPage, setRowsPerPage] = useState(20);
@@ -574,39 +577,108 @@ export default function BookingsPage() {
       <Dialog open={voucherOpen} onOpenChange={setVoucherOpen}>
         <DialogContent className="max-h-[95vh] overflow-y-auto p-0" style={{ maxWidth: "900px", width: "90vw" }}>
           <DialogHeader className="px-6 pt-4 pb-2 border-b"><DialogTitle>Booking Voucher</DialogTitle></DialogHeader>
+          {/* Voucher Options Bar (non-printable) */}
+          <div className="px-6 py-3 border-b flex items-center gap-6 flex-wrap bg-muted/30 no-print">
+            <label className="flex items-center gap-2 text-sm cursor-pointer">
+              <Checkbox checked={voucherShowLogo} onCheckedChange={c => setVoucherShowLogo(!!c)} />
+              Show OhMyHotel info
+            </label>
+            <label className="flex items-center gap-2 text-sm cursor-pointer">
+              <Checkbox checked={voucherShowQR} onCheckedChange={c => setVoucherShowQR(!!c)} />
+              Show hotel QR code
+            </label>
+            <div className="flex items-center gap-2 text-sm">
+              <span className="text-muted-foreground">Language:</span>
+              {(["EN", "KO", "JA", "ZH", "VI"] as const).map(lang => (
+                <label key={lang} className="flex items-center gap-1 cursor-pointer">
+                  <input type="radio" name="voucherLang" checked={voucherLang === lang} onChange={() => setVoucherLang(lang)} className="accent-[#FF6000]" />
+                  <span className={voucherLang === lang ? "text-[#FF6000] font-medium" : ""}>{lang}</span>
+                </label>
+              ))}
+            </div>
+          </div>
           {selectedBooking && (() => {
             const checkOutDate = (() => { const d = new Date(selectedBooking.checkIn); d.setDate(d.getDate() + selectedBooking.nights); return d.toISOString().split("T")[0]; })();
             const ciDay = new Date(selectedBooking.checkIn).toLocaleDateString("en-US", { weekday: "short" }).toUpperCase();
             const coDay = new Date(checkOutDate).toLocaleDateString("en-US", { weekday: "short" }).toUpperCase();
+            /* Translations */
+            const L: Record<string, Record<string, string>> = {
+              title: { EN: "Voucher", KO: "바우처", JA: "バウチャー", ZH: "凭证", VI: "Phiếu xác nhận" },
+              bookingInfo: { EN: "Booking Information", KO: "예약 정보", JA: "予約情報", ZH: "预订信息", VI: "Thông tin đặt phòng" },
+              refNo: { EN: "Reference No.", KO: "예약 번호", JA: "参照番号", ZH: "参考编号", VI: "Số tham chiếu" },
+              bookingCode: { EN: "Booking Code", KO: "예약 코드", JA: "予約コード", ZH: "预订码", VI: "Mã đặt phòng" },
+              hotel: { EN: "Hotel", KO: "호텔", JA: "ホテル", ZH: "酒店", VI: "Khách sạn" },
+              address: { EN: "Address", KO: "주소", JA: "住所", ZH: "地址", VI: "Địa chỉ" },
+              tel: { EN: "Tel.", KO: "전화번호", JA: "電話番号", ZH: "电话", VI: "Điện thoại" },
+              rooms: { EN: "Rooms", KO: "객실", JA: "部屋数", ZH: "房间数", VI: "Phòng" },
+              checkIn: { EN: "Check In", KO: "체크인", JA: "チェックイン", ZH: "入住", VI: "Nhận phòng" },
+              checkOut: { EN: "Check Out", KO: "체크아웃", JA: "チェックアウト", ZH: "退房", VI: "Trả phòng" },
+              roomType: { EN: "Room Type", KO: "객실 유형", JA: "客室タイプ", ZH: "房型", VI: "Loại phòng" },
+              mealType: { EN: "Meal & Breakfast Type", KO: "식사/조식", JA: "食事・朝食", ZH: "餐食/早餐", VI: "Bữa ăn/Ăn sáng" },
+              guests: { EN: "Guests", KO: "투숙객", JA: "宿泊者", ZH: "客人", VI: "Khách" },
+              guestReq: { EN: "Guest Requests", KO: "요청사항", JA: "リクエスト", ZH: "客户要求", VI: "Yêu cầu" },
+              roomOnly: { EN: "Room Only", KO: "객실만", JA: "客室のみ", ZH: "仅客房", VI: "Chỉ phòng" },
+              noRequests: { EN: "No additional requests", KO: "추가 요청사항 없음", JA: "追加リクエストなし", ZH: "无附加要求", VI: "Không có yêu cầu" },
+              guidelines: { EN: "[Guidelines]", KO: "[안내사항]", JA: "[ご案内]", ZH: "[注意事项]", VI: "[Hướng dẫn]" },
+            };
+            const t = (k: string) => L[k]?.[voucherLang] || L[k]?.EN || k;
             return (
               <div id="printable-voucher" className="bg-white text-slate-900 p-10" style={{ fontFamily: "Arial, sans-serif" }}>
+                {/* OhMyHotel Header (toggleable) */}
+                {voucherShowLogo && (
+                  <div className="flex items-center gap-6 border border-slate-300 rounded p-4 mb-5">
+                    <div className="flex items-center gap-2">
+                      <div className="relative w-10 h-10 shrink-0">
+                        <div className="absolute inset-0 rounded-full" style={{ background: "conic-gradient(from 180deg, #FF6000, #FF8C00, #FFCF8F, #FF6000)" }} />
+                        <div className="absolute inset-[2px] rounded-full bg-white flex items-center justify-center">
+                          <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none"><path d="M12 3C7.5 3 4 6.5 4 11c0 3 1.5 5.5 4 7l1-2c-2-1-3-3-3-5 0-3.3 2.7-6 6-6s6 2.7 6 6c0 2-1 3.8-2.5 5l1 2c2.3-1.5 3.5-4 3.5-7 0-4.5-3.5-8-8-8z" fill="#FF6000" /><circle cx="12" cy="4" r="2.5" fill="#009505" /></svg>
+                        </div>
+                      </div>
+                      <span className="text-xl font-bold" style={{ color: "#FF6000" }}>OhMyHotel</span>
+                    </div>
+                    <div className="text-xs text-slate-700">
+                      <p>Tel: +82-2-762-0552</p>
+                      <p>Email: <span className="text-blue-600">support@ohmyhotel.com</span></p>
+                    </div>
+                  </div>
+                )}
                 {/* Title */}
-                <div className="mb-6">
-                  <h1 className="text-3xl font-bold" style={{ color: "#FF6000" }}>Voucher</h1>
+                <div className="mb-6 flex items-center justify-between">
+                  <h1 className="text-3xl font-bold" style={{ color: "#FF6000" }}>{t("title")}</h1>
+                  {voucherShowQR && (
+                    <div className="text-center">
+                      <div className="w-20 h-20 bg-white border-2 border-slate-900 p-1.5">
+                        <div className="w-full h-full grid grid-cols-8 gap-[1px]">
+                          {Array.from({ length: 64 }).map((_, i) => (<div key={i} className={Math.random() > 0.5 ? "bg-slate-900" : "bg-white"} />))}
+                        </div>
+                      </div>
+                      <p className="text-[9px] text-slate-600 mt-1">Scan for more</p>
+                    </div>
+                  )}
                 </div>
 
                 {/* Booking Information */}
-                <h2 className="text-xl font-bold border-b-2 pb-2 mb-4" style={{ borderColor: "#FF6000" }}>Booking Information</h2>
+                <h2 className="text-xl font-bold border-b-2 pb-2 mb-4" style={{ borderColor: "#FF6000" }}>{t("bookingInfo")}</h2>
                 <table className="w-full mb-8 text-sm">
                   <tbody>
-                    <tr className="border-b"><td className="py-2.5 font-medium text-slate-600 w-48">Reference No.</td><td className="py-2.5 text-slate-900 font-medium">{selectedBooking.ellisCode} / {selectedBooking.hotelConfirmCode || "—"}</td></tr>
-                    <tr className="border-b"><td className="py-2.5 font-medium text-slate-600">Booking Code</td><td className="py-2.5 font-mono">{selectedBooking.ellisCode}</td></tr>
-                    <tr className="border-b"><td className="py-2.5 font-medium text-slate-600">Hotel</td><td className="py-2.5 font-medium">{selectedBooking.hotelName}</td></tr>
-                    <tr className="border-b"><td className="py-2.5 font-medium text-slate-600">Address</td><td className="py-2.5">{selectedBooking.hotelAddress}</td></tr>
-                    <tr className="border-b"><td className="py-2.5 font-medium text-slate-600">Tel.</td><td className="py-2.5">{selectedBooking.hotelContact}</td></tr>
-                    <tr className="border-b"><td className="py-2.5 font-medium text-slate-600">Rooms</td><td className="py-2.5">{selectedBooking.roomCount}</td></tr>
-                    <tr className="border-b"><td className="py-2.5 font-medium text-slate-600">Check In</td><td className="py-2.5 text-green-700 font-medium">{selectedBooking.checkIn}({ciDay})</td></tr>
-                    <tr className="border-b"><td className="py-2.5 font-medium text-slate-600">Check Out</td><td className="py-2.5 text-green-700 font-medium">{checkOutDate}({coDay})</td></tr>
-                    <tr className="border-b"><td className="py-2.5 font-medium text-slate-600">Room Type</td><td className="py-2.5">{selectedBooking.roomType}</td></tr>
-                    <tr className="border-b"><td className="py-2.5 font-medium text-slate-600">Meal &amp; Breakfast Type</td><td className="py-2.5">Room Only</td></tr>
-                    <tr className="border-b"><td className="py-2.5 font-medium text-slate-600">Guests</td><td className="py-2.5"><div className="font-medium">Room 1</div><div className="text-slate-700">{selectedBooking.traveler.split(" ").join("/")}, TBAAB/TBAAB</div></td></tr>
-                    <tr className="border-b"><td className="py-2.5 font-medium text-slate-600">Guest Requests</td><td className="py-2.5">{selectedBooking.specialRequests || "No additional requests"}</td></tr>
+                    <tr className="border-b"><td className="py-2.5 font-medium text-slate-600 w-48">{t("refNo")}</td><td className="py-2.5 text-slate-900 font-medium">{selectedBooking.ellisCode} / {selectedBooking.hotelConfirmCode || "—"}</td></tr>
+                    <tr className="border-b"><td className="py-2.5 font-medium text-slate-600">{t("bookingCode")}</td><td className="py-2.5 font-mono">{selectedBooking.ellisCode}</td></tr>
+                    <tr className="border-b"><td className="py-2.5 font-medium text-slate-600">{t("hotel")}</td><td className="py-2.5 font-medium">{selectedBooking.hotelName}</td></tr>
+                    <tr className="border-b"><td className="py-2.5 font-medium text-slate-600">{t("address")}</td><td className="py-2.5">{selectedBooking.hotelAddress}</td></tr>
+                    <tr className="border-b"><td className="py-2.5 font-medium text-slate-600">{t("tel")}</td><td className="py-2.5">{selectedBooking.hotelContact}</td></tr>
+                    <tr className="border-b"><td className="py-2.5 font-medium text-slate-600">{t("rooms")}</td><td className="py-2.5">{selectedBooking.roomCount}</td></tr>
+                    <tr className="border-b"><td className="py-2.5 font-medium text-slate-600">{t("checkIn")}</td><td className="py-2.5 text-green-700 font-medium">{selectedBooking.checkIn}({ciDay})</td></tr>
+                    <tr className="border-b"><td className="py-2.5 font-medium text-slate-600">{t("checkOut")}</td><td className="py-2.5 text-green-700 font-medium">{checkOutDate}({coDay})</td></tr>
+                    <tr className="border-b"><td className="py-2.5 font-medium text-slate-600">{t("roomType")}</td><td className="py-2.5">{selectedBooking.roomType}</td></tr>
+                    <tr className="border-b"><td className="py-2.5 font-medium text-slate-600">{t("mealType")}</td><td className="py-2.5">{t("roomOnly")}</td></tr>
+                    <tr className="border-b"><td className="py-2.5 font-medium text-slate-600">{t("guests")}</td><td className="py-2.5"><div className="font-medium">Room 1</div><div className="text-slate-700">{selectedBooking.traveler.split(" ").join("/")}, TBAAB/TBAAB</div></td></tr>
+                    <tr className="border-b"><td className="py-2.5 font-medium text-slate-600">{t("guestReq")}</td><td className="py-2.5">{selectedBooking.specialRequests || t("noRequests")}</td></tr>
                   </tbody>
                 </table>
 
                 {/* Guidelines */}
                 <div className="bg-orange-50 border border-orange-200 rounded p-4 mb-6">
-                  <h3 className="text-sm font-bold text-red-600 mb-2">[Guidelines]</h3>
+                  <h3 className="text-sm font-bold text-red-600 mb-2">{t("guidelines")}</h3>
                   <ul className="space-y-1.5 text-xs text-slate-700">
                     <li className="flex gap-2"><span className="text-orange-600 shrink-0">\u2611</span>Please present the Voucher to the Front desk along with your passport when checking in at the accommodation.</li>
                     <li className="flex gap-2"><span className="text-orange-600 shrink-0">\u2611</span>Please check your Reservation details before cancelling as Cancellation charge can be applied. In case you do not check in on the check-in date, we will treat this as No-show and your payment will not be refunded. For smooth check-in, please contact the hotel in advance for late check-in after 9pm hotel local time.</li>
