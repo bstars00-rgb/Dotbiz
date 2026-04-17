@@ -64,28 +64,32 @@ export default function BookingFormPage() {
   const [expectedCheckIn, setExpectedCheckIn] = useState(() => loadSavedForm()?.expectedCheckIn ?? "");
   const toggleReq = (req: string) => setSpecialReqs(prev => { const n = new Set(prev); n.has(req) ? n.delete(req) : n.add(req); return n; });
 
-  /* Auto-save form data to sessionStorage */
+  /* Auto-save form data + booking params to sessionStorage */
   useEffect(() => {
     const data = {
       bookerName, bookerEmail, bookerMobile, bookerCode, mobileCountry,
       travelers, specialReqs: Array.from(specialReqs), customRequest, expectedCheckIn,
     };
     sessionStorage.setItem(FORM_STORAGE_KEY, JSON.stringify(data));
-  }, [bookerName, bookerEmail, bookerMobile, bookerCode, mobileCountry, travelers, specialReqs, customRequest, expectedCheckIn]);
+    sessionStorage.setItem("dotbiz_booking_hotel", hotelId);
+    sessionStorage.setItem("dotbiz_booking_room", roomId);
+    sessionStorage.setItem("dotbiz_booking_checkin", checkIn);
+    sessionStorage.setItem("dotbiz_booking_checkout", checkOut);
+  }, [bookerName, bookerEmail, bookerMobile, bookerCode, mobileCountry, travelers, specialReqs, customRequest, expectedCheckIn, hotelId, roomId, checkIn, checkOut]);
 
   /* Confirm dialog */
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [travelerErrors, setTravelerErrors] = useState(false);
 
-  /* Booking data from URL params or defaults */
-  const hotelId = searchParams.get("hotel") || "htl-007";
-  const roomId = searchParams.get("room") || "";
+  /* Booking data from URL params → sessionStorage fallback → defaults */
+  const hotelId = searchParams.get("hotel") || sessionStorage.getItem("dotbiz_booking_hotel") || "htl-007";
+  const roomId = searchParams.get("room") || sessionStorage.getItem("dotbiz_booking_room") || "";
   const hotel = hotels.find(h => h.id === hotelId) || hotels[0];
   const allRooms = getRoomsByHotel(hotel.id);
   const room = allRooms.find(r => r.id === roomId) || allRooms[0];
-  const checkIn = searchParams.get("checkin") || "2026-04-22";
-  const checkOut = searchParams.get("checkout") || "2026-04-23";
+  const checkIn = searchParams.get("checkin") || sessionStorage.getItem("dotbiz_booking_checkin") || "2026-04-22";
+  const checkOut = searchParams.get("checkout") || sessionStorage.getItem("dotbiz_booking_checkout") || "2026-04-23";
   const nights = Math.max(1, Math.round((new Date(checkOut).getTime() - new Date(checkIn).getTime()) / 86400000));
   const totalPrice = room ? room.price * nights : 0;
   const isFreeCancel = room?.cancellationPolicy === "free_cancel";
