@@ -381,18 +381,15 @@ export default function BookingsPage() {
             </div>
           )}
 
-          {/* ── Pagination ── */}
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between pt-2">
-              <p className="text-xs text-muted-foreground">
-                {(currentPage - 1) * rowsPerPage + 1} – {Math.min(currentPage * rowsPerPage, filtered.length)} of {filtered.length}
-              </p>
-              <div className="flex items-center gap-1">
-                <Button variant="outline" size="sm" className="h-7 w-7 p-0" disabled={currentPage === 1} onClick={() => setCurrentPage(1)}>
-                  <ChevronLeft className="h-3 w-3" /><ChevronLeft className="h-3 w-3 -ml-2" />
+          {/* ── Pagination (DIDA style, always visible) ── */}
+          {filtered.length > 0 && (
+            <div className="flex items-center justify-between pt-3 pb-2 border-t mt-3 px-2">
+              <div className="flex items-center gap-0.5">
+                <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground" disabled={currentPage === 1} onClick={() => setCurrentPage(1)} aria-label="First page">
+                  <span className="flex"><ChevronLeft className="h-3.5 w-3.5" /><ChevronLeft className="h-3.5 w-3.5 -ml-2.5" /></span>
                 </Button>
-                <Button variant="outline" size="sm" className="h-7 w-7 p-0" disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)}>
-                  <ChevronLeft className="h-3.5 w-3.5" />
+                <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground" disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)} aria-label="Previous page">
+                  <ChevronLeft className="h-4 w-4" />
                 </Button>
                 {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
                   let page: number;
@@ -400,19 +397,27 @@ export default function BookingsPage() {
                   else if (currentPage <= 3) page = i + 1;
                   else if (currentPage >= totalPages - 2) page = totalPages - 4 + i;
                   else page = currentPage - 2 + i;
+                  const isActive = page === currentPage;
                   return (
-                    <Button key={page} variant={page === currentPage ? "default" : "outline"} size="sm" className="h-7 w-7 p-0 text-xs" onClick={() => setCurrentPage(page)}>
+                    <button
+                      key={page}
+                      onClick={() => setCurrentPage(page)}
+                      className={`h-8 min-w-[32px] px-2 text-xs rounded transition-colors ${isActive ? "bg-orange-100 text-[#FF6000] font-semibold dark:bg-orange-900/30" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}
+                    >
                       {page}
-                    </Button>
+                    </button>
                   );
                 })}
-                <Button variant="outline" size="sm" className="h-7 w-7 p-0" disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)}>
-                  <ChevronRight className="h-3.5 w-3.5" />
+                <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground" disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)} aria-label="Next page">
+                  <ChevronRight className="h-4 w-4" />
                 </Button>
-                <Button variant="outline" size="sm" className="h-7 w-7 p-0" disabled={currentPage === totalPages} onClick={() => setCurrentPage(totalPages)}>
-                  <ChevronRight className="h-3 w-3" /><ChevronRight className="h-3 w-3 -ml-2" />
+                <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground" disabled={currentPage === totalPages} onClick={() => setCurrentPage(totalPages)} aria-label="Last page">
+                  <span className="flex"><ChevronRight className="h-3.5 w-3.5" /><ChevronRight className="h-3.5 w-3.5 -ml-2.5" /></span>
                 </Button>
               </div>
+              <p className="text-xs text-muted-foreground">
+                {(currentPage - 1) * rowsPerPage + 1} - {Math.min(currentPage * rowsPerPage, filtered.length)} of {filtered.length} items
+              </p>
             </div>
           )}
         </TabsContent>
