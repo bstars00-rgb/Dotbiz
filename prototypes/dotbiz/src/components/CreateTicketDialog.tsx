@@ -1,11 +1,12 @@
 import { useState } from "react";
+import { useNavigate } from "react-router";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
-import { Upload, Plus, X } from "lucide-react";
+import { Plus, X } from "lucide-react";
+import { useTickets } from "@/contexts/TicketsContext";
 
 interface CreateTicketDialogProps {
   open: boolean;
@@ -45,6 +46,8 @@ const subOptions: Record<string, { options: string[]; note?: string; multiple?: 
 };
 
 export default function CreateTicketDialog({ open, onOpenChange, bookingCode, hotelName }: CreateTicketDialogProps) {
+  const navigate = useNavigate();
+  const { addTicket } = useTickets();
   const [arrivalStatus, setArrivalStatus] = useState<ArrivalStatus>("Arrived in store");
   const [category, setCategory] = useState<ProblemCategory | null>(null);
   const [subOption, setSubOption] = useState<string>("");
@@ -68,7 +71,20 @@ export default function CreateTicketDialog({ open, onOpenChange, bookingCode, ho
       toast.error("Please specify the issue");
       return;
     }
-    toast.success("Ticket submitted!", { description: `Ticket for ${bookingCode || "booking"} has been created.` });
+    const newTicket = addTicket({
+      bookingId: bookingCode || "N/A",
+      hotelName: hotelName || "Unknown",
+      guestName: "Current User",
+      category,
+      subOption,
+      arrivalStatus,
+      notes,
+      attachments,
+    });
+    toast.success(`Ticket ${newTicket.id} created!`, {
+      description: "View in Tickets page",
+      action: { label: "View", onClick: () => navigate(`/app/tickets?highlight=${newTicket.id}`) },
+    });
     reset();
     onOpenChange(false);
   };
