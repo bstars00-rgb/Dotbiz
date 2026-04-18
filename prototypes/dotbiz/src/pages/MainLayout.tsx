@@ -12,6 +12,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/contexts/AuthContext";
 import { useI18n } from "@/contexts/I18nContext";
 import type { Locale } from "@/i18n/strings";
@@ -111,15 +112,42 @@ export default function MainLayout() {
             <Bell className="h-4 w-4" />
             <span className="absolute -top-0.5 -right-0.5 h-4 w-4 rounded-full bg-red-500 text-[9px] text-white flex items-center justify-center">3</span>
           </Button>
-          <div className="hidden md:flex items-center gap-2 ml-2 pl-2 border-l border-white/20 cursor-pointer hover:bg-white/10 rounded px-2 py-1" onClick={() => navigate("/app/my-account")}>
-            <Avatar className="h-7 w-7">
-              <AvatarFallback className="text-xs bg-[#FF6000] text-white">{(user?.name || "U").slice(0, 2).toUpperCase()}</AvatarFallback>
-            </Avatar>
-            <div className="text-right">
-              <p className="text-xs font-medium text-white leading-tight">{user?.company || "OHMYHOTEL"}</p>
-              <p className="text-[10px] text-white/60 leading-tight">{user?.name}</p>
-            </div>
-          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="hidden md:flex items-center gap-2 ml-2 pl-2 border-l border-white/20 cursor-pointer hover:bg-white/10 rounded px-2 py-1" aria-label="User menu">
+                <Avatar className="h-7 w-7">
+                  <AvatarFallback className="text-xs bg-[#FF6000] text-white">{(user?.name || "U").slice(0, 2).toUpperCase()}</AvatarFallback>
+                </Avatar>
+                <div className="text-right">
+                  <p className="text-xs font-medium text-white leading-tight">{user?.company || "OHMYHOTEL"}</p>
+                  <p className="text-[10px] text-white/60 leading-tight">{user?.name}</p>
+                </div>
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-52">
+              <DropdownMenuLabel>
+                <div>
+                  <p className="text-sm font-medium">{user?.name || currentUser.fullName}</p>
+                  <p className="text-xs text-muted-foreground font-normal">{user?.email}</p>
+                  <Badge variant="secondary" className="text-[10px] mt-1">{user?.role || currentUser.role}</Badge>
+                </div>
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => navigate("/app/my-account")}>
+                <User className="h-4 w-4 mr-2" />{t("nav.myAccount")}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate("/app/favorites")}>
+                <Heart className="h-4 w-4 mr-2" />My Favorites
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => { logout(); navigate("/login"); }}>
+                <User className="h-4 w-4 mr-2" />{t("nav.switchAccount")}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setLogoutOpen(true)} className="text-red-600 focus:text-red-700">
+                <LogOut className="h-4 w-4 mr-2" />{t("nav.logout")}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </header>
 

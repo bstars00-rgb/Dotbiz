@@ -18,6 +18,8 @@ import { useScreenState } from "@/hooks/useScreenState";
 import { StateToolbar } from "@/components/StateToolbar";
 import { bookings } from "@/mocks/bookings";
 import CreateTicketDialog from "@/components/CreateTicketDialog";
+import { useAuth } from "@/contexts/AuthContext";
+import { searchCountries } from "@/lib/countries";
 // DateRangePicker replaced with native date inputs for compact DIDA-style filter
 // GroupBookingDialog removed — feature intent unclear
 import { toast } from "sonner";
@@ -36,6 +38,8 @@ const exportHistory = [
 
 export default function BookingsPage() {
   const { state, setState } = useScreenState("success");
+  const { user } = useAuth();
+  const billingType = user?.billingType || "POSTPAY";
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [localBookings, setLocalBookings] = useState([...bookings]);
@@ -69,6 +73,9 @@ export default function BookingsPage() {
   const [filterGroupId, setFilterGroupId] = useState("");
   const [filterBookerType, setFilterBookerType] = useState("Booker");
   const [filterCountry, setFilterCountry] = useState("");
+  const [countryDropdownOpen, setCountryDropdownOpen] = useState(false);
+  const [editingSellerCode, setEditingSellerCode] = useState(false);
+  const [sellerCodeDraft, setSellerCodeDraft] = useState("");
 
   /* Applied filters — only update when Search is clicked */
   const [appliedFilters, setAppliedFilters] = useState({
@@ -204,9 +211,33 @@ export default function BookingsPage() {
                 </select>
                 <Input placeholder={filterBookerType === "Mobile No." ? "+82..." : "Name"} value={filterGuestName} onChange={e => setFilterGuestName(e.target.value)} className="text-xs h-8 w-36" />
               </div>
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1.5 relative">
                 <label className="text-xs text-muted-foreground">Country</label>
-                <Input placeholder="e.g. South Korea" value={filterCountry} onChange={e => setFilterCountry(e.target.value)} className="text-xs h-8 w-36" />
+                <div className="relative">
+                  <Input
+                    placeholder="ko, KR, Korea..."
+                    value={filterCountry}
+                    onChange={e => { setFilterCountry(e.target.value); setCountryDropdownOpen(true); }}
+                    onFocus={() => setCountryDropdownOpen(true)}
+                    onBlur={() => setTimeout(() => setCountryDropdownOpen(false), 200)}
+                    className="text-xs h-8 w-40"
+                  />
+                  {countryDropdownOpen && filterCountry && searchCountries(filterCountry).length > 0 && (
+                    <div className="absolute top-full left-0 mt-1 w-56 bg-card border rounded-md shadow-lg z-20 max-h-60 overflow-y-auto">
+                      {searchCountries(filterCountry).map(c => (
+                        <button
+                          key={c.code}
+                          onMouseDown={(e) => { e.preventDefault(); setFilterCountry(c.name); setCountryDropdownOpen(false); }}
+                          className="w-full text-left px-3 py-1.5 text-xs hover:bg-accent flex items-center gap-2"
+                        >
+                          <span className="font-mono text-muted-foreground w-8">{c.code}</span>
+                          <span>—</span>
+                          <span>{c.name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
               <div className="flex items-center gap-1.5">
                 <label className="text-xs text-muted-foreground">Hotel Name</label>
@@ -410,7 +441,25 @@ export default function BookingsPage() {
                     <TableRow><TableCell className="text-sm font-medium w-36">Name</TableCell><TableCell className="text-sm">{selectedBooking.guestName}</TableCell></TableRow>
                     <TableRow><TableCell className="text-sm font-medium">Email</TableCell><TableCell className="text-sm text-primary">{selectedBooking.guestEmail}</TableCell></TableRow>
                     <TableRow><TableCell className="text-sm font-medium">Tel</TableCell><TableCell className="text-sm">{selectedBooking.guestMobile}</TableCell></TableRow>
-                    <TableRow><TableCell className="text-sm font-medium">Seller Booking Code</TableCell><TableCell className="text-sm">{selectedBooking.hotelConfirmCode || ""}</TableCell></TableRow>
+                    <TableRow>
+                      <TableCell className="text-sm font-medium">Seller Booking Code</TableCell>
+                      <TableCell className="text-sm">
+                        {editingSellerCode ? (
+                          <div className="flex items-center gap-2">
+                            <Input value={sellerCodeDraft} onChange={e => setSellerCodeDraft(e.target.value)} className="h-7 text-xs max-w-[220px]" placeholder="Enter seller code" autoFocus />
+                            <Button size="sm" className="h-7 text-xs" style={{ background: "#FF6000" }} onClick={() => { setLocalBookings(prev => prev.map(b => b.id === selectedBooking.id ? { ...b, hotelConfirmCode: sellerCodeDraft.trim() } : b)); toast.success("Seller Booking Code saved"); setEditingSellerCode(false); }}>Save</Button>
+                            <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setEditingSellerCode(false)}>Cancel</Button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <span>{selectedBooking.hotelConfirmCode || <span className="text-muted-foreground italic">(Not set)</span>}</span>
+                            <button className="text-xs text-[#0066cc] hover:underline" onClick={() => { setSellerCodeDraft(selectedBooking.hotelConfirmCode || ""); setEditingSellerCode(true); }}>
+                              ✎ {selectedBooking.hotelConfirmCode ? "Edit" : "Add"}
+                            </button>
+                          </div>
+                        )}
+                      </TableCell>
+                    </TableRow>
                   </TableBody>
                 </Table>
               </Card>
@@ -474,14 +523,63 @@ export default function BookingsPage() {
               <Card className="p-4">
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="font-bold text-sm">Billing & Payment</h3>
-                  <Badge variant="outline" className="text-xs">{selectedBooking.paymentChannel}</Badge>
+                  <div className="flex items-center gap-2">
+                    <Badge variant={billingType === "PREPAY" ? "destructive" : "default"} className="text-[10px]">{billingType}</Badge>
+                    <Badge variant="outline" className="text-xs">{selectedBooking.paymentChannel}</Badge>
+                  </div>
                 </div>
                 <Table>
                   <TableBody>
                     <TableRow><TableCell className="text-sm font-medium w-48">Billing total</TableCell><TableCell className="text-sm text-right font-medium">{selectedBooking.currency} {selectedBooking.sumAmount.toLocaleString()}</TableCell></TableRow>
-                    <TableRow><TableCell className="text-sm font-medium">Balance</TableCell><TableCell className="text-sm text-right font-medium">{selectedBooking.currency} {selectedBooking.paymentStatus === "Fully Paid" ? "0" : selectedBooking.sumAmount.toLocaleString()}</TableCell></TableRow>
+                    <TableRow>
+                      <TableCell className="text-sm font-medium">Payment Status</TableCell>
+                      <TableCell className="text-sm text-right">
+                        <Badge variant={statusColors[selectedBooking.paymentStatus] as "default" | "destructive" | "secondary"} className="text-[10px]">{selectedBooking.paymentStatus}</Badge>
+                      </TableCell>
+                    </TableRow>
+                    <TableRow><TableCell className="text-sm font-medium">Balance</TableCell><TableCell className="text-sm text-right font-medium">{selectedBooking.currency} {selectedBooking.paymentStatus === "Fully Paid" || selectedBooking.paymentStatus === "Refunded" ? "0" : selectedBooking.sumAmount.toLocaleString()}</TableCell></TableRow>
+                    {selectedBooking.invoiceNo && (
+                      <TableRow><TableCell className="text-sm font-medium">Invoice No.</TableCell><TableCell className="text-sm text-right font-mono">{selectedBooking.invoiceNo}</TableCell></TableRow>
+                    )}
                   </TableBody>
                 </Table>
+                {/* Billing flow explanation */}
+                <div className="mt-3 p-3 rounded bg-muted/40 border text-xs text-muted-foreground">
+                  {billingType === "POSTPAY" ? (
+                    <>
+                      <p className="font-medium text-foreground mb-1">📋 POSTPAY flow</p>
+                      <p><strong>Not Paid</strong> (booking created) → <strong>Invoice issued</strong> (by settlement cycle) → Client wire transfer → <strong>Fully Paid</strong> (confirmed by accounting team).</p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="font-medium text-foreground mb-1">💳 PREPAY flow</p>
+                      <p><strong>Not Paid</strong> → PG card payment at booking → <strong>Fully Paid</strong> (instant). Refunds trigger <strong>Refunded</strong> / <strong>Partially Refunded</strong>.</p>
+                    </>
+                  )}
+                </div>
+                {/* POSTPAY Issue Invoice action */}
+                {billingType === "POSTPAY" && !selectedBooking.invoiceNo && selectedBooking.paymentStatus === "Not Paid" && (
+                  <div className="mt-3 flex justify-end">
+                    <Button size="sm" variant="outline" className="h-8 text-xs border-[#FF6000] text-[#FF6000]" onClick={() => {
+                      const invNo = `INV-2026-${String(Math.floor(Math.random() * 9000) + 1000)}`;
+                      setLocalBookings(prev => prev.map(b => b.id === selectedBooking.id ? { ...b, invoiceNo: invNo } : b));
+                      toast.success(`Invoice ${invNo} issued`, { description: "Awaiting client payment" });
+                    }}>📄 Issue Invoice</Button>
+                  </div>
+                )}
+                {/* Accounting team: mark as paid */}
+                {billingType === "POSTPAY" && selectedBooking.invoiceNo && selectedBooking.paymentStatus === "Not Paid" && user?.role === "Master" && (
+                  <div className="mt-3 flex justify-end gap-2">
+                    <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => {
+                      setLocalBookings(prev => prev.map(b => b.id === selectedBooking.id ? { ...b, paymentStatus: "Partially Paid" as const } : b));
+                      toast.success("Marked as Partially Paid");
+                    }}>Mark Partially Paid</Button>
+                    <Button size="sm" className="h-8 text-xs" style={{ background: "#009505" }} onClick={() => {
+                      setLocalBookings(prev => prev.map(b => b.id === selectedBooking.id ? { ...b, paymentStatus: "Fully Paid" as const } : b));
+                      toast.success("Marked as Fully Paid", { description: "Payment confirmed by accounting" });
+                    }}>✓ Mark Fully Paid</Button>
+                  </div>
+                )}
               </Card>
 
               {/* Cancellation Policy (DIDA table style) */}
