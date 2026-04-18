@@ -23,7 +23,7 @@ import CreateTicketDialog from "@/components/CreateTicketDialog";
 import { toast } from "sonner";
 
 const statusColors: Record<string, string> = {
-  Confirmed: "default", Cancelled: "destructive", Pending: "secondary", "No-show": "destructive", Completed: "default",
+  Confirmed: "default", Cancelled: "destructive",
   "Not Paid": "destructive", "Partially Paid": "secondary", "Fully Paid": "default", Refunded: "secondary", "Partially Refunded": "secondary",
 };
 
@@ -172,7 +172,7 @@ export default function BookingsPage() {
               <div className="flex items-center gap-1.5">
                 <label className="text-xs text-muted-foreground">BKG Status</label>
                 <select value={filterBookingStatus} onChange={e => setFilterBookingStatus(e.target.value)} className="border rounded px-2 py-1.5 text-xs bg-background h-8" aria-label="Booking status">
-                  {["All", "Confirmed", "Cancelled", "Pending", "No-show", "Completed"].map(o => <option key={o}>{o}</option>)}
+                  {["All", "Confirmed", "Cancelled"].map(o => <option key={o}>{o}</option>)}
                 </select>
               </div>
               <div className="flex items-center gap-2 ml-auto">
@@ -404,7 +404,7 @@ export default function BookingsPage() {
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="font-bold text-sm">Reservation Details</h3>
                   <div className="flex gap-2">
-                    {selectedBooking.bookingStatus !== "Cancelled" && selectedBooking.bookingStatus !== "Completed" && (
+                    {selectedBooking.bookingStatus !== "Cancelled" && (
                       <Button variant="outline" size="sm" className="h-7 text-xs border-red-300 text-red-500 hover:bg-red-50" onClick={() => {
                         if (new Date(selectedBooking.cancelDeadline) > new Date()) {
                           setCancelOpen(true);
@@ -501,7 +501,7 @@ export default function BookingsPage() {
               <div className="flex items-center justify-between pt-2">
                 <p className="text-xs text-muted-foreground">Friendly reminder: If your itinerary changes and you need to apply for partial cancellation, please consult our customer service team by <button className="text-primary underline" onClick={() => { setTicketBooking(selectedBooking); setTicketOpen(true); setSelectedBooking(null); }}>submitting a ticket</button>.</p>
                 <div className="flex gap-2 shrink-0 ml-4">
-                  {selectedBooking.bookingStatus !== "Cancelled" && selectedBooking.bookingStatus !== "Completed" && (
+                  {selectedBooking.bookingStatus !== "Cancelled" && (
                     <Button variant="outline" size="sm" className="border-red-300 text-red-500 hover:bg-red-50" onClick={() => {
                       if (new Date(selectedBooking.cancelDeadline) > new Date()) setCancelOpen(true);
                       else toast.error("Cancellation deadline has passed.", { description: "Full charge will be applied." });

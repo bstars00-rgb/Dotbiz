@@ -95,7 +95,7 @@ describe("Mock Data: Bookings", () => {
 
   it("should have varied booking statuses", () => {
     const statuses = new Set(bookings.map(b => b.bookingStatus));
-    expect(statuses.size).toBeGreaterThanOrEqual(3);
+    expect(statuses.size).toBeGreaterThanOrEqual(2);
   });
 
   it("should have unique booking IDs", () => {
