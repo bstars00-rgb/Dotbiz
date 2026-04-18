@@ -16,6 +16,7 @@ import { StateToolbar } from "@/components/StateToolbar";
 import { useAuth } from "@/contexts/AuthContext";
 import { useI18n } from "@/contexts/I18nContext";
 import { monthlySummary, dailyDetails, settlementApplications, billingDetails, invoices, accountsReceivable, pointsHistory, purchaseByHotel } from "@/mocks/settlement";
+import InvoicePreviewDialog, { type InvoiceData } from "@/components/InvoicePreviewDialog";
 import { toast } from "sonner";
 
 const billStatusColors: Record<string, string> = { Settled: "default", Pending: "secondary", Overdue: "destructive" };
@@ -48,6 +49,7 @@ export default function SettlementPage() {
 
   /* ── Invoices filter ── */
   const [invStatus, setInvStatus] = useState("All");
+  const [previewInvoice, setPreviewInvoice] = useState<InvoiceData | null>(null);
   const filteredInvoices = useMemo(() => {
     if (invStatus === "All") return invoices;
     return invoices.filter(i => i.status === invStatus);
@@ -223,8 +225,8 @@ export default function SettlementPage() {
             </TableHeader>
             <TableBody>
               {filteredInvoices.map(inv => (
-                <TableRow key={inv.invoiceNo}>
-                  <TableCell className="font-mono text-sm">{inv.invoiceNo}</TableCell>
+                <TableRow key={inv.invoiceNo} className="cursor-pointer hover:bg-muted/50" onClick={() => setPreviewInvoice(inv)}>
+                  <TableCell className="font-mono text-sm text-[#0066cc] hover:underline">{inv.invoiceNo}</TableCell>
                   <TableCell>{inv.period}</TableCell>
                   <TableCell className="text-sm">{inv.issuedDate}</TableCell>
                   <TableCell className="text-sm">{inv.dueDate}</TableCell>
@@ -232,7 +234,7 @@ export default function SettlementPage() {
                   <TableCell>${inv.supplyAmount.toLocaleString()}</TableCell>
                   <TableCell>${inv.vat.toLocaleString()}</TableCell>
                   <TableCell className="font-bold">${inv.total.toLocaleString()}</TableCell>
-                  <TableCell><Button size="sm" variant="ghost" onClick={() => toast.success("Downloading PDF...")}><Download className="h-3 w-3 mr-1" />PDF</Button></TableCell>
+                  <TableCell><Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); setPreviewInvoice(inv); }}><Download className="h-3 w-3 mr-1" />Preview / PDF</Button></TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -355,6 +357,9 @@ export default function SettlementPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Invoice Preview (A4 + 5 languages) */}
+      <InvoicePreviewDialog open={!!previewInvoice} onOpenChange={(o) => !o && setPreviewInvoice(null)} invoice={previewInvoice} />
 
       <StateToolbar state={state} setState={setState} />
     </div>
