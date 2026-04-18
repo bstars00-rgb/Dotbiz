@@ -67,16 +67,19 @@ export default function BookingsPage() {
   const [filterHotelName, setFilterHotelName] = useState("");
   const [filterGuestName, setFilterGuestName] = useState("");
   const [filterGroupId, setFilterGroupId] = useState("");
+  const [filterBookerType, setFilterBookerType] = useState("Booker");
+  const [filterCountry, setFilterCountry] = useState("");
 
   /* Applied filters — only update when Search is clicked */
   const [appliedFilters, setAppliedFilters] = useState({
     bookingStatus: "All", paymentStatus: "All", paymentChannel: "All",
-    ellisCode: "", hotelConfirm: "", hotelName: "", guestName: "", groupId: "",
+    ellisCode: "", hotelConfirm: "", hotelName: "", guestName: "", groupId: "", country: "", bookerType: "Booker",
   });
   const applySearch = () => {
     setAppliedFilters({
       bookingStatus: filterBookingStatus, paymentStatus: filterPaymentStatus, paymentChannel: filterPaymentChannel,
       ellisCode: filterEllisCode, hotelConfirm: filterHotelConfirm, hotelName: filterHotelName, guestName: filterGuestName, groupId: filterGroupId,
+      country: filterCountry, bookerType: filterBookerType,
     });
     toast.success("Search applied");
   };
@@ -87,9 +90,10 @@ export default function BookingsPage() {
   const selectAll = () => { if (selectedIds.size === filtered.length) setSelectedIds(new Set()); else setSelectedIds(new Set(filtered.map(b => b.id))); };
 
   const resetFilters = () => {
-    setFilterDateType("Booking"); setFilterBookingStatus("All"); setFilterPaymentStatus("All"); setFilterPaymentChannel("All");
+    setFilterDateType("Booking Date"); setFilterBookingStatus("All"); setFilterPaymentStatus("All"); setFilterPaymentChannel("All");
     setFilterEllisCode(""); setFilterHotelConfirm(""); setFilterHotelName(""); setFilterGuestName(""); setFilterGroupId("");
-    setAppliedFilters({ bookingStatus: "All", paymentStatus: "All", paymentChannel: "All", ellisCode: "", hotelConfirm: "", hotelName: "", guestName: "", groupId: "" });
+    setFilterCountry(""); setFilterBookerType("Booker");
+    setAppliedFilters({ bookingStatus: "All", paymentStatus: "All", paymentChannel: "All", ellisCode: "", hotelConfirm: "", hotelName: "", guestName: "", groupId: "", country: "", bookerType: "Booker" });
   };
 
   /* ── Filtering ── */
@@ -116,7 +120,13 @@ export default function BookingsPage() {
       if (appliedFilters.ellisCode) result = result.filter(b => b.ellisCode.toLowerCase().includes(appliedFilters.ellisCode.toLowerCase()));
       if (appliedFilters.hotelConfirm) result = result.filter(b => b.hotelConfirmCode.toLowerCase().includes(appliedFilters.hotelConfirm.toLowerCase()));
       if (appliedFilters.hotelName) result = result.filter(b => b.hotelName.toLowerCase().includes(appliedFilters.hotelName.toLowerCase()));
-      if (appliedFilters.guestName) result = result.filter(b => b.guestName.toLowerCase().includes(appliedFilters.guestName.toLowerCase()) || b.traveler.toLowerCase().includes(appliedFilters.guestName.toLowerCase()));
+      if (appliedFilters.guestName) {
+        const q = appliedFilters.guestName.toLowerCase();
+        if (appliedFilters.bookerType === "Traveler") result = result.filter(b => b.traveler.toLowerCase().includes(q));
+        else if (appliedFilters.bookerType === "Mobile No.") result = result.filter(b => b.guestMobile.toLowerCase().includes(q));
+        else result = result.filter(b => b.guestName.toLowerCase().includes(q));
+      }
+      if (appliedFilters.country) result = result.filter(b => b.country.toLowerCase().includes(appliedFilters.country.toLowerCase()));
       if (appliedFilters.groupId) result = result.filter(b => b.groupBookingId.toLowerCase().includes(appliedFilters.groupId.toLowerCase()));
     }
     return result;
@@ -159,7 +169,7 @@ export default function BookingsPage() {
             <div className="flex items-center gap-3 flex-wrap mb-3">
               <div className="flex items-center gap-2">
                 <select value={filterDateType} onChange={e => setFilterDateType(e.target.value)} className="border rounded px-2 py-1.5 text-xs bg-background h-8" aria-label="Date type">
-                  {["Booking Date", "Check In", "Check Out", "Free Cancel DL", "Cancel Date"].map(o => <option key={o}>{o}</option>)}
+                  {["Booking Date", "Cancel Date", "Check In Date", "Check Out Date", "Cancel Deadline", "Stay Date"].map(o => <option key={o}>{o}</option>)}
                 </select>
                 <Input type="date" value={filterDateFrom} onChange={e => setFilterDateFrom(e.target.value)} className="text-xs h-8 w-36" />
                 <span className="text-xs text-muted-foreground">→</span>
@@ -167,7 +177,7 @@ export default function BookingsPage() {
               </div>
               <div className="flex items-center gap-1.5">
                 <label className="text-xs text-muted-foreground">ELLIS BKG Code</label>
-                <Input placeholder="" value={filterEllisCode} onChange={e => setFilterEllisCode(e.target.value)} className="text-xs h-8 w-40" />
+                <Input placeholder="K26..." value={filterEllisCode} onChange={e => setFilterEllisCode(e.target.value)} className="text-xs h-8 w-40" />
               </div>
               <div className="flex items-center gap-1.5">
                 <label className="text-xs text-muted-foreground">BKG Status</label>
@@ -180,17 +190,23 @@ export default function BookingsPage() {
                 <Button size="sm" variant="outline" className="h-8" onClick={resetFilters}>Reset</Button>
               </div>
             </div>
-            {/* Row 2: Payment + Booker + Hotel Name */}
+            {/* Row 2: Payment + Booker (type+name) + Country + Hotel Name */}
             <div className="flex items-center gap-3 flex-wrap mb-3">
               <div className="flex items-center gap-1.5">
                 <label className="text-xs text-muted-foreground">Payment Status</label>
                 <select value={filterPaymentStatus} onChange={e => setFilterPaymentStatus(e.target.value)} className="border rounded px-2 py-1.5 text-xs bg-background h-8" aria-label="Payment status">
-                  {["All", "Not Paid", "Partially Paid", "Fully Paid", "Refunded", "Partially Refunded", "Pending"].map(o => <option key={o}>{o}</option>)}
+                  {["All", "Not Paid", "Partially Paid", "Fully Paid", "Refunded", "Partially Refunded"].map(o => <option key={o}>{o}</option>)}
                 </select>
               </div>
+              <div className="flex items-center gap-2">
+                <select value={filterBookerType} onChange={e => setFilterBookerType(e.target.value)} className="border rounded px-2 py-1.5 text-xs bg-background h-8" aria-label="Booker search type">
+                  {["Booker", "Traveler", "Mobile No."].map(o => <option key={o}>{o}</option>)}
+                </select>
+                <Input placeholder={filterBookerType === "Mobile No." ? "+82..." : "Name"} value={filterGuestName} onChange={e => setFilterGuestName(e.target.value)} className="text-xs h-8 w-36" />
+              </div>
               <div className="flex items-center gap-1.5">
-                <label className="text-xs text-muted-foreground">Booker</label>
-                <Input placeholder="Name" value={filterGuestName} onChange={e => setFilterGuestName(e.target.value)} className="text-xs h-8 w-36" />
+                <label className="text-xs text-muted-foreground">Country</label>
+                <Input placeholder="e.g. South Korea" value={filterCountry} onChange={e => setFilterCountry(e.target.value)} className="text-xs h-8 w-36" />
               </div>
               <div className="flex items-center gap-1.5">
                 <label className="text-xs text-muted-foreground">Hotel Name</label>
@@ -561,8 +577,10 @@ export default function BookingsPage() {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => {
               if (selectedBooking) {
-                const today = new Date().toISOString().split("T")[0];
-                setLocalBookings(prev => prev.map(b => b.id === selectedBooking.id ? { ...b, bookingStatus: "Cancelled" as const, cancelDate: today, paymentStatus: b.paymentStatus === "Fully Paid" ? "Refunded" as const : b.paymentStatus } : b));
+                const d = new Date();
+                const pad = (n: number) => String(n).padStart(2, "0");
+                const now = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+                setLocalBookings(prev => prev.map(b => b.id === selectedBooking.id ? { ...b, bookingStatus: "Cancelled" as const, cancelDate: now, paymentStatus: b.paymentStatus === "Fully Paid" ? "Refunded" as const : b.paymentStatus } : b));
               }
               toast.success("Booking Cancelled", { description: "The booking has been cancelled and a notification has been created." });
               setSelectedBooking(null);
