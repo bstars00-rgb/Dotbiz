@@ -3,6 +3,7 @@ import { tickets as initialTickets, type Ticket } from "@/mocks/tickets";
 
 /* Category (DIDA-style from CreateTicketDialog) → ticketType (internal) mapping */
 const CATEGORY_TO_TYPE: Record<string, Ticket["ticketType"]> = {
+  "Request hotel confirmation": "Special Request",
   "No reservation found": "Complaint",
   "Room rate problem": "Refund Request",
   "Booking mismatch": "Complaint",
@@ -13,6 +14,7 @@ const CATEGORY_TO_TYPE: Record<string, Ticket["ticketType"]> = {
 
 /* Category → default priority */
 const CATEGORY_TO_PRIORITY: Record<string, Ticket["priority"]> = {
+  "Request hotel confirmation": "Medium",
   "No reservation found": "High",
   "Room rate problem": "Medium",
   "Booking mismatch": "High",

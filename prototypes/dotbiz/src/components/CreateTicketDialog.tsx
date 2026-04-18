@@ -16,14 +16,18 @@ interface CreateTicketDialogProps {
 }
 
 type ArrivalStatus = "Not in store" | "Arrived in store" | "Checked out";
-type ProblemCategory = "No reservation found" | "Room rate problem" | "Booking mismatch" | "Hotel Problems" | "Apply for early departure" | "Invoice issues";
+type ProblemCategory = "Request hotel confirmation" | "No reservation found" | "Room rate problem" | "Booking mismatch" | "Hotel Problems" | "Apply for early departure" | "Invoice issues";
 
 const problemCategories: ProblemCategory[] = [
-  "No reservation found", "Room rate problem", "Booking mismatch", "Hotel Problems", "Apply for early departure", "Invoice issues"
+  "Request hotel confirmation", "No reservation found", "Room rate problem", "Booking mismatch", "Hotel Problems", "Apply for early departure", "Invoice issues"
 ];
 
 /* Sub-options per category */
 const subOptions: Record<string, { options: string[]; note?: string; multiple?: boolean }> = {
+  "Request hotel confirmation": {
+    options: ["Hotel confirmation number not received", "API integration booking — need hotel-side confirmation", "Confirmation number mismatch", "Resend confirmation number"],
+    note: "We will contact the hotel to obtain/verify the confirmation number. Response typically within 24 hours on business days.",
+  },
   "Booking mismatch": {
     options: ["Inconsistent room type arrangement", "Inconsistent bed arrangement", "Inconsistent meal arrangement", "The name of the check-in is inconsistent with the arrangement", "The arrival and departure time of the order is inconsistent", "Others"],
     note: "If the guest indicates that the order arrangement is inconsistent, please provide the guest's room number, room type/bed type and other relevant information.",
