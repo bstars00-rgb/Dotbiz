@@ -20,6 +20,7 @@ import { bookings } from "@/mocks/bookings";
 import CreateTicketDialog from "@/components/CreateTicketDialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { searchCountries } from "@/lib/countries";
+import { downloadCSV, downloadHTML, addExportHistory, getExportHistory, redownloadExport, timestamp, type ExportRecord } from "@/lib/download";
 // DateRangePicker replaced with native date inputs for compact DIDA-style filter
 // GroupBookingDialog removed — feature intent unclear
 import { toast } from "sonner";
@@ -29,12 +30,60 @@ const statusColors: Record<string, string> = {
   "Not Paid": "destructive", "Partially Paid": "secondary", "Fully Paid": "default", Refunded: "secondary", "Partially Refunded": "secondary",
 };
 
-const exportHistory = [
-  { id: 1, fileName: "bookings_2026-04-01.xlsx", date: "2026-04-01 14:30", status: "Completed", records: 42 },
-  { id: 2, fileName: "bookings_2026-03-15.xlsx", date: "2026-03-15 09:15", status: "Completed", records: 38 },
-  { id: 3, fileName: "bookings_2026-03-01.xlsx", date: "2026-03-01 11:00", status: "Completed", records: 55 },
-  { id: 4, fileName: "bookings_2026-02-15.xlsx", date: "2026-02-15 16:45", status: "Expired", records: 29 },
-];
+/* Export history loaded from localStorage on each open */
+
+function buildConfirmationLetterHTML(bookings: typeof import("@/mocks/bookings").bookings): string {
+  const letters = bookings.map(b => `
+    <section style="page-break-after: always; padding: 40px; font-family: Arial, sans-serif; max-width: 780px; margin: 0 auto;">
+      <h1 style="color: #FF6000; border-bottom: 3px solid #FF6000; padding-bottom: 8px;">Booking Confirmation Letter</h1>
+      <p style="color: #666; font-size: 12px;">Issued ${new Date().toISOString().split("T")[0]} by DOTBIZ Platform</p>
+      <h2 style="margin-top: 24px;">Dear ${b.guestName},</h2>
+      <p>Your booking has been confirmed. Please find the details below:</p>
+      <table style="width: 100%; border-collapse: collapse; margin-top: 16px; font-size: 14px;">
+        <tr><td style="padding: 8px; border: 1px solid #ddd; background: #f5f5f5; font-weight: bold; width: 180px;">Booking Code (ELLIS)</td><td style="padding: 8px; border: 1px solid #ddd; font-family: monospace;">${b.ellisCode}</td></tr>
+        <tr><td style="padding: 8px; border: 1px solid #ddd; background: #f5f5f5; font-weight: bold;">Seller Booking Code</td><td style="padding: 8px; border: 1px solid #ddd;">${b.hotelConfirmCode || "—"}</td></tr>
+        <tr><td style="padding: 8px; border: 1px solid #ddd; background: #f5f5f5; font-weight: bold;">Hotel</td><td style="padding: 8px; border: 1px solid #ddd;">${b.hotelName}</td></tr>
+        <tr><td style="padding: 8px; border: 1px solid #ddd; background: #f5f5f5; font-weight: bold;">Address</td><td style="padding: 8px; border: 1px solid #ddd;">${b.hotelAddress}</td></tr>
+        <tr><td style="padding: 8px; border: 1px solid #ddd; background: #f5f5f5; font-weight: bold;">Check-in</td><td style="padding: 8px; border: 1px solid #ddd;">${b.checkIn} (${b.nights} night${b.nights > 1 ? "s" : ""})</td></tr>
+        <tr><td style="padding: 8px; border: 1px solid #ddd; background: #f5f5f5; font-weight: bold;">Room</td><td style="padding: 8px; border: 1px solid #ddd;">${b.roomType} × ${b.roomCount}</td></tr>
+        <tr><td style="padding: 8px; border: 1px solid #ddd; background: #f5f5f5; font-weight: bold;">Guest</td><td style="padding: 8px; border: 1px solid #ddd;">${b.traveler}</td></tr>
+        <tr><td style="padding: 8px; border: 1px solid #ddd; background: #f5f5f5; font-weight: bold;">Total Amount</td><td style="padding: 8px; border: 1px solid #ddd; color: #FF6000; font-weight: bold;">${b.currency} ${b.sumAmount.toLocaleString()}</td></tr>
+        <tr><td style="padding: 8px; border: 1px solid #ddd; background: #f5f5f5; font-weight: bold;">Cancellation Deadline</td><td style="padding: 8px; border: 1px solid #ddd; color: #FF6000;">${b.cancelDeadline}</td></tr>
+      </table>
+      <p style="margin-top: 24px; font-size: 12px; color: #666;">Please present this confirmation along with your ID at the hotel during check-in. For questions, contact us via the ticket system.</p>
+      <p style="font-size: 12px; color: #666;">OHMYHOTEL &amp; CO., Ltd. · support@ohmyhotel.com</p>
+    </section>`).join("");
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Booking Confirmation Letters</title><style>@media print { section { page-break-after: always; } }</style></head><body>${letters}</body></html>`;
+}
+
+function buildVoucherHTML(bookings: typeof import("@/mocks/bookings").bookings): string {
+  const vouchers = bookings.map(b => {
+    const d = new Date(b.checkIn); d.setDate(d.getDate() + b.nights);
+    const checkOut = d.toISOString().split("T")[0];
+    return `
+    <section style="page-break-after: always; padding: 40px; font-family: Arial, sans-serif; max-width: 780px; margin: 0 auto; color: #1a1a2e;">
+      <h1 style="color: #FF6000; font-size: 32px; margin-bottom: 20px;">Voucher</h1>
+      <h2 style="border-bottom: 2px solid #FF6000; padding-bottom: 6px;">Booking Information</h2>
+      <table style="width: 100%; border-collapse: collapse; font-size: 14px; margin-top: 16px;">
+        <tr style="border-bottom: 1px solid #eee;"><td style="padding: 10px; color: #666; width: 180px;">Reference No.</td><td style="padding: 10px; font-weight: bold;">${b.ellisCode} / ${b.hotelConfirmCode || "—"}</td></tr>
+        <tr style="border-bottom: 1px solid #eee;"><td style="padding: 10px; color: #666;">Hotel</td><td style="padding: 10px; font-weight: bold;">${b.hotelName}</td></tr>
+        <tr style="border-bottom: 1px solid #eee;"><td style="padding: 10px; color: #666;">Address</td><td style="padding: 10px;">${b.hotelAddress}</td></tr>
+        <tr style="border-bottom: 1px solid #eee;"><td style="padding: 10px; color: #666;">Tel.</td><td style="padding: 10px;">${b.hotelContact}</td></tr>
+        <tr style="border-bottom: 1px solid #eee;"><td style="padding: 10px; color: #666;">Check In</td><td style="padding: 10px; color: #009505; font-weight: bold;">${b.checkIn}</td></tr>
+        <tr style="border-bottom: 1px solid #eee;"><td style="padding: 10px; color: #666;">Check Out</td><td style="padding: 10px; color: #009505; font-weight: bold;">${checkOut}</td></tr>
+        <tr style="border-bottom: 1px solid #eee;"><td style="padding: 10px; color: #666;">Rooms</td><td style="padding: 10px;">${b.roomCount}</td></tr>
+        <tr style="border-bottom: 1px solid #eee;"><td style="padding: 10px; color: #666;">Room Type</td><td style="padding: 10px;">${b.roomType}</td></tr>
+        <tr style="border-bottom: 1px solid #eee;"><td style="padding: 10px; color: #666;">Guest</td><td style="padding: 10px;">${b.traveler}</td></tr>
+      </table>
+      <div style="margin-top: 30px; padding: 16px; background: #fff4e6; border: 1px solid #FF6000; border-radius: 4px; font-size: 12px;">
+        <strong style="color: #DC2626;">[Guidelines]</strong>
+        <p style="margin: 8px 0 0 0;">Please present this Voucher along with your passport when checking in. For late check-in (after 9pm local time), contact the hotel directly.</p>
+      </div>
+      <p style="margin-top: 24px; font-size: 10px; color: #999; text-align: center;">Generated by DOTBIZ Platform · © 2026 OHMYHOTEL GLOBAL PTE. LTD.</p>
+    </section>`;
+  }).join("");
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Hotel Vouchers</title><style>@media print { section { page-break-after: always; } }</style></head><body>${vouchers}</body></html>`;
+}
 
 export default function BookingsPage() {
   const { state, setState } = useScreenState("success");
@@ -76,6 +125,7 @@ export default function BookingsPage() {
   const [countryDropdownOpen, setCountryDropdownOpen] = useState(false);
   const [editingSellerCode, setEditingSellerCode] = useState(false);
   const [sellerCodeDraft, setSellerCodeDraft] = useState("");
+  const [exportHistoryList, setExportHistoryList] = useState<ExportRecord[]>([]);
 
   /* Applied filters — only update when Search is clicked */
   const [appliedFilters, setAppliedFilters] = useState({
@@ -89,6 +139,68 @@ export default function BookingsPage() {
       country: filterCountry, bookerType: filterBookerType,
     });
     toast.success("Search applied");
+  };
+
+  /* Batch operations */
+  const handleBatchOp = (op: string) => {
+    const selected = localBookings.filter(b => selectedIds.has(b.id));
+    if (selected.length === 0) { toast.error("No bookings selected"); return; }
+    const ts = timestamp();
+
+    if (op === "export_bookings") {
+      const rows = selected.map(b => ({
+        "Booking Date": b.bookingDate, "ELLIS Code": b.ellisCode, "Seller Code": b.hotelConfirmCode,
+        "Booking Status": b.bookingStatus, "Payment Status": b.paymentStatus, "Hotel": b.hotelName,
+        "Cancel DL": b.cancelDeadline, "Check-in": b.checkIn, "Nights": b.nights,
+        "Room Type": b.roomType, "Rooms": b.roomCount, "Traveler": b.traveler,
+        "Currency": b.currency, "Amount": b.sumAmount, "Cancel Date": b.cancelDate,
+        "Invoice No.": b.invoiceNo, "Country": b.country, "Pay Channel": b.paymentChannel, "Source": b.bookingSource,
+      }));
+      const filename = `bookings_${ts}.csv`;
+      downloadCSV(filename, rows);
+      const csvContent = "\uFEFF" + [Object.keys(rows[0]).join(","), ...rows.map(r => Object.values(r).map(v => { const s = String(v ?? ""); return s.includes(",") ? `"${s}"` : s; }).join(","))].join("\n");
+      addExportHistory(filename, rows.length, csvContent);
+      toast.success(`Exported ${rows.length} bookings`, { description: filename });
+    } else if (op === "export_confirmation") {
+      const html = buildConfirmationLetterHTML(selected);
+      const filename = `confirmation_letters_${ts}.html`;
+      downloadHTML(filename, html);
+      addExportHistory(filename, selected.length, html, "text/html;charset=utf-8");
+      toast.success(`Generated ${selected.length} confirmation letters`, { description: filename });
+    } else if (op === "export_voucher") {
+      const html = buildVoucherHTML(selected);
+      const filename = `vouchers_${ts}.html`;
+      downloadHTML(filename, html);
+      addExportHistory(filename, selected.length, html, "text/html;charset=utf-8");
+      toast.success(`Generated ${selected.length} vouchers`, { description: filename });
+    } else if (op === "get_confirm_no") {
+      /* Request confirmation number from hotel (simulation) - applies to bookings without hotelConfirmCode */
+      const needsCode = selected.filter(b => !b.hotelConfirmCode);
+      if (needsCode.length === 0) { toast.info("All selected bookings already have confirmation numbers"); return; }
+      setLocalBookings(prev => prev.map(b => {
+        if (selectedIds.has(b.id) && !b.hotelConfirmCode) {
+          const code = `HC-${b.hotelName.split(" ").map(w => w[0]).join("").slice(0, 3).toUpperCase()}-${Math.floor(Math.random() * 9000) + 1000}`;
+          return { ...b, hotelConfirmCode: code };
+        }
+        return b;
+      }));
+      toast.success(`Obtained ${needsCode.length} confirmation number(s)`, {
+        description: `Request submitted to ${new Set(needsCode.map(b => b.hotelName)).size} hotel(s). Response received.`,
+      });
+    } else if (op === "download_invoice") {
+      const withInvoice = selected.filter(b => b.invoiceNo);
+      if (withInvoice.length === 0) { toast.error("No invoices found for selected bookings"); return; }
+      const rows = withInvoice.map(b => ({
+        "Invoice No.": b.invoiceNo, "Booking": b.ellisCode, "Hotel": b.hotelName, "Guest": b.traveler,
+        "Check-in": b.checkIn, "Nights": b.nights, "Amount": b.sumAmount, "Currency": b.currency,
+        "Status": b.paymentStatus, "Issued Date": b.bookingDate.split(" ")[0],
+      }));
+      const filename = `invoices_${ts}.csv`;
+      downloadCSV(filename, rows);
+      const csvContent = "\uFEFF" + [Object.keys(rows[0]).join(","), ...rows.map(r => Object.values(r).map(v => { const s = String(v ?? ""); return s.includes(",") ? `"${s}"` : s; }).join(","))].join("\n");
+      addExportHistory(filename, rows.length, csvContent);
+      toast.success(`Downloaded ${rows.length} invoice(s)`, { description: filename });
+    }
   };
 
   /* ── Batch selection ── */
@@ -258,7 +370,7 @@ export default function BookingsPage() {
             <div className="flex items-center gap-3 p-3 bg-primary/5 border border-primary/20 rounded-lg">
               <span className="text-sm font-medium">{selectedIds.size} booking{selectedIds.size > 1 ? "s" : ""} selected</span>
               <Separator orientation="vertical" className="h-5" />
-              <select className="border rounded px-3 py-1.5 text-xs bg-background" style={{ borderColor: "#FF6000", color: "#FF6000" }} defaultValue="" onChange={e => { const v = e.target.value; e.target.value = ""; if (v === "export_bookings") toast.success("Exporting hotel bookings...", { description: `${selectedIds.size} bookings exported.` }); else if (v === "export_confirmation") toast.success("Exporting confirmation letters...", { description: `${selectedIds.size} letters generated.` }); else if (v === "export_voucher") toast.success("Exporting booking vouchers...", { description: `${selectedIds.size} vouchers generated.` }); else if (v === "get_confirm_no") toast.success("Obtaining hotel confirmation numbers...", { description: "Request submitted to suppliers." }); else if (v === "download_invoice") toast.success("Downloading invoices...", { description: `${selectedIds.size} invoices downloading.` }); }} aria-label="Batch operation">
+              <select className="border rounded px-3 py-1.5 text-xs bg-background" style={{ borderColor: "#FF6000", color: "#FF6000" }} value="" onChange={e => { const v = e.target.value; if (v) handleBatchOp(v); e.target.value = ""; }} aria-label="Batch operation">
                 <option value="" disabled>Batch Operation</option>
                 <option value="export_bookings">Export Hotel Bookings</option>
                 <option value="export_confirmation">Export Booking Confirmation Letter</option>
@@ -266,7 +378,7 @@ export default function BookingsPage() {
                 <option value="get_confirm_no">Obtain hotel confirmation number</option>
                 <option value="download_invoice">Download Invoice</option>
               </select>
-              <Button size="sm" variant="outline" onClick={() => setExportHistoryOpen(true)}><FileText className="h-3 w-3 mr-1" />Export History</Button>
+              <Button size="sm" variant="outline" onClick={() => { setExportHistoryList(getExportHistory()); setExportHistoryOpen(true); }}><FileText className="h-3 w-3 mr-1" />Export History</Button>
               <Button size="sm" variant="ghost" className="ml-auto" onClick={() => setSelectedIds(new Set())}>Clear Selection</Button>
             </div>
           )}
@@ -275,7 +387,22 @@ export default function BookingsPage() {
           <div className="flex items-center justify-between">
             <span className="text-sm" style={{ color: "#FF6000" }}>{filtered.length}</span>
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={() => toast.success("Exporting to Excel...")}><Download className="h-3 w-3 mr-1" />Excel</Button>
+              <Button variant="outline" size="sm" onClick={() => {
+                const rows = filtered.map(b => ({
+                  "Booking Date": b.bookingDate, "ELLIS Code": b.ellisCode, "Seller Code": b.hotelConfirmCode,
+                  "Booking Status": b.bookingStatus, "Payment Status": b.paymentStatus, "Hotel": b.hotelName,
+                  "Cancel DL": b.cancelDeadline, "Check-in": b.checkIn, "Nights": b.nights,
+                  "Room Type": b.roomType, "Rooms": b.roomCount, "Traveler": b.traveler,
+                  "Currency": b.currency, "Amount": b.sumAmount, "Cancel Date": b.cancelDate,
+                  "Invoice No.": b.invoiceNo, "Country": b.country, "Pay Channel": b.paymentChannel, "Source": b.bookingSource,
+                }));
+                if (rows.length === 0) { toast.error("No bookings to export"); return; }
+                const filename = `bookings_all_${timestamp()}.csv`;
+                downloadCSV(filename, rows);
+                const csvContent = "\uFEFF" + [Object.keys(rows[0]).join(","), ...rows.map(r => Object.values(r).map(v => { const s = String(v ?? ""); return s.includes(",") ? `"${s}"` : s; }).join(","))].join("\n");
+                addExportHistory(filename, rows.length, csvContent);
+                toast.success(`Exported ${rows.length} bookings`, { description: filename });
+              }}><Download className="h-3 w-3 mr-1" />Excel</Button>
               <select className="text-xs border rounded px-2 py-1 bg-background" value={rowsPerPage} onChange={e => setRowsPerPage(Number(e.target.value))} aria-label="Rows per page">
                 {[20, 40, 60, 80, 100].map(n => <option key={n} value={n}>{n}</option>)}
               </select>
@@ -484,7 +611,22 @@ export default function BookingsPage() {
                       }}>Cancel</Button>
                     )}
                     <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setVoucherOpen(true)}>Voucher</Button>
-                    <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => toast.success("Invoice downloading...")}><Download className="h-3 w-3 mr-1" />Invoice</Button>
+                    <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => {
+                      const b = selectedBooking;
+                      const invNo = b.invoiceNo || `INV-PREVIEW-${b.ellisCode.slice(-6)}`;
+                      const row = [{
+                        "Invoice No.": invNo, "Booking Code": b.ellisCode, "Seller Code": b.hotelConfirmCode || "",
+                        "Hotel": b.hotelName, "Address": b.hotelAddress, "Guest": b.traveler,
+                        "Check-in": b.checkIn, "Nights": b.nights, "Room Type": b.roomType,
+                        "Rooms": b.roomCount, "Amount": b.sumAmount, "Currency": b.currency,
+                        "Payment Status": b.paymentStatus, "Issued": b.bookingDate.split(" ")[0],
+                      }];
+                      const filename = `invoice_${invNo}_${timestamp()}.csv`;
+                      downloadCSV(filename, row);
+                      const csvContent = "\uFEFF" + [Object.keys(row[0]).join(","), Object.values(row[0]).map(v => { const s = String(v ?? ""); return s.includes(",") ? `"${s}"` : s; }).join(",")].join("\n");
+                      addExportHistory(filename, 1, csvContent);
+                      toast.success(`Invoice ${invNo} downloaded`, { description: filename });
+                    }}><Download className="h-3 w-3 mr-1" />Invoice</Button>
                   </div>
                 </div>
                 <Table>
@@ -636,30 +778,46 @@ export default function BookingsPage() {
 
       {/* ── Export History Dialog ── */}
       <Dialog open={exportHistoryOpen} onOpenChange={setExportHistoryOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-2xl">
           <DialogHeader><DialogTitle>Export History</DialogTitle></DialogHeader>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>File Name</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>Records</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {exportHistory.map(e => (
-                <TableRow key={e.id}>
-                  <TableCell className="text-xs font-mono">{e.fileName}</TableCell>
-                  <TableCell className="text-xs">{e.date}</TableCell>
-                  <TableCell className="text-xs">{e.records}</TableCell>
-                  <TableCell><Badge variant={e.status === "Completed" ? "default" : "secondary"} className="text-[10px]">{e.status}</Badge></TableCell>
-                  <TableCell>{e.status === "Completed" && <Button size="sm" variant="ghost" className="h-6 text-xs"><Download className="h-3 w-3 mr-1" />Download</Button>}</TableCell>
+          {exportHistoryList.length === 0 ? (
+            <div className="py-8 text-center text-sm text-muted-foreground">
+              <FileText className="h-10 w-10 mx-auto mb-2 opacity-30" />
+              <p>No export history yet.</p>
+              <p className="text-xs mt-1">Exported files will appear here (last 20 exports).</p>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>File Name</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Records</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead></TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {exportHistoryList.map(e => (
+                  <TableRow key={e.id}>
+                    <TableCell className="text-xs font-mono truncate max-w-[240px]" title={e.fileName}>{e.fileName}</TableCell>
+                    <TableCell className="text-xs">{e.date}</TableCell>
+                    <TableCell className="text-xs">{e.records}</TableCell>
+                    <TableCell><Badge variant={e.status === "Completed" ? "default" : "secondary"} className="text-[10px]">{e.status}</Badge></TableCell>
+                    <TableCell>
+                      {e.status === "Completed" ? (
+                        <Button size="sm" variant="ghost" className="h-6 text-xs" onClick={() => { if (redownloadExport(e.id)) toast.success("Re-downloading..."); else toast.error("File no longer available"); }}>
+                          <Download className="h-3 w-3 mr-1" />Download
+                        </Button>
+                      ) : (
+                        <span className="text-xs text-muted-foreground italic">Expired</span>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </DialogContent>
       </Dialog>
 
