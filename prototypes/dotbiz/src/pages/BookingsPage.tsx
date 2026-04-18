@@ -17,6 +17,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useScreenState } from "@/hooks/useScreenState";
 import { StateToolbar } from "@/components/StateToolbar";
 import { bookings } from "@/mocks/bookings";
+import { currentCompany } from "@/mocks/companies";
+import { voucherSettings } from "@/mocks/clientManagement";
 import CreateTicketDialog from "@/components/CreateTicketDialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { searchCountries } from "@/lib/countries";
@@ -32,11 +34,10 @@ const statusColors: Record<string, string> = {
 
 /* Export history loaded from localStorage on each open */
 
-function buildInvoiceHTML(bookings: typeof import("@/mocks/bookings").bookings): string {
+function buildInvoiceHTML(bookings: typeof import("@/mocks/bookings").bookings, customer?: { name: string; email: string; phone: string; address: string; regNo: string }): string {
   const today = new Date().toISOString().split("T")[0];
+  const cust = customer || { name: "TravelCo International", email: "info@travelco.com", phone: "+82-2-1234-5678", address: "123 Gangnam-daero, Seoul", regNo: "123-45-67890" };
   const invoices = bookings.map(b => {
-    const supply = Math.round(b.sumAmount / 1.1);
-    const vat = b.sumAmount - supply;
     const invNo = b.invoiceNo || `INV-${b.ellisCode.slice(-6)}`;
     return `
     <section style="page-break-after: always; padding: 40px; font-family: Arial, sans-serif; max-width: 780px; margin: 0 auto; color: #1a1a2e;">
@@ -63,9 +64,10 @@ function buildInvoiceHTML(bookings: typeof import("@/mocks/bookings").bookings):
         </div>
         <div style="border: 1px solid #FF6000; border-radius: 4px; padding: 12px; background: #fff4e6;">
           <p style="color: #999; font-size: 10px; text-transform: uppercase; font-weight: bold; margin: 0 0 6px 0;">Customer</p>
-          <p style="font-weight: bold; font-size: 14px; margin: 0;">${b.guestName}</p>
-          <p style="font-size: 11px; color: #555; margin: 2px 0;">${b.guestEmail}</p>
-          <p style="font-size: 11px; color: #555; margin: 2px 0;">${b.guestMobile}</p>
+          <p style="font-weight: bold; font-size: 14px; margin: 0;">${cust.name}</p>
+          <p style="font-size: 11px; color: #555; margin: 2px 0;">Business Reg: ${cust.regNo}</p>
+          <p style="font-size: 11px; color: #555; margin: 2px 0;">${cust.address}</p>
+          <p style="font-size: 11px; color: #555; margin: 2px 0;">${cust.phone} · ${cust.email}</p>
         </div>
       </div>
       <h3 style="color: #FF6000; font-size: 12px; text-transform: uppercase; margin: 0 0 8px 0;">Booking Item</h3>
@@ -87,18 +89,19 @@ function buildInvoiceHTML(bookings: typeof import("@/mocks/bookings").bookings):
             <td style="padding: 8px; text-align: center;">${b.nights}</td>
             <td style="padding: 8px;">${b.roomType} × ${b.roomCount}</td>
             <td style="padding: 8px;">${b.traveler}</td>
-            <td style="padding: 8px; text-align: right; font-weight: 500;">${b.currency} ${supply.toLocaleString()}</td>
+            <td style="padding: 8px; text-align: right; font-weight: 500;">${b.currency} ${b.sumAmount.toLocaleString()}</td>
           </tr>
         </tbody>
       </table>
       <div style="display: flex; justify-content: flex-end; margin-bottom: 24px;">
-        <div style="width: 300px; border: 1px solid #ddd; border-radius: 4px; overflow: hidden;">
-          <div style="background: #1a1a2e; color: white; padding: 8px 12px; font-size: 10px; text-transform: uppercase; font-weight: bold;">Summary</div>
-          <div style="padding: 12px;">
-            <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px;"><span style="color: #666;">Subtotal</span><span>${b.currency} ${supply.toLocaleString()}</span></div>
-            <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px;"><span style="color: #666;">VAT (10%)</span><span>${b.currency} ${vat.toLocaleString()}</span></div>
-            <div style="height: 1px; background: #ddd; margin: 8px 0;"></div>
-            <div style="display: flex; justify-content: space-between; font-size: 15px; font-weight: bold;"><span>Total Due</span><span style="color: #FF6000;">${b.currency} ${b.sumAmount.toLocaleString()}</span></div>
+        <div style="width: 320px; border: 2px solid #FF6000; border-radius: 4px; overflow: hidden;">
+          <div style="background: #1a1a2e; color: white; padding: 10px 14px; font-size: 11px; text-transform: uppercase; font-weight: bold; letter-spacing: 1px;">Summary</div>
+          <div style="padding: 14px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 16px; font-weight: bold;">
+              <span>Total Due</span>
+              <span style="color: #FF6000; font-size: 20px;">${b.currency} ${b.sumAmount.toLocaleString()}</span>
+            </div>
+            <p style="font-size: 10px; color: #999; margin: 6px 0 0 0; text-align: right;">* Tax included</p>
           </div>
         </div>
       </div>
@@ -123,7 +126,45 @@ function buildInvoiceHTML(bookings: typeof import("@/mocks/bookings").bookings):
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Invoice</title><style>@page { size: A4; margin: 15mm; } @media print { section { page-break-after: always; } } body { margin: 0; }</style></head><body>${invoices}</body></html>`;
 }
 
-function buildVoucherHTML(bookings: typeof import("@/mocks/bookings").bookings): string {
+interface VoucherOptions {
+  showClientLogo?: boolean;   // default true (고객사 로고)
+  showOhMyHotelLogo?: boolean; // default false (우리 로고)
+  clientName?: string;
+  clientPhone?: string;
+  clientEmail?: string;
+  clientLogoUrl?: string;
+}
+
+function buildVoucherHTML(bookings: typeof import("@/mocks/bookings").bookings, options: VoucherOptions = {}): string {
+  const { showClientLogo = true, showOhMyHotelLogo = false, clientName = voucherSettings.companyName, clientPhone = voucherSettings.phone, clientEmail = voucherSettings.email, clientLogoUrl = "" } = options;
+
+  const clientHeader = showClientLogo ? `
+      <div style="display: flex; align-items: center; gap: 24px; border: 2px solid #FF6000; border-radius: 4px; padding: 16px; margin-bottom: 14px; background: #fff7ed;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          ${clientLogoUrl ? `<img src="${clientLogoUrl}" style="width: 56px; height: 56px; object-fit: contain;" alt="Client logo" />` : `<div style="width: 56px; height: 56px; background: #FF6000; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 24px;">${clientName.charAt(0)}</div>`}
+          <span style="font-size: 22px; font-weight: bold; color: #1a1a2e;">${clientName}</span>
+        </div>
+        <div style="font-size: 11px; color: #374151;">
+          <p style="margin: 2px 0;">Tel: ${clientPhone}</p>
+          <p style="margin: 2px 0;">Email: <span style="color: #2563eb;">${clientEmail}</span></p>
+        </div>
+      </div>` : "";
+
+  const ohmyHeader = showOhMyHotelLogo ? `
+      <div style="display: flex; align-items: center; gap: 24px; border: 1px solid #e2e8f0; border-radius: 4px; padding: 12px; margin-bottom: 20px; background: #f8fafc;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <div style="position: relative; width: 32px; height: 32px;">
+            <div style="position: absolute; inset: 0; border-radius: 50%; background: conic-gradient(from 180deg, #FF6000, #FF8C00, #FFCF8F, #FF6000);"></div>
+            <div style="position: absolute; inset: 2px; border-radius: 50%; background: white; display: flex; align-items: center; justify-content: center; font-weight: bold; color: #FF6000; font-size: 14px;">O</div>
+          </div>
+          <span style="font-size: 15px; font-weight: bold; color: #FF6000;">OhMyHotel</span>
+        </div>
+        <div style="font-size: 10px; color: #6b7280;">
+          <p style="margin: 1px 0;">Booking Platform Partner · Tel: +82-2-762-0552</p>
+          <p style="margin: 1px 0;">support@ohmyhotel.com</p>
+        </div>
+      </div>` : "";
+
   const vouchers = bookings.map(b => {
     const d = new Date(b.checkIn); d.setDate(d.getDate() + b.nights);
     const checkOut = d.toISOString().split("T")[0];
@@ -131,20 +172,8 @@ function buildVoucherHTML(bookings: typeof import("@/mocks/bookings").bookings):
     const coDay = new Date(checkOut).toLocaleDateString("en-US", { weekday: "short" }).toUpperCase();
     return `
     <section style="page-break-after: always; padding: 40px; font-family: Arial, sans-serif; max-width: 780px; margin: 0 auto; color: #1a1a2e; background: white;">
-      <!-- OhMyHotel Header -->
-      <div style="display: flex; align-items: center; gap: 24px; border: 1px solid #e2e8f0; border-radius: 4px; padding: 16px; margin-bottom: 20px;">
-        <div style="display: flex; align-items: center; gap: 8px;">
-          <div style="position: relative; width: 40px; height: 40px;">
-            <div style="position: absolute; inset: 0; border-radius: 50%; background: conic-gradient(from 180deg, #FF6000, #FF8C00, #FFCF8F, #FF6000);"></div>
-            <div style="position: absolute; inset: 2px; border-radius: 50%; background: white; display: flex; align-items: center; justify-content: center; font-weight: bold; color: #FF6000; font-size: 18px;">O</div>
-          </div>
-          <span style="font-size: 20px; font-weight: bold; color: #FF6000;">OhMyHotel</span>
-        </div>
-        <div style="font-size: 11px; color: #374151;">
-          <p style="margin: 2px 0;">Tel: +82-2-762-0552</p>
-          <p style="margin: 2px 0;">Email: <span style="color: #2563eb;">support@ohmyhotel.com</span></p>
-        </div>
-      </div>
+      ${clientHeader}
+      ${ohmyHeader}
 
       <!-- Voucher Title -->
       <h1 style="color: #FF6000; font-size: 32px; font-weight: bold; margin-bottom: 24px;">Voucher</h1>
@@ -212,7 +241,8 @@ export default function BookingsPage() {
   const [exportHistoryOpen, setExportHistoryOpen] = useState(false);
   const [viewMode, setViewMode] = useState<"list" | "card">("list");
   const [voucherOpen, setVoucherOpen] = useState(false);
-  const [voucherShowLogo, setVoucherShowLogo] = useState(true);
+  const [voucherShowLogo, setVoucherShowLogo] = useState(false);
+  const [voucherShowClientLogo, setVoucherShowClientLogo] = useState(true);
   const [voucherShowQR, setVoucherShowQR] = useState(false);
   const [voucherLang, setVoucherLang] = useState<"EN" | "KO" | "JA" | "ZH" | "VI">("EN");
   const [ticketOpen, setTicketOpen] = useState(false);
@@ -279,19 +309,29 @@ export default function BookingsPage() {
       addExportHistory(filename, rows.length, csvContent);
       toast.success(`Exported ${rows.length} bookings`, { description: filename });
     } else if (op === "export_voucher") {
-      const html = buildVoucherHTML(selected);
-      const filename = `vouchers_${ts}.html`;
-      downloadHTML(filename, html);
-      addExportHistory(filename, selected.length, html, "text/html;charset=utf-8");
-      toast.success(`Generated ${selected.length} vouchers`, { description: filename });
+      /* One voucher file per booking — different customers likely */
+      selected.forEach((b, idx) => {
+        setTimeout(() => {
+          const html = buildVoucherHTML([b]);
+          const filename = `voucher_${b.ellisCode}_${ts}.html`;
+          downloadHTML(filename, html);
+          addExportHistory(filename, 1, html, "text/html;charset=utf-8");
+        }, idx * 350);  /* Stagger to avoid browser download blocking */
+      });
+      toast.success(`Generating ${selected.length} voucher file(s)`, { description: `One file per booking — check your downloads folder` });
     } else if (op === "download_invoice") {
       const withInvoice = selected.filter(b => b.invoiceNo);
       if (withInvoice.length === 0) { toast.error("No invoices found", { description: "Selected bookings have no invoice issued yet." }); return; }
-      const html = buildInvoiceHTML(withInvoice);
-      const filename = `invoices_${ts}.html`;
-      downloadHTML(filename, html);
-      addExportHistory(filename, withInvoice.length, html, "text/html;charset=utf-8");
-      toast.success(`Downloaded ${withInvoice.length} invoice(s) as PDF-ready HTML`, { description: `${filename} — open and print to save as PDF` });
+      /* One invoice file per booking */
+      withInvoice.forEach((b, idx) => {
+        setTimeout(() => {
+          const html = buildInvoiceHTML([b], { name: currentCompany.name, email: currentCompany.email, phone: currentCompany.phone, address: currentCompany.address, regNo: currentCompany.businessRegNo });
+          const filename = `invoice_${b.invoiceNo || b.ellisCode}_${ts}.html`;
+          downloadHTML(filename, html);
+          addExportHistory(filename, 1, html, "text/html;charset=utf-8");
+        }, idx * 350);
+      });
+      toast.success(`Generating ${withInvoice.length} invoice file(s)`, { description: `One PDF-ready HTML per booking — open and print to save as PDF` });
     }
   };
 
@@ -737,7 +777,7 @@ export default function BookingsPage() {
                     <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => {
                       const b = selectedBooking;
                       const invNo = b.invoiceNo || `INV-PREVIEW-${b.ellisCode.slice(-6)}`;
-                      const html = buildInvoiceHTML([b]);
+                      const html = buildInvoiceHTML([b], { name: currentCompany.name, email: currentCompany.email, phone: currentCompany.phone, address: currentCompany.address, regNo: currentCompany.businessRegNo });
                       const filename = `invoice_${invNo}_${timestamp()}.html`;
                       downloadHTML(filename, html);
                       addExportHistory(filename, 1, html, "text/html;charset=utf-8");
@@ -975,6 +1015,10 @@ export default function BookingsPage() {
           {/* Voucher Options Bar (non-printable) */}
           <div className="px-6 py-3 border-b flex items-center gap-6 flex-wrap bg-muted/30 no-print">
             <label className="flex items-center gap-2 text-sm cursor-pointer">
+              <Checkbox checked={voucherShowClientLogo} onCheckedChange={c => setVoucherShowClientLogo(!!c)} />
+              Show your company info
+            </label>
+            <label className="flex items-center gap-2 text-sm cursor-pointer">
               <Checkbox checked={voucherShowLogo} onCheckedChange={c => setVoucherShowLogo(!!c)} />
               Show OhMyHotel info
             </label>
@@ -1019,7 +1063,25 @@ export default function BookingsPage() {
             const t = (k: string) => L[k]?.[voucherLang] || L[k]?.EN || k;
             return (
               <div id="printable-voucher" className="bg-white text-slate-900 p-10" style={{ fontFamily: "Arial, sans-serif" }}>
-                {/* OhMyHotel Header (toggleable) */}
+                {/* Client Company Header (toggleable, default ON) */}
+                {voucherShowClientLogo && (
+                  <div className="flex items-center gap-6 rounded p-4 mb-5" style={{ border: "2px solid #FF6000", background: "#fff7ed" }}>
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded shrink-0 flex items-center justify-center text-white text-lg font-bold" style={{ background: "#FF6000" }}>
+                        {voucherSettings.companyName.charAt(0)}
+                      </div>
+                      <div>
+                        <div className="text-lg font-bold text-slate-900">{voucherSettings.companyName}</div>
+                        <div className="text-[11px] text-slate-600">{voucherSettings.address}</div>
+                      </div>
+                    </div>
+                    <div className="text-xs text-slate-700 ml-auto">
+                      {voucherSettings.phone && <p>Tel: {voucherSettings.phone}</p>}
+                      {voucherSettings.email && <p>Email: <span className="text-blue-600">{voucherSettings.email}</span></p>}
+                    </div>
+                  </div>
+                )}
+                {/* OhMyHotel Header (toggleable, default OFF) */}
                 {voucherShowLogo && (
                   <div className="flex items-center gap-6 border border-slate-300 rounded p-4 mb-5">
                     <div className="flex items-center gap-2">
