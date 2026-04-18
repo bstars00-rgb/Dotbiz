@@ -104,8 +104,8 @@ export default function BookingsPage() {
   const [ticketBooking, setTicketBooking] = useState<typeof bookings[0] | null>(null);
   const [rowsPerPage, setRowsPerPage] = useState(20);
   const [currentPage, setCurrentPage] = useState(1);
-  const [filterDateFrom, setFilterDateFrom] = useState("2026-04-17");
-  const [filterDateTo, setFilterDateTo] = useState("2026-04-17");
+  const [filterDateFrom, setFilterDateFrom] = useState("");
+  const [filterDateTo, setFilterDateTo] = useState("");
 
   /* ── Filters ── */
   const [filterDateType, setFilterDateType] = useState(searchParams.get("dateType") || "Booking");
@@ -131,12 +131,14 @@ export default function BookingsPage() {
   const [appliedFilters, setAppliedFilters] = useState({
     bookingStatus: "All", paymentStatus: "All", paymentChannel: "All",
     ellisCode: "", hotelConfirm: "", hotelName: "", guestName: "", groupId: "", country: "", bookerType: "Booker",
+    dateType: "Booking Date", dateFrom: "", dateTo: "",
   });
   const applySearch = () => {
     setAppliedFilters({
       bookingStatus: filterBookingStatus, paymentStatus: filterPaymentStatus, paymentChannel: filterPaymentChannel,
       ellisCode: filterEllisCode, hotelConfirm: filterHotelConfirm, hotelName: filterHotelName, guestName: filterGuestName, groupId: filterGroupId,
       country: filterCountry, bookerType: filterBookerType,
+      dateType: filterDateType, dateFrom: filterDateFrom, dateTo: filterDateTo,
     });
     toast.success("Search applied");
   };
@@ -212,7 +214,8 @@ export default function BookingsPage() {
     setFilterDateType("Booking Date"); setFilterBookingStatus("All"); setFilterPaymentStatus("All"); setFilterPaymentChannel("All");
     setFilterEllisCode(""); setFilterHotelConfirm(""); setFilterHotelName(""); setFilterGuestName(""); setFilterGroupId("");
     setFilterCountry(""); setFilterBookerType("Booker");
-    setAppliedFilters({ bookingStatus: "All", paymentStatus: "All", paymentChannel: "All", ellisCode: "", hotelConfirm: "", hotelName: "", guestName: "", groupId: "", country: "", bookerType: "Booker" });
+    setFilterDateFrom(""); setFilterDateTo("");
+    setAppliedFilters({ bookingStatus: "All", paymentStatus: "All", paymentChannel: "All", ellisCode: "", hotelConfirm: "", hotelName: "", guestName: "", groupId: "", country: "", bookerType: "Booker", dateType: "Booking Date", dateFrom: "", dateTo: "" });
   };
 
   /* ── Filtering ── */
@@ -233,6 +236,38 @@ export default function BookingsPage() {
       result = result.filter(b => b.bookingStatus === "Confirmed" && new Date(b.checkIn) <= in3d && new Date(b.checkIn) >= now);
     } else {
       /* Applied filters — only changes when Search button is clicked */
+      /* Date range filter (by selected Date Type) */
+      if (appliedFilters.dateFrom || appliedFilters.dateTo) {
+        const from = appliedFilters.dateFrom ? new Date(appliedFilters.dateFrom + "T00:00:00") : null;
+        const to = appliedFilters.dateTo ? new Date(appliedFilters.dateTo + "T23:59:59") : null;
+        result = result.filter(b => {
+          /* Pick target date string by dateType */
+          let ds = "";
+          switch (appliedFilters.dateType) {
+            case "Booking Date": ds = b.bookingDate; break;
+            case "Cancel Date": ds = b.cancelDate; break;
+            case "Check In Date": ds = b.checkIn; break;
+            case "Check Out Date": { const d = new Date(b.checkIn + "T00:00:00"); d.setDate(d.getDate() + b.nights); ds = d.toISOString().split("T")[0]; break; }
+            case "Cancel Deadline": ds = b.cancelDeadline; break;
+            case "Stay Date": {
+              /* Stay date: booking overlaps with [from, to] range */
+              if (!from && !to) return true;
+              const stayStart = new Date(b.checkIn + "T00:00:00");
+              const stayEnd = new Date(b.checkIn + "T00:00:00"); stayEnd.setDate(stayEnd.getDate() + b.nights);
+              if (from && stayEnd < from) return false;
+              if (to && stayStart > to) return false;
+              return true;
+            }
+          }
+          if (!ds) return false;
+          /* ds might be "YYYY-MM-DD HH:MM(:SS)" or "YYYY-MM-DD" */
+          const dsDate = new Date(ds.replace(" ", "T"));
+          if (isNaN(dsDate.getTime())) return false;
+          if (from && dsDate < from) return false;
+          if (to && dsDate > to) return false;
+          return true;
+        });
+      }
       if (appliedFilters.bookingStatus !== "All") result = result.filter(b => b.bookingStatus === appliedFilters.bookingStatus);
       if (appliedFilters.paymentStatus !== "All") result = result.filter(b => b.paymentStatus === appliedFilters.paymentStatus);
       if (appliedFilters.paymentChannel !== "All") result = result.filter(b => b.paymentChannel === appliedFilters.paymentChannel);
