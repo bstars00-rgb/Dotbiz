@@ -171,12 +171,12 @@ export default function PaymentDialog({ open, onOpenChange, amount, currency = "
         {(savedCards.length === 0 || selectedCardId === "new") && (
           <div className="space-y-3">
             {savedCards.length > 0 && <p className="text-sm font-medium">New Card Details</p>}
-            <Input placeholder="1234 5678 9012 3456" value={cardNumber} onChange={e => setCardNumber(formatCardNumber(e.target.value))} maxLength={19} />
+            <Input placeholder="1234 5678 9012 3456" value={cardNumber} onChange={e => setCardNumber(formatCardNumber(e.target.value))} maxLength={19} aria-label="Card number" />
             <div className="flex gap-3">
-              <Input placeholder="MM/YY" value={expiry} onChange={e => setExpiry(formatExpiry(e.target.value))} maxLength={5} className="flex-1" />
-              <Input placeholder="CVV" value={cvv} onChange={e => setCvv(e.target.value.replace(/\D/g, "").slice(0, 3))} maxLength={3} className="w-24" type="password" />
+              <Input placeholder="MM/YY" value={expiry} onChange={e => setExpiry(formatExpiry(e.target.value))} maxLength={5} className="flex-1" aria-label="Expiry date" />
+              <Input placeholder="CVV" value={cvv} onChange={e => setCvv(e.target.value.replace(/\D/g, "").slice(0, 3))} maxLength={3} className="w-24" type="password" aria-label="CVV" />
             </div>
-            <Input placeholder="Cardholder Name" value={name} onChange={e => setName(e.target.value)} />
+            <Input placeholder="Cardholder Name" value={name} onChange={e => setName(e.target.value)} aria-label="Cardholder name" />
             <label className="flex items-center gap-2 cursor-pointer">
               <Checkbox checked={saveCardCheck} onCheckedChange={c => setSaveCardCheck(!!c)} />
               <span className="text-sm">Save this card for future payments</span>
@@ -188,7 +188,7 @@ export default function PaymentDialog({ open, onOpenChange, amount, currency = "
         {savedCards.length > 0 && selectedCardId && selectedCardId !== "new" && (
           <div className="space-y-2">
             <p className="text-sm text-muted-foreground">Enter CVV to confirm</p>
-            <Input placeholder="CVV" value={cvv} onChange={e => setCvv(e.target.value.replace(/\D/g, "").slice(0, 3))} maxLength={3} className="w-24" type="password" />
+            <Input placeholder="CVV" value={cvv} onChange={e => setCvv(e.target.value.replace(/\D/g, "").slice(0, 3))} maxLength={3} className="w-24" type="password" aria-label="CVV for saved card" />
           </div>
         )}
 

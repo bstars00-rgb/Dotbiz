@@ -21,7 +21,7 @@ function AuthStatus() {
       <p data-testid="status">{isAuthenticated ? "authenticated" : "not-authenticated"}</p>
       <p data-testid="name">{user?.name || "none"}</p>
       <p data-testid="role">{user?.role || "none"}</p>
-      <button onClick={() => login("demo", "demo")}>Login</button>
+      <button onClick={() => login("postpay@dotbiz.com", "postpay123")}>Login</button>
       <button onClick={() => logout()}>Logout</button>
     </div>
   );
@@ -38,7 +38,7 @@ describe("AuthContext", () => {
     expect(screen.getByTestId("name")).toHaveTextContent("none");
   });
 
-  it("should login with demo credentials", async () => {
+  it("should login with postpay credentials", async () => {
     const user = userEvent.setup();
     renderWithProviders(<AuthStatus />);
 
@@ -56,7 +56,7 @@ describe("AuthContext", () => {
     await user.click(screen.getByText("Login"));
 
     const stored = JSON.parse(localStorage.getItem("dotbiz_auth") || "{}");
-    expect(stored.email).toBe("demo@dotbiz.com");
+    expect(stored.email).toBe("postpay@dotbiz.com");
     expect(stored.name).toBe("Demo User");
   });
 
