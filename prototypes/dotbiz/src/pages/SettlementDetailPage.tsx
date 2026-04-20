@@ -12,7 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { invoices, paymentMatchLog as initialLog, disputeSummary, type InvoiceWithMatch, type PaymentMatchLog } from "@/mocks/settlement";
 import { bookings as allBookings, type Booking } from "@/mocks/bookings";
-import { currentCompany } from "@/mocks/companies";
+import { companies, currentCompany } from "@/mocks/companies";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { CheckCircle, XCircle, UserCheck } from "lucide-react";
@@ -59,6 +59,11 @@ export default function SettlementDetailPage() {
   /* Contract-currency aware formatter — all amounts in invoice's fixed currency */
   const curr = invoice?.contractCurrency || "USD";
   const fmt = (n: number) => `${curr} ${n.toLocaleString()}`;
+
+  /* Invoice's actual customer (from invoice.customerCompanyId) — not the logged-in user */
+  const invoiceCustomer = invoice?.customerCompanyId
+    ? companies.find(c => c.id === invoice.customerCompanyId) || currentCompany
+    : currentCompany;
 
   if (!hasRole(["Master", "OP"])) {
     return (
@@ -258,11 +263,12 @@ export default function SettlementDetailPage() {
               <h1 className="text-2xl font-bold">{invoice.invoiceNo}</h1>
               <Badge variant={matchBadge.variant}>{matchBadge.label}</Badge>
               <Badge variant="outline" className="bg-orange-50 dark:bg-orange-900/20 text-orange-700 dark:text-orange-300">
-                {currentCompany.billingType}
+                {invoice.billingType}
               </Badge>
+              <Badge variant="outline" className="font-mono text-[10px]">{invoice.contractCurrency}</Badge>
             </div>
             <p className="text-sm text-muted-foreground">
-              {currentCompany.name} · Period <strong>{invoice.period}</strong> · Issued {invoice.issuedDate} · Due {invoice.dueDate}
+              {invoiceCustomer.name} · Period <strong>{invoice.period}</strong> · Issued {invoice.issuedDate} · Due {invoice.dueDate}
             </p>
             {invoice.remarks && (
               <p className="text-xs text-amber-700 dark:text-amber-300">⚠️ {invoice.remarks}</p>
@@ -277,7 +283,7 @@ export default function SettlementDetailPage() {
             <Button variant="outline" size="sm" onClick={() => toast.success("Invoice PDF exported")}>
               <Download className="h-3.5 w-3.5 mr-1" />Export PDF
             </Button>
-            <Button variant="outline" size="sm" onClick={() => toast.success("Email sent to " + currentCompany.email)}>
+            <Button variant="outline" size="sm" onClick={() => toast.success("Email sent to " + invoiceCustomer.email)}>
               <FileText className="h-3.5 w-3.5 mr-1" />Send to Client
             </Button>
           </div>

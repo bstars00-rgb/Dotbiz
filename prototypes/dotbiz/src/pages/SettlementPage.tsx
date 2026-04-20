@@ -23,9 +23,8 @@ import { taxRules } from "@/mocks/taxProfiles";
 import { Globe, FileMinus, History, Upload, Lock } from "lucide-react";
 import BankReconciliation from "@/components/BankReconciliation";
 import MonthEndClose from "@/components/MonthEndClose";
-import { companies } from "@/mocks/companies";
+import { companies, currentCompany } from "@/mocks/companies";
 import { downloadCSV, timestamp } from "@/lib/download";
-import { currentCompany } from "@/mocks/companies";
 import { bookings as allBookings, type Booking } from "@/mocks/bookings";
 import PaymentDialog from "@/components/PaymentDialog";
 import InvoicePreviewDialog, { type InvoiceData } from "@/components/InvoicePreviewDialog";
@@ -38,8 +37,10 @@ export default function SettlementPage() {
   const navigate = useNavigate();
   const { state, setState } = useScreenState("success");
   const { t } = useI18n();
-  const { hasRole } = useAuth();
-  const isPrepay = currentCompany.billingType === "PREPAY";
+  const { hasRole, user } = useAuth();
+  /* Resolve logged-in company from user (fallback to demo default) */
+  const activeCompany = companies.find(c => c.name === user?.company) || currentCompany;
+  const isPrepay = activeCompany.billingType === "PREPAY";
 
   /* PREPAY: 미결제 예약 (TL 미도래 + 데드라인 임박) */
   const pendingPayments = useMemo(() => {
@@ -109,10 +110,15 @@ export default function SettlementPage() {
   /* ── Invoices filter ── */
   const [invStatus, setInvStatus] = useState("All");
   const [previewInvoice, setPreviewInvoice] = useState<InvoiceData | null>(null);
+  /* 인보이스는 로그인한 고객사 것만 표시.
+   * PREPAY 고객 → 자기 예약별 인보이스
+   * POSTPAY 고객 → 자기 월별 집계 인보이스
+   */
+  const myInvoices = useMemo(() => invoices.filter(i => i.customerCompanyId === activeCompany.id), [activeCompany.id]);
   const filteredInvoices = useMemo(() => {
-    if (invStatus === "All") return invoices;
-    return invoices.filter(i => i.status === invStatus);
-  }, [invStatus]);
+    if (invStatus === "All") return myInvoices;
+    return myInvoices.filter(i => i.status === invStatus);
+  }, [invStatus, myInvoices]);
 
   /* ── AR state ── */
   const [arSelected, setArSelected] = useState<Set<string>>(new Set());
@@ -139,13 +145,13 @@ export default function SettlementPage() {
           <div className="flex items-center gap-2">
             <h1 className="text-2xl font-bold">{t("page.settlement")}</h1>
             <Badge variant="outline" className="bg-orange-50 dark:bg-orange-900/20 text-orange-700 dark:text-orange-300 border-orange-300">
-              {currentCompany.billingType}
-              {currentCompany.billingType === "POSTPAY" && currentCompany.settlementCycle && ` · ${currentCompany.settlementCycle}`}
+              {activeCompany.billingType}
+              {activeCompany.billingType === "POSTPAY" && activeCompany.settlementCycle && ` · ${activeCompany.settlementCycle}`}
             </Badge>
           </div>
           <p className="text-sm text-muted-foreground mt-0.5">
-            {currentCompany.name}
-            {currentCompany.billingType === "POSTPAY" && currentCompany.depositType && ` · ${currentCompany.depositType} $${(currentCompany.depositAmount || 0).toLocaleString()}`}
+            {activeCompany.name}
+            {activeCompany.billingType === "POSTPAY" && activeCompany.depositType && ` · ${activeCompany.depositType} $${(activeCompany.depositAmount || 0).toLocaleString()}`}
           </p>
         </div>
 
