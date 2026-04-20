@@ -24,7 +24,6 @@ import { downloadCSV, timestamp } from "@/lib/download";
 import { bookings as allBookings, type Booking } from "@/mocks/bookings";
 import PaymentDialog from "@/components/PaymentDialog";
 import InvoicePreviewDialog, { type InvoiceData } from "@/components/InvoicePreviewDialog";
-import GuestVoucherDialog from "@/components/GuestVoucherDialog";
 import { toast } from "sonner";
 
 const billStatusColors: Record<string, string> = { Settled: "default", Pending: "secondary", Overdue: "destructive" };
@@ -93,8 +92,6 @@ export default function SettlementPage() {
 
   /* PaymentDialog state (PREPAY) */
   const [paymentTarget, setPaymentTarget] = useState<Booking | null>(null);
-  /* Guest Voucher Dialog state */
-  const [guestVoucherTarget, setGuestVoucherTarget] = useState<Booking | null>(null);
   const handlePaymentComplete = () => {
     if (!paymentTarget) return;
     /* Mutate mock: mark as fully paid */
@@ -316,11 +313,6 @@ export default function SettlementPage() {
                 <Button size="sm" className="text-white" style={{ background: "#FF6000" }} onClick={() => setBulkPayOpen(true)}>
                   <CreditCard className="h-3 w-3 mr-1" />Pay {pendingSelected.size} bookings
                 </Button>
-                <Button size="sm" variant="outline" onClick={() => {
-                  toast.info("Bulk PDF generation", { description: "Use 'Generate PDF' per row to customize price individually." });
-                }}>
-                  Bulk Generate (per-row)
-                </Button>
                 <Button size="sm" variant="ghost" className="ml-auto" onClick={() => setPendingSelected(new Set())}>Clear</Button>
               </div>
             )}
@@ -360,9 +352,6 @@ export default function SettlementPage() {
                       <TableCell><Badge variant={urgency} className="text-[10px]">{label}</Badge></TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1">
-                          <Button size="sm" variant="outline" className="h-7 text-[11px]" onClick={() => setGuestVoucherTarget(p)}>
-                            Generate PDF
-                          </Button>
                           <Button size="sm" className="h-7 text-[11px] text-white" style={{ background: "#FF6000" }} onClick={() => setPaymentTarget(p)}>
                             <CreditCard className="h-3 w-3 mr-0.5" />Pay Now
                           </Button>
@@ -776,13 +765,6 @@ export default function SettlementPage() {
         amount={paymentTarget?.sumAmount || 0}
         currency={paymentTarget?.currency || "USD"}
         onPaymentComplete={handlePaymentComplete}
-      />
-
-      {/* Guest-facing Voucher / Invoice generator */}
-      <GuestVoucherDialog
-        open={!!guestVoucherTarget}
-        onOpenChange={(o) => !o && setGuestVoucherTarget(null)}
-        booking={guestVoucherTarget}
       />
 
       {/* PREPAY Bulk Payment */}
