@@ -17,6 +17,10 @@ import { StateToolbar } from "@/components/StateToolbar";
 import { useAuth } from "@/contexts/AuthContext";
 import { useI18n } from "@/contexts/I18nContext";
 import { monthlySummary, dailyDetails, settlementApplications, billingDetails, invoices, accountsReceivable, pointsHistory, purchaseByHotel, disputeSummary, paymentReminders, reminderSummary, paymentMatchLog } from "@/mocks/settlement";
+import { eInvoiceLog, countrySummary, taxComplianceSummary } from "@/mocks/eInvoiceLog";
+import { creditNotes, auditTrail } from "@/mocks/settlement";
+import { taxRules } from "@/mocks/taxProfiles";
+import { Globe, FileMinus, History } from "lucide-react";
 import { currentCompany } from "@/mocks/companies";
 import { bookings as allBookings, type Booking } from "@/mocks/bookings";
 import PaymentDialog from "@/components/PaymentDialog";
@@ -187,6 +191,10 @@ export default function SettlementPage() {
           <TabsTrigger value="ar">Accounts Receivable</TabsTrigger>
           <TabsTrigger value="points">OP Points</TabsTrigger>
           <TabsTrigger value="purchase">Purchase by Hotel</TabsTrigger>
+          <TabsTrigger value="tax">
+            <Globe className="h-3 w-3 mr-1" />
+            Tax Compliance
+          </TabsTrigger>
         </TabsList>
 
         {/* ══════ PREPAY Pending Payment Tab ══════ */}
@@ -587,6 +595,237 @@ export default function SettlementPage() {
               ))}
             </TableBody>
           </Table>
+        </TabsContent>
+
+        {/* ══════ Tax Compliance Tab ══════ */}
+        <TabsContent value="tax" className="space-y-4 mt-4">
+          {/* Top KPI cards */}
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
+            <Card className="p-3">
+              <p className="text-xs text-muted-foreground">Total Invoices</p>
+              <p className="text-lg font-bold">{taxComplianceSummary.totalInvoices}</p>
+              <p className="text-[10px] text-muted-foreground">${taxComplianceSummary.totalAmount.toLocaleString()}</p>
+            </Card>
+            <Card className="p-3">
+              <p className="text-xs text-muted-foreground">Domestic / Cross-border</p>
+              <p className="text-lg font-bold">{taxComplianceSummary.domesticCount} / {taxComplianceSummary.crossBorderCount}</p>
+              <p className="text-[10px] text-muted-foreground">KR vs 해외 B2B</p>
+            </Card>
+            <Card className="p-3">
+              <p className="text-xs text-muted-foreground">VAT Collected</p>
+              <p className="text-lg font-bold">${taxComplianceSummary.totalVat.toLocaleString()}</p>
+              <p className="text-[10px] text-muted-foreground">Domestic only</p>
+            </Card>
+            <Card className="p-3">
+              <p className="text-xs text-muted-foreground">Withholding</p>
+              <p className="text-lg font-bold text-amber-600">${taxComplianceSummary.totalWithholding.toLocaleString()}</p>
+              <p className="text-[10px] text-muted-foreground">3.3% 원천징수</p>
+            </Card>
+            <Card className="p-3">
+              <p className="text-xs text-muted-foreground">E-Invoice Pending</p>
+              <p className="text-lg font-bold text-blue-600">{taxComplianceSummary.eInvoicePending}</p>
+              <p className="text-[10px] text-muted-foreground">승인 대기</p>
+            </Card>
+            <Card className="p-3">
+              <p className="text-xs text-muted-foreground">E-Invoice Rejected</p>
+              <p className="text-lg font-bold text-red-600">{taxComplianceSummary.eInvoiceRejected}</p>
+              <p className="text-[10px] text-muted-foreground">재발행 필요</p>
+            </Card>
+          </div>
+
+          {/* Country Summary */}
+          <Card className="p-5">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-base font-bold flex items-center gap-2">
+                <Globe className="h-4 w-4" />
+                국가별 매출 및 전자인보이스 현황
+              </h2>
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="text-[10px]">{taxComplianceSummary.quarterlyReportStatus}</Badge>
+                <Button size="sm" variant="outline" onClick={() => toast.success("분기 신고 자료 export", { description: "국가별 CSV + NTS XML 생성 중…" })}>
+                  <Download className="h-3 w-3 mr-1" />Quarterly Report
+                </Button>
+              </div>
+            </div>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Country</TableHead>
+                  <TableHead>E-Invoice System</TableHead>
+                  <TableHead className="text-right">Invoices</TableHead>
+                  <TableHead className="text-right">Amount (USD)</TableHead>
+                  <TableHead className="text-right">VAT</TableHead>
+                  <TableHead className="text-right">WHT</TableHead>
+                  <TableHead>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {countrySummary.map(c => (
+                  <TableRow key={c.countryCode}>
+                    <TableCell className="font-medium"><span className="text-lg mr-1">{c.flag}</span>{c.country}</TableCell>
+                    <TableCell className="text-xs">{c.system === "None" ? "—" : c.system}</TableCell>
+                    <TableCell className="text-right font-mono">{c.invoiceCount}</TableCell>
+                    <TableCell className="text-right font-mono font-medium">${c.totalAmount.toLocaleString()}</TableCell>
+                    <TableCell className="text-right font-mono text-xs">${c.totalVat.toLocaleString()}</TableCell>
+                    <TableCell className="text-right font-mono text-xs">${c.totalWithholding.toLocaleString()}</TableCell>
+                    <TableCell>
+                      <div className="flex gap-1 flex-wrap">
+                        {c.eInvoiceApproved > 0 && <Badge variant="default" className="text-[10px]">✓ {c.eInvoiceApproved}</Badge>}
+                        {c.eInvoicePending > 0 && <Badge variant="secondary" className="text-[10px]">… {c.eInvoicePending}</Badge>}
+                        {c.eInvoiceRejected > 0 && <Badge variant="destructive" className="text-[10px]">✕ {c.eInvoiceRejected}</Badge>}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </Card>
+
+          {/* E-Invoice Submission Log */}
+          <Card className="p-5">
+            <h2 className="text-base font-bold mb-3">전자인보이스 제출 이력 (Tax Authority Log)</h2>
+            <Alert className="mb-3 border-blue-200 bg-blue-50 dark:bg-blue-900/10">
+              <AlertDescription className="text-xs">
+                국가별 세무당국 시스템 (NTS · JP-Invoice · Fapiao · VN-eHoaDon · IRAS)으로의 제출/승인 이력. Rejected 건은 자동으로 회계팀 큐에 배정됩니다.
+              </AlertDescription>
+            </Alert>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Invoice No</TableHead>
+                  <TableHead>Buyer</TableHead>
+                  <TableHead>System</TableHead>
+                  <TableHead>External ID</TableHead>
+                  <TableHead className="text-right">Amount</TableHead>
+                  <TableHead>Scheme</TableHead>
+                  <TableHead>Submitted</TableHead>
+                  <TableHead>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {eInvoiceLog.map(e => {
+                  const statusVariant = e.status === "Approved" ? "default" : e.status === "Rejected" ? "destructive" : e.status === "Draft" ? "outline" : "secondary";
+                  const ruleFlag = Object.values(taxRules).find(r => r.country === e.buyerCountry)?.flag || "🌍";
+                  return (
+                    <TableRow key={e.id} className={e.status === "Rejected" ? "bg-red-50/60 dark:bg-red-950/10" : ""}>
+                      <TableCell className="font-mono text-xs">{e.invoiceNo}</TableCell>
+                      <TableCell className="text-xs">{ruleFlag} {e.buyerCountry}</TableCell>
+                      <TableCell className="text-xs">{e.system === "None" ? "—" : e.system}</TableCell>
+                      <TableCell className="font-mono text-[10px] max-w-[180px] truncate">{e.externalId || "—"}</TableCell>
+                      <TableCell className="text-right font-mono text-xs">${e.amount.toLocaleString()}</TableCell>
+                      <TableCell className="text-xs">{e.vatScheme}</TableCell>
+                      <TableCell className="font-mono text-[10px]">{e.submittedAt || "—"}</TableCell>
+                      <TableCell>
+                        <Badge variant={statusVariant} className="text-[10px]">{e.status}</Badge>
+                        {e.rejectedReason && <p className="text-[10px] text-red-600 mt-0.5 max-w-[240px]">{e.rejectedReason}</p>}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </Card>
+
+          {/* Credit Notes / 수정세금계산서 */}
+          <Card className="p-5">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-base font-bold flex items-center gap-2">
+                <FileMinus className="h-4 w-4" />
+                Credit Notes · 수정세금계산서
+              </h2>
+              <Button size="sm" variant="outline" onClick={() => toast.info("Credit Note 발행 다이얼로그 (다음 세션 UI 구현 예정)")}>
+                + Issue Credit Note
+              </Button>
+            </div>
+            <Alert className="mb-3 border-amber-200 bg-amber-50 dark:bg-amber-900/10">
+              <AlertDescription className="text-xs">
+                원 인보이스 금액 조정용 음수 인보이스. 국가별 포맷 자동 선택 (🇰🇷 수정세금계산서 / 🇯🇵 返還インボイス / 🇨🇳 红字发票 / 🇻🇳 Hóa đơn điều chỉnh).
+              </AlertDescription>
+            </Alert>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>CN No</TableHead>
+                  <TableHead>Original Invoice</TableHead>
+                  <TableHead>Reason</TableHead>
+                  <TableHead>Description</TableHead>
+                  <TableHead className="text-right">Amount</TableHead>
+                  <TableHead>Format</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Issued By</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {creditNotes.map(cn => (
+                  <TableRow key={cn.id}>
+                    <TableCell className="font-mono text-xs">{cn.creditNoteNo}</TableCell>
+                    <TableCell className="font-mono text-xs">
+                      <button className="text-[#0066cc] hover:underline" onClick={() => navigate(`/app/settlement/invoice/${cn.originalInvoiceNo}`)}>
+                        {cn.originalInvoiceNo}
+                      </button>
+                    </TableCell>
+                    <TableCell className="text-xs"><Badge variant="outline" className="text-[10px]">{cn.reason}</Badge></TableCell>
+                    <TableCell className="text-xs max-w-[240px] truncate" title={cn.description}>{cn.description}</TableCell>
+                    <TableCell className="text-right font-mono font-medium text-red-600">${cn.amount.toLocaleString()}</TableCell>
+                    <TableCell className="text-xs">{cn.countryFormat}</TableCell>
+                    <TableCell>
+                      <Badge variant={cn.status === "Approved" ? "default" : cn.status === "Draft" ? "outline" : "secondary"} className="text-[10px]">{cn.status}</Badge>
+                      {cn.approvedBy && <p className="text-[9px] text-muted-foreground mt-0.5">{cn.approvedBy}</p>}
+                    </TableCell>
+                    <TableCell className="text-xs">{cn.issuedBy}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </Card>
+
+          {/* Audit Trail */}
+          <Card className="p-5">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-base font-bold flex items-center gap-2">
+                <History className="h-4 w-4" />
+                Audit Trail · 감사 추적 로그
+              </h2>
+              <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                <span>7-year retention (한국 상법)</span>
+                <Button size="sm" variant="outline" onClick={() => toast.success("Audit log exported to CSV")}>
+                  <Download className="h-3 w-3 mr-1" />Export
+                </Button>
+              </div>
+            </div>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Timestamp</TableHead>
+                  <TableHead>Actor</TableHead>
+                  <TableHead>Action</TableHead>
+                  <TableHead>Target</TableHead>
+                  <TableHead>Before → After</TableHead>
+                  <TableHead>Reason</TableHead>
+                  <TableHead className="text-right">IP</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {auditTrail.map(log => (
+                  <TableRow key={log.id}>
+                    <TableCell className="font-mono text-[10px]">{log.timestamp}</TableCell>
+                    <TableCell className="text-xs">
+                      {log.actor}
+                      <Badge variant="outline" className="ml-1 text-[9px]">{log.actorRole}</Badge>
+                    </TableCell>
+                    <TableCell className="text-xs font-medium">{log.action}</TableCell>
+                    <TableCell className="font-mono text-[10px]">{log.target}</TableCell>
+                    <TableCell className="text-[10px] max-w-[240px]">
+                      {log.beforeValue && <span className="text-slate-500 line-through mr-1">{log.beforeValue}</span>}
+                      {log.afterValue && <span className="text-slate-900 dark:text-slate-100">{log.afterValue}</span>}
+                    </TableCell>
+                    <TableCell className="text-[10px] text-slate-600 dark:text-slate-300 max-w-[200px] truncate" title={log.reason}>{log.reason || "—"}</TableCell>
+                    <TableCell className="text-right font-mono text-[9px] text-muted-foreground">{log.ipAddress}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </Card>
         </TabsContent>
       </Tabs>
 
