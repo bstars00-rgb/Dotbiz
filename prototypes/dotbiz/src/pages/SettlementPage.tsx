@@ -187,7 +187,7 @@ export default function SettlementPage() {
       )}
 
       <Tabs defaultValue={isPrepay ? "pending" : "invoices"}>
-        <TabsList className="flex-wrap">
+        <TabsList className="!h-auto flex-wrap justify-start gap-1">
           {isPrepay && <TabsTrigger value="pending">Pending Payment {pendingPayments.length > 0 && <span className="ml-1 text-[10px] bg-red-500 text-white rounded-full px-1.5">{pendingPayments.length}</span>}</TabsTrigger>}
           {isPrepay && <TabsTrigger value="reminders">Reminder Log</TabsTrigger>}
           <TabsTrigger value="applications">Applications</TabsTrigger>
