@@ -9,7 +9,7 @@ import { bookings } from "@/mocks/bookings";
 export interface InvoiceData {
   invoiceNo: string;
   period: string;
-  status: "Issued" | "Paid" | "Overdue";
+  status: "Issued" | "Paid" | "Overdue" | "Partial";
   supplyAmount: number;
   vat: number;
   total: number;

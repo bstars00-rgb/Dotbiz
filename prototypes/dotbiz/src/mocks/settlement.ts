@@ -38,15 +38,137 @@ export const billingDetails = [
   { billId: "BILL-2026-0010", billType: "Hotel Booking" as const, bookingId: "ELS-2026-00240", hotelName: "Raffles Singapore", amount: 1650, createdDate: "2026-04-12", dueDate: "2026-04-26", settlementDate: "", status: "Pending" as const },
 ];
 
-/* ── Invoices (확장) ── */
-export const invoices = [
-  { invoiceNo: "INV-2026-0089", period: "Mar 2026", status: "Issued" as const, supplyAmount: 44318, vat: 4432, total: 48750, issuedDate: "2026-04-01", dueDate: "2026-04-15" },
-  { invoiceNo: "INV-2026-0067", period: "Feb 2026", status: "Paid" as const, supplyAmount: 38500, vat: 3850, total: 42350, issuedDate: "2026-03-01", dueDate: "2026-03-15" },
-  { invoiceNo: "INV-2026-0045", period: "Jan 2026", status: "Paid" as const, supplyAmount: 35200, vat: 3520, total: 38720, issuedDate: "2026-02-01", dueDate: "2026-02-15" },
-  { invoiceNo: "INV-2025-0120", period: "Dec 2025", status: "Paid" as const, supplyAmount: 41800, vat: 4180, total: 45980, issuedDate: "2026-01-01", dueDate: "2026-01-15" },
-  { invoiceNo: "INV-2025-0098", period: "Nov 2025", status: "Paid" as const, supplyAmount: 33600, vat: 3360, total: 36960, issuedDate: "2025-12-01", dueDate: "2025-12-15" },
-  { invoiceNo: "INV-2025-0076", period: "Oct 2025", status: "Overdue" as const, supplyAmount: 29400, vat: 2940, total: 32340, issuedDate: "2025-11-01", dueDate: "2025-11-15" },
+/* ── Invoices (확장) ──
+ * `bookingIds`: 이 인보이스에 포함된 예약 ID 목록 (aggregate per period)
+ * `receivedAmount` / `paymentDate`: 실제 입금 기록 (POSTPAY 핵심)
+ * `matchStatus`: Full=전액 일치, Partial=차액 존재(분쟁 의심), Unpaid=미입금
+ * `disputedBookingIds`: 분쟁으로 확인된 예약 (입금에서 제외된 건)
+ */
+export type InvoiceMatchStatus = "Unpaid" | "Partial" | "Full" | "Reconciled";
+
+export interface InvoiceWithMatch {
+  invoiceNo: string;
+  period: string;
+  status: "Issued" | "Paid" | "Overdue" | "Partial";
+  supplyAmount: number;
+  vat: number;
+  total: number;
+  issuedDate: string;
+  dueDate: string;
+  /* New fields for Settlement Detail */
+  bookingIds: string[];
+  receivedAmount: number;
+  paymentDate: string;
+  matchStatus: InvoiceMatchStatus;
+  disputedBookingIds: string[];
+  disputedAmount: number;
+  remarks?: string;
+}
+
+export const invoices: InvoiceWithMatch[] = [
+  {
+    invoiceNo: "INV-2026-0089", period: "Mar 2026", status: "Partial",
+    supplyAmount: 3800, vat: 380, total: 4180,
+    issuedDate: "2026-04-01", dueDate: "2026-04-30",
+    bookingIds: ["bk-001", "bk-002", "bk-003", "bk-007", "bk-008"],  /* 5건, 총 $4,180 */
+    receivedAmount: 2820,   /* 고객사가 bk-002($580) + bk-003($780) 제외하고 송금 */
+    paymentDate: "2026-04-15",
+    matchStatus: "Partial",
+    disputedBookingIds: ["bk-002", "bk-003"],
+    disputedAmount: 1360,
+    remarks: "고객사 송금에서 2건 누락 — 자동 감지 및 분쟁 태깅 완료",
+  },
+  {
+    invoiceNo: "INV-2026-0067", period: "Feb 2026", status: "Paid",
+    supplyAmount: 3500, vat: 350, total: 3850,
+    issuedDate: "2026-03-01", dueDate: "2026-03-31",
+    bookingIds: ["bk-004"],
+    receivedAmount: 3850,
+    paymentDate: "2026-03-20",
+    matchStatus: "Full",
+    disputedBookingIds: [],
+    disputedAmount: 0,
+  },
+  {
+    invoiceNo: "INV-2026-0130", period: "Apr 2026", status: "Issued",
+    supplyAmount: 9664, vat: 966, total: 10630,
+    issuedDate: "2026-05-01", dueDate: "2026-05-31",
+    bookingIds: ["bk-009", "bk-010", "bk-011", "bk-012", "bk-013", "bk-014", "bk-015"],
+    receivedAmount: 0,
+    paymentDate: "",
+    matchStatus: "Unpaid",
+    disputedBookingIds: [],
+    disputedAmount: 0,
+  },
+  {
+    invoiceNo: "INV-2026-0045", period: "Jan 2026", status: "Paid",
+    supplyAmount: 32000, vat: 3200, total: 35200,
+    issuedDate: "2026-02-01", dueDate: "2026-02-28",
+    bookingIds: [], receivedAmount: 35200, paymentDate: "2026-02-22",
+    matchStatus: "Full", disputedBookingIds: [], disputedAmount: 0,
+  },
+  {
+    invoiceNo: "INV-2025-0120", period: "Dec 2025", status: "Paid",
+    supplyAmount: 38000, vat: 3800, total: 41800,
+    issuedDate: "2026-01-01", dueDate: "2026-01-31",
+    bookingIds: [], receivedAmount: 41800, paymentDate: "2026-01-28",
+    matchStatus: "Full", disputedBookingIds: [], disputedAmount: 0,
+  },
+  {
+    invoiceNo: "INV-2025-0076", period: "Oct 2025", status: "Overdue",
+    supplyAmount: 26700, vat: 2670, total: 29400,
+    issuedDate: "2025-11-01", dueDate: "2025-11-30",
+    bookingIds: [], receivedAmount: 0, paymentDate: "",
+    matchStatus: "Unpaid", disputedBookingIds: [], disputedAmount: 0,
+    remarks: "60일 이상 연체 — 회수 담당자 배정 필요",
+  },
 ];
+
+/* ── Payment Match Log (입금 매칭 이력) ──
+ * 고객사 입금 시 자동 매칭 알고리즘 실행 기록.
+ * OP/회계팀이 수동 VLOOKUP 대신 자동으로 차액 감지.
+ */
+export interface PaymentMatchLog {
+  id: string;
+  invoiceNo: string;
+  receivedAmount: number;
+  expectedAmount: number;
+  variance: number;  /* expected - received */
+  detectedExclusions: string[];  /* booking IDs auto-detected as excluded */
+  matchedAt: string;
+  matchedBy: string;
+  status: "Auto-matched" | "Manual-review" | "Resolved";
+  vlookupTimeSavedMinutes: number;  /* KPI */
+}
+
+export const paymentMatchLog: PaymentMatchLog[] = [
+  {
+    id: "pml-001", invoiceNo: "INV-2026-0089",
+    expectedAmount: 4180, receivedAmount: 2820, variance: 1360,
+    detectedExclusions: ["bk-002", "bk-003"],
+    matchedAt: "2026-04-15 14:22:05", matchedBy: "System (Auto-match)",
+    status: "Auto-matched",
+    vlookupTimeSavedMinutes: 45,
+  },
+  {
+    id: "pml-002", invoiceNo: "INV-2026-0067",
+    expectedAmount: 3850, receivedAmount: 3850, variance: 0,
+    detectedExclusions: [],
+    matchedAt: "2026-03-20 10:15:30", matchedBy: "System (Auto-match)",
+    status: "Auto-matched",
+    vlookupTimeSavedMinutes: 15,
+  },
+];
+
+/* ── Dispute Summary KPI ── */
+export const disputeSummary = {
+  openCount: 2,
+  openAmount: 1360,
+  resolvedThisMonth: 3,
+  avgResolutionDays: 5.2,
+  vlookupTimeSavedThisMonth: 180,  /* minutes (3 hours) */
+  autoMatchAccuracy: 98.5,  /* % */
+};
 
 /* ── Accounts Receivable (확장) ── */
 export const accountsReceivable = [

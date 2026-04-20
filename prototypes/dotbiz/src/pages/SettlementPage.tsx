@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
-import { Download, CreditCard, RefreshCw, Search, X, CheckCircle2, Clock, AlertTriangle } from "lucide-react";
+import { useNavigate } from "react-router";
+import { Download, CreditCard, RefreshCw, Search, X, CheckCircle2, Clock, AlertTriangle, Sparkles, Zap, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -15,7 +16,9 @@ import { useScreenState } from "@/hooks/useScreenState";
 import { StateToolbar } from "@/components/StateToolbar";
 import { useAuth } from "@/contexts/AuthContext";
 import { useI18n } from "@/contexts/I18nContext";
-import { monthlySummary, dailyDetails, settlementApplications, billingDetails, invoices, accountsReceivable, pointsHistory, purchaseByHotel } from "@/mocks/settlement";
+import { monthlySummary, dailyDetails, settlementApplications, billingDetails, invoices, accountsReceivable, pointsHistory, purchaseByHotel, disputeSummary } from "@/mocks/settlement";
+import { currentCompany } from "@/mocks/companies";
+import { bookings as allBookings } from "@/mocks/bookings";
 import InvoicePreviewDialog, { type InvoiceData } from "@/components/InvoicePreviewDialog";
 import { toast } from "sonner";
 
@@ -24,9 +27,25 @@ const invStatusColors: Record<string, string> = { Paid: "default", Issued: "seco
 const appStatusColors: Record<string, string> = { Eligible: "default", Pending: "secondary", Applied: "default" };
 
 export default function SettlementPage() {
+  const navigate = useNavigate();
   const { state, setState } = useScreenState("success");
   const { t } = useI18n();
   const { hasRole } = useAuth();
+  const isPrepay = currentCompany.billingType === "PREPAY";
+
+  /* PREPAY: 미결제 예약 (TL 미도래 + 데드라인 임박) */
+  const pendingPayments = useMemo(() => {
+    return allBookings.filter(b => b.bookingStatus === "Confirmed" && (b.paymentStatus === "Not Paid" || b.paymentStatus === "Pending"))
+      .map(b => {
+        const dl = new Date(b.cancelDeadline);
+        const now = new Date();
+        const daysLeft = Math.ceil((dl.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+        return { ...b, daysLeft };
+      })
+      .sort((a, b) => a.daysLeft - b.daysLeft);
+  }, []);
+  const overdueCount = pendingPayments.filter(p => p.daysLeft < 0).length;
+  const d7Count = pendingPayments.filter(p => p.daysLeft >= 0 && p.daysLeft <= 7).length;
 
   /* ── Applications state ── */
   const [appSelected, setAppSelected] = useState<Set<string>>(new Set());
@@ -74,10 +93,53 @@ export default function SettlementPage() {
 
   return (
     <div className="p-6 space-y-4">
-      <h1 className="text-2xl font-bold">{t("page.settlement")}</h1>
+      {/* Header with billing type + KPI summary */}
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold">{t("page.settlement")}</h1>
+            <Badge variant="outline" className="bg-orange-50 dark:bg-orange-900/20 text-orange-700 dark:text-orange-300 border-orange-300">
+              {currentCompany.billingType}
+              {currentCompany.billingType === "POSTPAY" && currentCompany.settlementCycle && ` · ${currentCompany.settlementCycle}`}
+            </Badge>
+          </div>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            {currentCompany.name}
+            {currentCompany.billingType === "POSTPAY" && currentCompany.depositType && ` · ${currentCompany.depositType} $${(currentCompany.depositAmount || 0).toLocaleString()}`}
+          </p>
+        </div>
 
-      <Tabs defaultValue="applications">
+        {/* Quick KPI */}
+        <div className="flex items-center gap-2 text-xs">
+          <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border">
+            <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
+            <span><strong>{disputeSummary.openCount}</strong> open disputes</span>
+            <span className="text-muted-foreground">· ${disputeSummary.openAmount.toLocaleString()}</span>
+          </div>
+          <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border" style={{ borderColor: "#FF6000" }}>
+            <Zap className="h-3.5 w-3.5" style={{ color: "#FF6000" }} />
+            <span>Saved <strong>{Math.round(disputeSummary.vlookupTimeSavedThisMonth / 60 * 10) / 10}h</strong></span>
+            <span className="text-muted-foreground">this month</span>
+          </div>
+        </div>
+      </div>
+
+      {/* PREPAY deadline-alert banner */}
+      {isPrepay && (overdueCount > 0 || d7Count > 0) && (
+        <Alert className="border-red-300 bg-red-50 dark:bg-red-950/20">
+          <AlertTriangle className="h-4 w-4 text-red-600" />
+          <AlertTitle className="text-red-900 dark:text-red-100">결제 데드라인 임박</AlertTitle>
+          <AlertDescription className="text-xs text-red-800 dark:text-red-200">
+            {overdueCount > 0 && <span className="font-bold">데드라인 경과: {overdueCount}건. </span>}
+            {d7Count > 0 && <span>7일 이내 임박: {d7Count}건. </span>}
+            미결제 시 예약이 자동 취소될 수 있습니다. <Button variant="link" size="sm" className="h-auto p-0 text-red-600 underline" onClick={() => toast.info("Scroll to Pending Payment tab")}>전체 보기 →</Button>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      <Tabs defaultValue={isPrepay ? "pending" : "invoices"}>
         <TabsList className="flex-wrap">
+          {isPrepay && <TabsTrigger value="pending">Pending Payment {pendingPayments.length > 0 && <span className="ml-1 text-[10px] bg-red-500 text-white rounded-full px-1.5">{pendingPayments.length}</span>}</TabsTrigger>}
           <TabsTrigger value="applications">Applications</TabsTrigger>
           <TabsTrigger value="billing">Billing Details</TabsTrigger>
           <TabsTrigger value="invoices">Invoices</TabsTrigger>
@@ -85,6 +147,65 @@ export default function SettlementPage() {
           <TabsTrigger value="points">OP Points</TabsTrigger>
           <TabsTrigger value="purchase">Purchase by Hotel</TabsTrigger>
         </TabsList>
+
+        {/* ══════ PREPAY Pending Payment Tab ══════ */}
+        {isPrepay && (
+          <TabsContent value="pending" className="space-y-4 mt-4">
+            <Alert className="border-amber-200 bg-amber-50 dark:bg-amber-900/10">
+              <Clock className="h-4 w-4 text-amber-600" />
+              <AlertTitle className="text-amber-900 dark:text-amber-100">PREPAY — 결제 데드라인 관리</AlertTitle>
+              <AlertDescription className="text-xs text-amber-800 dark:text-amber-200">
+                Non-refundable 예약은 즉시 카드결제가 완료되어 여기에 나타나지 않습니다.
+                아래는 TL 미도래 예약 중 결제 대기 중인 건이며, 데드라인 경과 시 자동 취소 또는 강제 결제 절차가 진행됩니다.
+              </AlertDescription>
+            </Alert>
+
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>ELLIS Code</TableHead>
+                  <TableHead>Hotel</TableHead>
+                  <TableHead>Check-in</TableHead>
+                  <TableHead className="text-right">Amount</TableHead>
+                  <TableHead>Deadline</TableHead>
+                  <TableHead>Days Left</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {pendingPayments.map(p => {
+                  const urgency = p.daysLeft < 0 ? "destructive" : p.daysLeft <= 3 ? "destructive" : p.daysLeft <= 7 ? "secondary" : "default";
+                  const label = p.daysLeft < 0 ? `${Math.abs(p.daysLeft)}d overdue` : p.daysLeft === 0 ? "Today" : `${p.daysLeft} days`;
+                  return (
+                    <TableRow key={p.id} className={p.daysLeft < 0 ? "bg-red-50 dark:bg-red-950/10" : p.daysLeft <= 3 ? "bg-amber-50 dark:bg-amber-950/10" : ""}>
+                      <TableCell className="font-mono text-xs">{p.ellisCode}</TableCell>
+                      <TableCell className="text-sm">{p.hotelName}</TableCell>
+                      <TableCell className="text-xs">{p.checkIn}</TableCell>
+                      <TableCell className="text-right font-mono font-medium">${p.sumAmount.toLocaleString()}</TableCell>
+                      <TableCell className="text-xs">{p.cancelDeadline}</TableCell>
+                      <TableCell><Badge variant={urgency} className="text-[10px]">{label}</Badge></TableCell>
+                      <TableCell><Badge variant="destructive" className="text-[10px]">{p.paymentStatus}</Badge></TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          <Button size="sm" variant="outline" className="h-7 text-[11px]" onClick={() => toast.success(`Payment link sent to ${p.guestEmail}`, { description: `D-${Math.max(0, p.daysLeft)} reminder via email + in-app` })}>
+                            Send Link
+                          </Button>
+                          <Button size="sm" className="h-7 text-[11px] text-white" style={{ background: "#FF6000" }} onClick={() => toast.info("Payment dialog opens (Phase 3)", { description: "PG card payment simulation coming soon." })}>
+                            <CreditCard className="h-3 w-3 mr-0.5" />Pay Now
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+                {pendingPayments.length === 0 && (
+                  <TableRow><TableCell colSpan={8} className="text-center text-sm text-muted-foreground py-8">No pending payments.</TableCell></TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </TabsContent>
+        )}
 
         {/* ══════ Applications Tab ══════ */}
         <TabsContent value="applications" className="space-y-4 mt-4">
@@ -214,29 +335,49 @@ export default function SettlementPage() {
               <TableRow>
                 <TableHead>Invoice No</TableHead>
                 <TableHead>Period</TableHead>
+                <TableHead>Bookings</TableHead>
                 <TableHead>Issued</TableHead>
                 <TableHead>Due</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Supply</TableHead>
-                <TableHead>VAT (10%)</TableHead>
                 <TableHead>Total</TableHead>
+                <TableHead>Received</TableHead>
+                <TableHead>Variance</TableHead>
                 <TableHead></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredInvoices.map(inv => (
-                <TableRow key={inv.invoiceNo} className="cursor-pointer hover:bg-muted/50" onClick={() => setPreviewInvoice(inv)}>
-                  <TableCell className="font-mono text-sm text-[#0066cc] hover:underline">{inv.invoiceNo}</TableCell>
-                  <TableCell>{inv.period}</TableCell>
-                  <TableCell className="text-sm">{inv.issuedDate}</TableCell>
-                  <TableCell className="text-sm">{inv.dueDate}</TableCell>
-                  <TableCell><Badge variant={invStatusColors[inv.status] as "default" | "secondary" | "destructive"}>{inv.status}</Badge></TableCell>
-                  <TableCell>${inv.supplyAmount.toLocaleString()}</TableCell>
-                  <TableCell>${inv.vat.toLocaleString()}</TableCell>
-                  <TableCell className="font-bold">${inv.total.toLocaleString()}</TableCell>
-                  <TableCell><Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); setPreviewInvoice(inv); }}><Download className="h-3 w-3 mr-1" />Preview / PDF</Button></TableCell>
-                </TableRow>
-              ))}
+              {filteredInvoices.map(inv => {
+                const variance = inv.total - inv.receivedAmount;
+                const hasDispute = inv.disputedAmount > 0;
+                return (
+                  <TableRow key={inv.invoiceNo} className={`cursor-pointer hover:bg-muted/50 ${hasDispute ? "bg-amber-50/60 dark:bg-amber-950/10" : ""}`} onClick={() => navigate(`/app/settlement/invoice/${inv.invoiceNo}`)}>
+                    <TableCell className="font-mono text-sm text-[#0066cc] hover:underline">
+                      {inv.invoiceNo}
+                      {hasDispute && <Sparkles className="h-3 w-3 inline ml-1 text-amber-500" />}
+                    </TableCell>
+                    <TableCell>{inv.period}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{inv.bookingIds.length}</TableCell>
+                    <TableCell className="text-sm">{inv.issuedDate}</TableCell>
+                    <TableCell className="text-sm">{inv.dueDate}</TableCell>
+                    <TableCell><Badge variant={invStatusColors[inv.status] as "default" | "secondary" | "destructive"}>{inv.status}</Badge></TableCell>
+                    <TableCell className="font-bold">${inv.total.toLocaleString()}</TableCell>
+                    <TableCell className="text-sm">${inv.receivedAmount.toLocaleString()}</TableCell>
+                    <TableCell className={`text-sm font-medium ${variance > 0 ? "text-amber-600" : variance < 0 ? "text-blue-600" : "text-green-600"}`}>
+                      {variance === 0 ? "—" : `$${Math.abs(variance).toLocaleString()}`}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1">
+                        <Button size="sm" variant="ghost" className="h-7 text-[11px]" onClick={(e) => { e.stopPropagation(); setPreviewInvoice(inv); }}>
+                          <Download className="h-3 w-3 mr-0.5" />PDF
+                        </Button>
+                        <Button size="sm" variant="outline" className="h-7 text-[11px]" onClick={(e) => { e.stopPropagation(); navigate(`/app/settlement/invoice/${inv.invoiceNo}`); }}>
+                          <ExternalLink className="h-3 w-3 mr-0.5" />Detail
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </TabsContent>

@@ -16,6 +16,7 @@ import BookingConfirmPage from "@/pages/BookingConfirmPage";
 import BookingCompletePage from "@/pages/BookingCompletePage";
 import BookingsPage from "@/pages/BookingsPage";
 import SettlementPage from "@/pages/SettlementPage";
+import SettlementDetailPage from "@/pages/SettlementDetailPage";
 import NotificationsPage from "@/pages/NotificationsPage";
 import FaqBoardPage from "@/pages/FaqBoardPage";
 import MyAccountPage from "@/pages/MyAccountPage";
@@ -52,6 +53,7 @@ function App() {
             <Route path="bookings" element={<BookingsPage />} />
             <Route path="bookings/:bookingId" element={<BookingsPage />} />
             <Route path="settlement" element={<SettlementPage />} />
+            <Route path="settlement/invoice/:invoiceNo" element={<SettlementDetailPage />} />
             <Route path="notifications" element={<NotificationsPage />} />
             <Route path="faq" element={<FaqBoardPage />} />
             <Route path="my-account" element={<MyAccountPage />} />
