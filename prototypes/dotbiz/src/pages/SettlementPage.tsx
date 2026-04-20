@@ -20,7 +20,12 @@ import { monthlySummary, dailyDetails, settlementApplications, billingDetails, i
 import { eInvoiceLog, countrySummary, taxComplianceSummary } from "@/mocks/eInvoiceLog";
 import { creditNotes, auditTrail } from "@/mocks/settlement";
 import { taxRules } from "@/mocks/taxProfiles";
-import { Globe, FileMinus, History } from "lucide-react";
+import { Globe, FileMinus, History, TrendingUp, TrendingDown, Upload, Lock } from "lucide-react";
+import { fxHistory, fxSummary, calculateFx } from "@/mocks/fxRates";
+import BankReconciliation from "@/components/BankReconciliation";
+import MonthEndClose from "@/components/MonthEndClose";
+import { companies } from "@/mocks/companies";
+import { downloadCSV, timestamp } from "@/lib/download";
 import { currentCompany } from "@/mocks/companies";
 import { bookings as allBookings, type Booking } from "@/mocks/bookings";
 import PaymentDialog from "@/components/PaymentDialog";
@@ -194,6 +199,18 @@ export default function SettlementPage() {
           <TabsTrigger value="tax">
             <Globe className="h-3 w-3 mr-1" />
             Tax Compliance
+          </TabsTrigger>
+          <TabsTrigger value="fx">
+            <TrendingUp className="h-3 w-3 mr-1" />
+            FX Gain/Loss
+          </TabsTrigger>
+          <TabsTrigger value="bank">
+            <Upload className="h-3 w-3 mr-1" />
+            Bank Reconciliation
+          </TabsTrigger>
+          <TabsTrigger value="closing">
+            <Lock className="h-3 w-3 mr-1" />
+            Month-End Close
           </TabsTrigger>
         </TabsList>
 
@@ -519,6 +536,82 @@ export default function SettlementPage() {
             ))}
           </div>
 
+          {/* Customer-level Aging Breakdown (Deep) */}
+          <Card className="p-5">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-base font-bold">고객사별 Aging Report · Customer Breakdown</h3>
+              <Button size="sm" variant="outline" onClick={() => {
+                const rows = companies.map(c => {
+                  const share = (ar30 + ar60 + ar90 + arCurrent) > 0 ? Math.random() * 0.3 : 0;  /* demo distribution */
+                  return {
+                    Customer: c.name, Country: c.taxProfile.country, BillingType: c.billingType,
+                    Current: (arCurrent * share).toFixed(0),
+                    "1-30d": (ar30 * share).toFixed(0),
+                    "31-60d": (ar60 * share).toFixed(0),
+                    "60+d": (ar90 * share).toFixed(0),
+                    CreditLimit: c.depositAmount || 0,
+                  };
+                });
+                downloadCSV(`aging_by_customer_${timestamp()}.csv`, rows);
+                toast.success("Customer aging CSV exported");
+              }}>
+                <Download className="h-3 w-3 mr-1" />Export CSV
+              </Button>
+            </div>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Customer</TableHead>
+                  <TableHead>Country · Billing</TableHead>
+                  <TableHead className="text-right text-[10px] text-green-600">Current</TableHead>
+                  <TableHead className="text-right text-[10px] text-amber-600">1-30d</TableHead>
+                  <TableHead className="text-right text-[10px] text-orange-600">31-60d</TableHead>
+                  <TableHead className="text-right text-[10px] text-red-600">60+d</TableHead>
+                  <TableHead className="text-right">Total Outstanding</TableHead>
+                  <TableHead className="text-right">Deposit Covered</TableHead>
+                  <TableHead>DSO Risk</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {companies.map((c, idx) => {
+                  /* Distribute AR across companies for demo */
+                  const weights = [0.35, 0.22, 0.18, 0.10, 0.08, 0.05, 0.02];
+                  const w = weights[idx] || 0.05;
+                  const cur = Math.round(arCurrent * w);
+                  const d30 = Math.round(ar30 * w);
+                  const d60 = Math.round(ar60 * w);
+                  const d90 = Math.round(ar90 * w);
+                  const total = cur + d30 + d60 + d90;
+                  const deposit = c.depositAmount || 0;
+                  const coverage = deposit > 0 ? Math.min(100, Math.round((deposit / Math.max(total, 1)) * 100)) : 0;
+                  const dsoRisk = d90 > 0 ? "High" : d60 > 0 ? "Medium" : d30 > 0 ? "Low" : "—";
+                  const riskColor = dsoRisk === "High" ? "destructive" : dsoRisk === "Medium" ? "secondary" : "default";
+                  return (
+                    <TableRow key={c.id} className={d90 > 0 ? "bg-red-50/60 dark:bg-red-950/10" : d60 > 0 ? "bg-amber-50/60 dark:bg-amber-950/10" : ""}>
+                      <TableCell className="font-medium text-sm">{c.name}</TableCell>
+                      <TableCell className="text-xs">
+                        <Badge variant="outline" className="text-[10px] mr-1">{c.taxProfile.country}</Badge>
+                        <Badge variant="secondary" className="text-[10px]">{c.billingType}</Badge>
+                      </TableCell>
+                      <TableCell className="text-right font-mono text-xs">${cur.toLocaleString()}</TableCell>
+                      <TableCell className="text-right font-mono text-xs">${d30.toLocaleString()}</TableCell>
+                      <TableCell className="text-right font-mono text-xs">${d60.toLocaleString()}</TableCell>
+                      <TableCell className="text-right font-mono text-xs font-bold">{d90 > 0 ? `$${d90.toLocaleString()}` : "—"}</TableCell>
+                      <TableCell className="text-right font-mono font-medium">${total.toLocaleString()}</TableCell>
+                      <TableCell className="text-right font-mono text-xs">{deposit > 0 ? `${coverage}%` : "—"}</TableCell>
+                      <TableCell><Badge variant={riskColor} className="text-[10px]">{dsoRisk}</Badge></TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+            <div className="mt-3 flex items-center gap-3 text-xs text-muted-foreground">
+              <span>📊 Coverage = Deposit ÷ Outstanding</span>
+              <span>·</span>
+              <span>⚠️ High DSO Risk: 60일 이상 연체 존재 → 회수팀 배정 권장</span>
+            </div>
+          </Card>
+
           {arSelected.size > 0 && (
             <div className="flex items-center gap-3 p-3 bg-primary/5 border border-primary/20 rounded-lg">
               <span className="text-sm font-medium">{arSelected.size} selected</span>
@@ -826,6 +919,129 @@ export default function SettlementPage() {
               </TableBody>
             </Table>
           </Card>
+        </TabsContent>
+
+        {/* ══════ FX Gain/Loss Tab ══════ */}
+        <TabsContent value="fx" className="space-y-4 mt-4">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+            <Card className="p-3">
+              <div className="flex items-center gap-2 mb-1"><TrendingUp className="h-4 w-4 text-green-600" /><p className="text-xs text-muted-foreground">Realized (This Month)</p></div>
+              <p className={`text-lg font-bold ${fxSummary.realizedGainUsd >= 0 ? "text-green-600" : "text-red-600"}`}>
+                {fxSummary.realizedGainUsd >= 0 ? "+" : ""}${fxSummary.realizedGainUsd.toLocaleString()}
+              </p>
+            </Card>
+            <Card className="p-3">
+              <div className="flex items-center gap-2 mb-1"><TrendingDown className="h-4 w-4 text-amber-600" /><p className="text-xs text-muted-foreground">Unrealized (Month-end M2M)</p></div>
+              <p className={`text-lg font-bold ${fxSummary.unrealizedGainUsd >= 0 ? "text-green-600" : "text-red-600"}`}>
+                {fxSummary.unrealizedGainUsd >= 0 ? "+" : ""}${fxSummary.unrealizedGainUsd.toLocaleString()}
+              </p>
+            </Card>
+            <Card className="p-3">
+              <p className="text-xs text-muted-foreground">Total Exposure (USD)</p>
+              <p className="text-lg font-bold">${fxSummary.totalExposureUsd.toLocaleString()}</p>
+            </Card>
+            <Card className="p-3">
+              <p className="text-xs text-muted-foreground">Hedge Ratio</p>
+              <p className="text-lg font-bold text-red-600">{fxSummary.hedgeRatio}%</p>
+              <p className="text-[10px] text-muted-foreground">무헷지 — 리스크 노출</p>
+            </Card>
+            <Card className="p-3">
+              <p className="text-xs text-muted-foreground">Rate Source</p>
+              <p className="text-sm font-bold">BOK · Exim Bank</p>
+              <p className="text-[10px] text-muted-foreground">매매기준율 일별 갱신</p>
+            </Card>
+          </div>
+
+          <Alert className="border-blue-200 bg-blue-50 dark:bg-blue-900/10">
+            <AlertDescription className="text-xs">
+              <strong>환율 정책</strong>: 예약 시점 환율로 KRW 원가를 고정(Booking Rate), 정산 시점 환율로 USD 청구(Settlement Rate). 월말 미정산 건은 M2M (Mark-to-Market) 평가 → 미실현손익 계상.
+            </AlertDescription>
+          </Alert>
+
+          {/* FX Rate History */}
+          <Card className="p-5">
+            <h2 className="text-base font-bold mb-3">월말 환율 테이블 (USD 기준)</h2>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Date</TableHead>
+                  <TableHead className="text-right">KRW</TableHead>
+                  <TableHead className="text-right">JPY</TableHead>
+                  <TableHead className="text-right">CNY</TableHead>
+                  <TableHead className="text-right">VND</TableHead>
+                  <TableHead className="text-right">SGD</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {["2026-01-31", "2026-02-28", "2026-03-31", "2026-04-30"].map(d => (
+                  <TableRow key={d}>
+                    <TableCell className="font-mono text-xs">{d}</TableCell>
+                    {(["KRW","JPY","CNY","VND","SGD"] as const).map(c => {
+                      const rate = fxHistory.find(f => f.date === d && f.target === c)?.rate || 0;
+                      return <TableCell key={c} className="text-right font-mono text-xs">{c === "VND" ? rate.toLocaleString() : rate.toFixed(c === "SGD" ? 3 : 2)}</TableCell>;
+                    })}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </Card>
+
+          {/* Per-booking FX breakdown */}
+          <Card className="p-5">
+            <h2 className="text-base font-bold mb-3">예약별 FX 손익 내역 (Mar 2026 정산 건)</h2>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>ELLIS Code</TableHead>
+                  <TableHead>Hotel</TableHead>
+                  <TableHead>Country</TableHead>
+                  <TableHead className="text-right">USD</TableHead>
+                  <TableHead className="text-right">Booking Rate</TableHead>
+                  <TableHead className="text-right">Settlement Rate</TableHead>
+                  <TableHead className="text-right">Realized Gain (Local)</TableHead>
+                  <TableHead className="text-right">Realized (USD)</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {allBookings.slice(0, 6).map(b => {
+                  const curr = b.country === "Japan" ? "JPY" : b.country === "China" ? "CNY" : b.country === "Vietnam" ? "VND" : b.country === "Singapore" ? "SGD" : "KRW";
+                  const fx = calculateFx({
+                    amountUsd: b.sumAmount,
+                    hotelCurrency: curr as "KRW" | "JPY" | "CNY" | "VND" | "SGD",
+                    bookingDate: b.bookingDate.split(" ")[0],
+                    settlementDate: "2026-04-15",
+                  });
+                  const gainPositive = fx.realizedGainLocal >= 0;
+                  return (
+                    <TableRow key={b.id}>
+                      <TableCell className="font-mono text-xs">{b.ellisCode}</TableCell>
+                      <TableCell className="text-xs">{b.hotelName}</TableCell>
+                      <TableCell className="text-xs">{curr}</TableCell>
+                      <TableCell className="text-right font-mono text-xs">${b.sumAmount.toLocaleString()}</TableCell>
+                      <TableCell className="text-right font-mono text-xs">{fx.bookingRate.toLocaleString()}</TableCell>
+                      <TableCell className="text-right font-mono text-xs">{fx.settlementRate.toLocaleString()}</TableCell>
+                      <TableCell className={`text-right font-mono text-xs font-medium ${gainPositive ? "text-green-600" : "text-red-600"}`}>
+                        {gainPositive ? "+" : ""}{Math.round(fx.realizedGainLocal).toLocaleString()} {curr}
+                      </TableCell>
+                      <TableCell className={`text-right font-mono text-xs font-medium ${gainPositive ? "text-green-600" : "text-red-600"}`}>
+                        {gainPositive ? "+" : ""}${fx.realizedGainUsd.toFixed(2)}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </Card>
+        </TabsContent>
+
+        {/* ══════ Bank Reconciliation Tab ══════ */}
+        <TabsContent value="bank" className="space-y-4 mt-4">
+          <BankReconciliation />
+        </TabsContent>
+
+        {/* ══════ Month-End Close Tab ══════ */}
+        <TabsContent value="closing" className="space-y-4 mt-4">
+          <MonthEndClose />
         </TabsContent>
       </Tabs>
 
