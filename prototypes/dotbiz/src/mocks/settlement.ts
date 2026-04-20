@@ -90,7 +90,7 @@ export const invoices: InvoiceWithMatch[] = [
     matchStatus: "Partial",
     disputedBookingIds: ["bk-002", "bk-003"],
     disputedAmount: 1360,
-    remarks: "고객사 송금에서 2건 누락 — 자동 감지 및 분쟁 태깅 완료",
+    remarks: "Customer remittance missing 2 items — auto-detected and tagged as dispute",
     billingType: "POSTPAY", customerCompanyId: "comp-001",
   },
   {
@@ -144,7 +144,7 @@ export const invoices: InvoiceWithMatch[] = [
     receivedAmount: 825,  /* partial prepay */
     paymentDate: "2026-04-08",
     matchStatus: "Partial", disputedBookingIds: [], disputedAmount: 0,
-    remarks: "PREPAY · 예약 단건 인보이스 · 50% 선결제 완료, 잔금 대기",
+    remarks: "PREPAY · Per-booking invoice · 50% prepaid, awaiting remainder",
     billingType: "PREPAY", customerCompanyId: "comp-002",
   },
   {
@@ -154,7 +154,7 @@ export const invoices: InvoiceWithMatch[] = [
     bookingIds: ["bk-009"],
     receivedAmount: 0, paymentDate: "",
     matchStatus: "Unpaid", disputedBookingIds: [], disputedAmount: 0,
-    remarks: "PREPAY · 결제 데드라인 임박 (D-Day) — 자동 알림 발송 중",
+    remarks: "PREPAY · Payment deadline imminent (D-Day) — auto-reminders in progress",
     billingType: "PREPAY", customerCompanyId: "comp-002",
   },
   {
@@ -182,7 +182,7 @@ export const invoices: InvoiceWithMatch[] = [
     issuedDate: "2025-11-01", dueDate: "2025-11-30",
     bookingIds: [], receivedAmount: 0, paymentDate: "",
     matchStatus: "Unpaid", disputedBookingIds: [], disputedAmount: 0,
-    remarks: "60일 이상 연체 — 회수 담당자 배정 필요",
+    remarks: "60+ days overdue — assign to collections team",
     billingType: "POSTPAY", customerCompanyId: "comp-001",
   },
 ];
@@ -219,7 +219,7 @@ export const paymentMatchLog: PaymentMatchLog[] = [
     status: "Auto-matched",
     vlookupTimeSavedMinutes: 45,
     approvalStatus: "Pending Master",  /* Awaiting Master approval — demo */
-    opNote: "2건 분쟁 자동 감지. 고객사와 이미 Shilla Stay 룸타입 불일치 건은 티켓 TK-2026-007에서 협의 중.",
+    opNote: "2 disputes auto-detected. Shilla Stay room type mismatch is already under discussion in ticket TK-2026-007.",
   },
   {
     id: "pml-002", invoiceNo: "INV-2026-0067",
@@ -286,87 +286,6 @@ export const reminderSummary = {
   autoCancelled: 2,
   scheduledToday: 6,
 };
-
-/* ── Credit Note / 수정세금계산서 ──
- * 원 인보이스 금액 조정용 음수 인보이스.
- * 국가별 포맷: KR 수정세금계산서 / JP 返還インボイス / CN 红字发票 / VN Hóa đơn điều chỉnh
- */
-export type CreditNoteReason =
-  | "Service not provided"        /* 서비스 미제공 (호텔측 No-record 등) */
-  | "Rate correction"             /* 요금 수정 */
-  | "Dispute resolved - refund"   /* 분쟁 해결 후 환불 */
-  | "Cancellation fee waived"     /* 취소수수료 면제 */
-  | "FX adjustment"               /* 환율 조정 */
-  | "Tax correction"              /* 세금계산 오류 */
-  | "Other";
-
-export interface CreditNote {
-  id: string;
-  creditNoteNo: string;        /* CN-2026-0001 */
-  originalInvoiceNo: string;
-  reason: CreditNoteReason;
-  description: string;
-  amount: number;              /* 음수 */
-  vatAdjustment: number;
-  issuedDate: string;
-  issuedBy: string;
-  approvedBy?: string;
-  approvedAt?: string;
-  status: "Draft" | "Issued" | "Approved" | "Cancelled";
-  countryFormat: string;       /* "KR 수정세금계산서" etc. */
-  bookingId?: string;          /* related booking if applicable */
-}
-
-export const creditNotes: CreditNote[] = [
-  {
-    id: "cn-001", creditNoteNo: "CN-2026-0001",
-    originalInvoiceNo: "INV-2026-0089",
-    reason: "Dispute resolved - refund",
-    description: "bk-003 Nikko Bangkok 노쇼 분쟁 해결 — 호텔이 항공편 결항 증빙 수용하여 환불",
-    amount: -780, vatAdjustment: -78,
-    issuedDate: "2026-04-17", issuedBy: "Sarah Kim (OP)",
-    approvedBy: "James Park (Master)", approvedAt: "2026-04-17 15:20:11",
-    status: "Approved",
-    countryFormat: "🇰🇷 수정세금계산서 (NTS)",
-    bookingId: "bk-003",
-  },
-  {
-    id: "cn-002", creditNoteNo: "CN-2026-0002",
-    originalInvoiceNo: "INV-2026-CN-0008",
-    reason: "Rate correction",
-    description: "Dragon Holidays 4월 패키지 요금 $200 과다청구 확인 — 红字发票 발행",
-    amount: -200, vatAdjustment: 0,
-    issuedDate: "2026-04-18", issuedBy: "Sarah Kim (OP)",
-    status: "Draft",
-    countryFormat: "🇨🇳 红字发票 (Fapiao)",
-  },
-];
-
-/* ── Audit Trail ── */
-export interface AuditLog {
-  id: string;
-  timestamp: string;
-  actor: string;
-  actorRole: "Master" | "OP" | "System";
-  action: string;
-  target: string;          /* "Invoice INV-2026-0089" / "Booking bk-003" */
-  beforeValue?: string;
-  afterValue?: string;
-  reason?: string;
-  ipAddress?: string;
-}
-
-export const auditTrail: AuditLog[] = [
-  { id: "au-001", timestamp: "2026-04-17 15:20:11", actor: "James Park", actorRole: "Master", action: "Approved Credit Note", target: "CN-2026-0001", afterValue: "Approved", reason: "Airline disruption evidence verified", ipAddress: "203.xxx.xxx.45" },
-  { id: "au-002", timestamp: "2026-04-17 14:55:02", actor: "Sarah Kim", actorRole: "OP", action: "Issued Credit Note", target: "CN-2026-0001", afterValue: "Draft → Issued", reason: "bk-003 dispute resolution", ipAddress: "10.0.x.x" },
-  { id: "au-003", timestamp: "2026-04-16 09:30:45", actor: "Sarah Kim", actorRole: "OP", action: "Resolved Dispute", target: "Booking bk-003", beforeValue: "Open", afterValue: "Resolved", reason: "Hotel accepted flight-cancellation evidence", ipAddress: "10.0.x.x" },
-  { id: "au-004", timestamp: "2026-04-15 14:22:05", actor: "Sarah Kim", actorRole: "OP", action: "Ran Payment Match", target: "INV-2026-0089", afterValue: "Received $2,820 / Variance $1,360 / 2 exclusions detected", ipAddress: "10.0.x.x" },
-  { id: "au-005", timestamp: "2026-04-05 10:15:47", actor: "System", actorRole: "System", action: "E-Invoice Approved", target: "INV-2026-CN-0008", afterValue: "FP-SH-31000045672589 (Fapiao)", ipAddress: "api.nts.gov.kr" },
-  { id: "au-006", timestamp: "2026-04-05 09:20:00", actor: "Sarah Kim", actorRole: "OP", action: "Submitted E-Invoice", target: "INV-2026-CN-0008", afterValue: "Submitted to Fapiao", ipAddress: "10.0.x.x" },
-  { id: "au-007", timestamp: "2026-04-01 10:15:47", actor: "System", actorRole: "System", action: "E-Invoice Approved", target: "INV-2026-0089", afterValue: "NTS 승인번호 발급", ipAddress: "api.nts.gov.kr" },
-  { id: "au-008", timestamp: "2026-04-06 10:15:33", actor: "Michael Lee", actorRole: "OP", action: "Registered Dispute", target: "Booking bk-003", afterValue: "Open · No show (guest didn't check in)", reason: "Hotel claimed no-show, customer disputed", ipAddress: "10.0.x.x" },
-  { id: "au-009", timestamp: "2026-04-05 11:44:18", actor: "Sarah Kim", actorRole: "OP", action: "Registered Dispute", target: "Booking bk-002", afterValue: "Open · Room type mismatch", ipAddress: "10.0.x.x" },
-];
 
 /* ── Dispute Summary KPI ── */
 export const disputeSummary = {

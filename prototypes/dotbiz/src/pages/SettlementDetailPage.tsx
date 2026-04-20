@@ -173,7 +173,7 @@ export default function SettlementDetailPage() {
   };
 
   const approveMatch = (logId: string) => {
-    if (!isMaster) { toast.error("Master 권한 필요"); return; }
+    if (!isMaster) { toast.error("Master role required"); return; }
     setMatchLog(prev => prev.map(l => l.id === logId ? {
       ...l, approvalStatus: "Approved" as const,
       approvedBy: `${user?.name} (Master)`, approvedAt: new Date().toISOString().replace("T", " ").slice(0, 19),
@@ -184,7 +184,7 @@ export default function SettlementDetailPage() {
   };
 
   const rejectMatch = (logId: string) => {
-    if (!isMaster) { toast.error("Master 권한 필요"); return; }
+    if (!isMaster) { toast.error("Master role required"); return; }
     const reason = window.prompt("Rejection reason?", "Need manual review");
     if (!reason) return;
     setMatchLog(prev => prev.map(l => l.id === logId ? {
@@ -322,19 +322,19 @@ export default function SettlementDetailPage() {
       <Card className="p-5 border-2" style={{ borderColor: "#FF6000" }}>
         <div className="flex items-center gap-2 mb-3">
           <Sparkles className="h-5 w-5" style={{ color: "#FF6000" }} />
-          <h2 className="text-lg font-bold">Payment Matching — 입금 차액 자동 감지</h2>
+          <h2 className="text-lg font-bold">Payment Matching — Auto-detect remittance variance</h2>
           <Badge variant="outline" className="ml-auto text-[10px]">
             <Zap className="h-3 w-3 mr-0.5" />Replaces Excel VLOOKUP
           </Badge>
         </div>
         <p className="text-xs text-muted-foreground mb-4">
-          계약 통화는 <strong className="text-foreground font-mono">{curr}</strong>로 고정. 고객사는 해당 통화로 청구 금액 <strong>그대로</strong> 송금합니다 (환율 변환 없음).
-          분쟁 건을 빼고 송금하면, 차액 = 제외된 예약 금액의 합. 시스템이 조합을 자동으로 찾아냅니다.
+          Contract currency fixed at <strong className="text-foreground font-mono">{curr}</strong>. Customer wires the exact invoice amount in that currency (no FX conversion on our side).
+          When the customer excludes disputed items, the variance = sum of excluded bookings. The system finds the matching combination automatically.
         </p>
 
         <div className="flex items-end gap-3 flex-wrap">
           <div className="flex-1 min-w-[200px]">
-            <label className="text-xs font-medium text-muted-foreground">고객 실제 송금액 ({curr})</label>
+            <label className="text-xs font-medium text-muted-foreground">Customer Received Amount ({curr})</label>
             <Input
               type="number"
               value={receivedInput}
@@ -344,7 +344,7 @@ export default function SettlementDetailPage() {
             />
           </div>
           <div>
-            <label className="text-xs font-medium text-muted-foreground">Expected (계약 통화)</label>
+            <label className="text-xs font-medium text-muted-foreground">Expected ({curr})</label>
             <p className="mt-1 font-mono text-lg h-10 flex items-center">{fmt(invoice.total)}</p>
           </div>
           <Button onClick={runMatch} style={{ background: "#FF6000" }} className="text-white hover:opacity-90">
@@ -370,7 +370,7 @@ export default function SettlementDetailPage() {
                   Variance {fmt(matchResult.variance)} → {matchResult.exclusions.length} booking(s) auto-detected as excluded
                 </AlertTitle>
                 <AlertDescription className="text-amber-800 dark:text-amber-200 text-xs mt-2">
-                  <p className="mb-2">다음 예약들의 합이 차액과 정확히 일치합니다. 분쟁으로 등록하시겠습니까?</p>
+                  <p className="mb-2">The sum of the following bookings exactly matches the variance. Register them as disputes?</p>
                   <div className="space-y-1">
                     {matchResult.exclusions.map(b => (
                       <div key={b.id} className="flex items-center gap-2 bg-white/50 dark:bg-black/20 rounded px-2 py-1">
@@ -585,7 +585,7 @@ export default function SettlementDetailPage() {
             <Alert className="mt-3 border-blue-200 bg-blue-50 dark:bg-blue-900/10">
               <UserCheck className="h-4 w-4 text-blue-600" />
               <AlertDescription className="text-xs">
-                OP 계정: 매칭 실행 가능. 최종 승인은 <strong>Master</strong> 계정이 필요합니다. (예: <code>master@dotbiz.com</code>)
+                OP role: can run matches. Final approval requires <strong>Master</strong> role (e.g. <code>master@dotbiz.com</code>).
               </AlertDescription>
             </Alert>
           )}
@@ -629,7 +629,7 @@ export default function SettlementDetailPage() {
                   value={disputeNote}
                   onChange={e => setDisputeNote(e.target.value)}
                   rows={3}
-                  placeholder="고객사 주장 / 호텔 응답 / 증빙 내용 등"
+                  placeholder="Customer claim / hotel response / supporting evidence"
                   className="mt-1 resize-none"
                 />
               </div>
@@ -637,7 +637,7 @@ export default function SettlementDetailPage() {
               <Alert className="border-blue-200 bg-blue-50 dark:bg-blue-900/10">
                 <TicketIcon className="h-4 w-4 text-blue-600" />
                 <AlertDescription className="text-xs text-blue-700 dark:text-blue-300">
-                  분쟁 등록 시 자동으로 티켓이 생성되어 담당자에게 배정됩니다.
+                  A ticket is auto-created and assigned to the responsible agent upon dispute registration.
                 </AlertDescription>
               </Alert>
             </div>

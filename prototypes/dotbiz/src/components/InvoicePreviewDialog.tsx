@@ -6,7 +6,6 @@ import { Printer, Download } from "lucide-react";
 import { toast } from "sonner";
 import { bookings } from "@/mocks/bookings";
 import { currentCompany, type Company } from "@/mocks/companies";
-import { taxRules } from "@/mocks/taxProfiles";
 
 export interface InvoiceData {
   invoiceNo: string;
@@ -47,8 +46,8 @@ const L: Record<string, Record<Lang, string>> = {
   dueDate: { EN: "Due Date", KO: "납부 기한", JA: "支払期日", ZH: "付款期限", VI: "Hạn thanh toán" },
   period: { EN: "Billing Period", KO: "청구 기간", JA: "請求期間", ZH: "账单周期", VI: "Kỳ thanh toán" },
   status: { EN: "Status", KO: "상태", JA: "ステータス", ZH: "状态", VI: "Trạng thái" },
-  supplier: { EN: "Supplier (공급자)", KO: "공급자", JA: "供給者", ZH: "供应商", VI: "Nhà cung cấp" },
-  customer: { EN: "Customer (공급받는자)", KO: "공급받는자", JA: "顧客", ZH: "客户", VI: "Khách hàng" },
+  supplier: { EN: "Supplier", KO: "공급자", JA: "供給者", ZH: "供应商", VI: "Nhà cung cấp" },
+  customer: { EN: "Customer", KO: "공급받는자", JA: "顧客", ZH: "客户", VI: "Khách hàng" },
   companyName: { EN: "Company Name", KO: "회사명", JA: "会社名", ZH: "公司名称", VI: "Tên công ty" },
   regNo: { EN: "Business Reg. No.", KO: "사업자 등록번호", JA: "事業者登録番号", ZH: "营业执照号", VI: "Mã số kinh doanh" },
   ceo: { EN: "CEO", KO: "대표자", JA: "代表者", ZH: "法人代表", VI: "Giám đốc" },
@@ -89,13 +88,11 @@ export default function InvoicePreviewDialog({ open, onOpenChange, invoice, cust
   const t = (k: string) => L[k]?.[lang] || L[k]?.EN || k;
 
   const activeCustomer: Company = customer || currentCompany;
-  const buyerRule = taxRules[activeCustomer.taxProfile.country];
 
   if (!invoice) return null;
 
-  /* 정책: 예약 금액은 내부적으로 VAT 포함 final price.
-   *      인보이스 total = booking 금액 합계 — 고객은 그 금액 그대로 송금.
-   *      (한국 전자세금계산서는 별도 NTS 연동으로 발행)
+  /* Policy: booking price is the all-in final (VAT internally included).
+   *         Invoice total = sum of booking amounts — customer wires the exact amount.
    */
 
   /* Pick sample bookings for this invoice period */
@@ -182,15 +179,13 @@ export default function InvoicePreviewDialog({ open, onOpenChange, invoice, cust
               </div>
             </div>
             <div className="border rounded p-4 bg-orange-50">
-              <h3 className="text-xs font-bold text-slate-500 uppercase mb-2">{t("customer")} {buyerRule.flag}</h3>
+              <h3 className="text-xs font-bold text-slate-500 uppercase mb-2">{t("customer")}</h3>
               <div className="space-y-1 text-sm">
-                <p className="font-bold text-base">{activeCustomer.taxProfile.legalName}</p>
-                <p><span className="text-slate-500 text-xs">{buyerRule.taxIdLabel}:</span> <span className="font-mono">{activeCustomer.taxProfile.taxId}</span></p>
+                <p className="font-bold text-base">{activeCustomer.name}</p>
+                <p><span className="text-slate-500 text-xs">{t("regNo")}:</span> <span className="font-mono">{activeCustomer.businessRegNo}</span></p>
                 <p><span className="text-slate-500 text-xs">{t("address")}:</span> {activeCustomer.address}</p>
-                <p><span className="text-slate-500 text-xs">{t("businessType")}:</span> Travel Agency</p>
-                {activeCustomer.taxProfile.eInvoiceRegNo && (
-                  <p><span className="text-slate-500 text-xs">E-Invoice:</span> <span className="font-mono text-xs">{activeCustomer.taxProfile.eInvoiceRegNo}</span></p>
-                )}
+                <p><span className="text-slate-500 text-xs">{t("businessType")}:</span> Travel Agency · {activeCustomer.billingType}</p>
+                <p><span className="text-slate-500 text-xs">Contract Currency:</span> <span className="font-mono">{activeCustomer.contractCurrency}</span></p>
               </div>
             </div>
           </div>
@@ -224,7 +219,7 @@ export default function InvoicePreviewDialog({ open, onOpenChange, invoice, cust
             </tbody>
           </table>
 
-          {/* Summary — 예약 금액 합계 (VAT 내부 포함, 고객 송금액과 동일) */}
+          {/* Summary — sum of booking amounts (VAT internally included, equals customer remittance) */}
           <div className="flex justify-end mb-6">
             <div className="w-80 border rounded overflow-hidden">
               <h3 className="px-4 py-2 text-xs font-bold uppercase" style={{ background: "#1a1a2e", color: "white" }}>{t("summary")}</h3>
@@ -235,7 +230,7 @@ export default function InvoicePreviewDialog({ open, onOpenChange, invoice, cust
                   <span className="font-bold">{t("total")}</span>
                   <span className="font-bold" style={{ color: "#FF6000" }}>USD {invoice.total.toLocaleString()}</span>
                 </div>
-                <p className="text-[10px] text-slate-500 pt-1">* Tax included (VAT 내부 포함) · 고객 송금액과 동일</p>
+                <p className="text-[10px] text-slate-500 pt-1">* Tax included · Matches customer remittance amount</p>
               </div>
             </div>
           </div>

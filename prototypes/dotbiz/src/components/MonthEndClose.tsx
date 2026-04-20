@@ -18,14 +18,13 @@ interface MonthClosing {
   invoicesCount: number;
   totalRevenue: number;
   disputesResolved: number;
-  fxRealizedGain: number;
   notes?: string;
 }
 
 const closedMonths: MonthClosing[] = [
-  { period: "2026-02", closedAt: "2026-03-05 14:22:01", closedBy: "James Park (Master)", invoicesCount: 1, totalRevenue: 3850, disputesResolved: 0, fxRealizedGain: 42.50 },
-  { period: "2026-01", closedAt: "2026-02-04 11:08:17", closedBy: "James Park (Master)", invoicesCount: 1, totalRevenue: 35200, disputesResolved: 2, fxRealizedGain: 180.20 },
-  { period: "2025-12", closedAt: "2026-01-06 10:15:42", closedBy: "James Park (Master)", invoicesCount: 1, totalRevenue: 41800, disputesResolved: 1, fxRealizedGain: 215.80, notes: "연말결산 포함" },
+  { period: "2026-02", closedAt: "2026-03-05 14:22:01", closedBy: "James Park (Master)", invoicesCount: 1, totalRevenue: 3850, disputesResolved: 0 },
+  { period: "2026-01", closedAt: "2026-02-04 11:08:17", closedBy: "James Park (Master)", invoicesCount: 1, totalRevenue: 35200, disputesResolved: 2 },
+  { period: "2025-12", closedAt: "2026-01-06 10:15:42", closedBy: "James Park (Master)", invoicesCount: 1, totalRevenue: 41800, disputesResolved: 1, notes: "Year-end closing included" },
 ];
 
 export default function MonthEndClose() {
@@ -34,7 +33,7 @@ export default function MonthEndClose() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [closed, setClosed] = useState<MonthClosing[]>(closedMonths);
 
-  /* Current month = March 2026 (demo) */
+  /* Current period = March 2026 (demo) */
   const currentPeriod = "2026-03";
 
   /* Checklist */
@@ -42,22 +41,18 @@ export default function MonthEndClose() {
   const hasUnissuedInvoices = invoices.some(i => i.period.includes("Mar 2026") && i.status === "Issued" && i.receivedAmount === 0);
   const hasOpenDisputes = bookings.some(b => b.disputed && b.disputeStatus === "Open" && marInvoices.some(i => i.bookingIds.includes(b.id)));
   const hasPendingMatches = paymentMatchLog.some(l => l.approvalStatus === "Pending Master" && marInvoices.some(i => i.invoiceNo === l.invoiceNo));
-  const bankRecDone = true;  /* assume done via bank rec tab */
-  const fxValuationDone = true;
 
   const checklist = [
-    { label: "모든 Mar 2026 인보이스 발행 완료", done: !hasUnissuedInvoices, note: hasUnissuedInvoices ? "미발행 건 존재" : "확인 완료" },
-    { label: "분쟁(Dispute) 전건 해결", done: !hasOpenDisputes, note: hasOpenDisputes ? "Open 분쟁 존재 — 먼저 해결 필요" : "완료" },
-    { label: "Payment Match Master 승인 완료", done: !hasPendingMatches, note: hasPendingMatches ? "승인 대기 건 존재" : "완료" },
-    { label: "은행입금 자동 대사 완료", done: bankRecDone, note: "매칭률 100%" },
-    { label: "월말 환율 평가 (FX M2M)", done: fxValuationDone, note: "Mar 2026 말 환율 적용" },
-    { label: "Audit Trail 검토", done: true, note: "이상 없음" },
+    { label: "All Mar 2026 invoices issued", done: !hasUnissuedInvoices, note: hasUnissuedInvoices ? "Unissued invoices found" : "OK" },
+    { label: "All disputes resolved", done: !hasOpenDisputes, note: hasOpenDisputes ? "Open disputes exist — resolve first" : "Done" },
+    { label: "Master-approved all Payment Matches", done: !hasPendingMatches, note: hasPendingMatches ? "Approvals pending" : "Done" },
+    { label: "All remittances received / reconciled", done: true, note: "Verified against invoice totals" },
   ];
 
   const allDone = checklist.every(c => c.done);
 
   const handleClose = () => {
-    if (!isMaster) { toast.error("Master 권한 필요"); return; }
+    if (!isMaster) { toast.error("Master role required"); return; }
     const entry: MonthClosing = {
       period: currentPeriod,
       closedAt: new Date().toISOString().replace("T", " ").slice(0, 19),
@@ -65,20 +60,19 @@ export default function MonthEndClose() {
       invoicesCount: marInvoices.length,
       totalRevenue: marInvoices.reduce((s, i) => s + i.total, 0),
       disputesResolved: 2,
-      fxRealizedGain: 285.40,
     };
     setClosed(prev => [entry, ...prev]);
     setConfirmOpen(false);
-    toast.success(`${currentPeriod} 마감 완료`, { description: "이후 해당 월 인보이스/예약 수정 불가 (잠금)" });
+    toast.success(`${currentPeriod} closed`, { description: "Invoices / bookings / payments in this period are now read-only." });
   };
 
   return (
     <div className="space-y-4">
       <Alert className="border-amber-200 bg-amber-50 dark:bg-amber-900/10">
         <Lock className="h-4 w-4 text-amber-600" />
-        <AlertTitle>Month-End Closing 워크플로우</AlertTitle>
+        <AlertTitle>Month-End Closing Workflow</AlertTitle>
         <AlertDescription className="text-xs">
-          월별 정산 완료 후 회계 마감 절차. 체크리스트 전항목 ✓ → Master 승인 → 해당 월 잠금 (이후 수정 불가). 한국 상법상 7년 보존.
+          Closing procedure once settlement is complete. All checklist items ✓ → Master approval → period locked (no further edits). Records retained 7 years per regulation.
         </AlertDescription>
       </Alert>
 
@@ -86,8 +80,8 @@ export default function MonthEndClose() {
       <Card className="p-5">
         <div className="flex items-start justify-between mb-4 flex-wrap gap-3">
           <div>
-            <h3 className="text-lg font-bold">{currentPeriod} 마감 체크리스트</h3>
-            <p className="text-xs text-muted-foreground mt-1">모든 항목 완료 후 "Close Month" 버튼 활성화</p>
+            <h3 className="text-lg font-bold">{currentPeriod} Closing Checklist</h3>
+            <p className="text-xs text-muted-foreground mt-1">"Close Month" button activates when all items are done.</p>
           </div>
           <Button
             disabled={!allDone || !isMaster}
@@ -114,7 +108,7 @@ export default function MonthEndClose() {
 
         {!isMaster && (
           <Alert className="mt-4 border-blue-200 bg-blue-50 dark:bg-blue-900/10">
-            <AlertDescription className="text-xs">OP 계정은 체크리스트 확인만 가능. 최종 마감은 Master 권한 필요.</AlertDescription>
+            <AlertDescription className="text-xs">OP role: can view the checklist. Final closing requires Master role.</AlertDescription>
           </Alert>
         )}
       </Card>
@@ -123,7 +117,7 @@ export default function MonthEndClose() {
       <Card className="p-5">
         <div className="flex items-center gap-2 mb-3">
           <ShieldCheck className="h-4 w-4 text-green-600" />
-          <h3 className="text-base font-bold">마감 이력 (잠금 상태)</h3>
+          <h3 className="text-base font-bold">Closing History (Locked)</h3>
         </div>
         <Table>
           <TableHeader>
@@ -132,9 +126,8 @@ export default function MonthEndClose() {
               <TableHead>Closed At</TableHead>
               <TableHead>Closed By</TableHead>
               <TableHead className="text-right">Invoices</TableHead>
-              <TableHead className="text-right">Revenue (USD)</TableHead>
+              <TableHead className="text-right">Revenue</TableHead>
               <TableHead className="text-right">Disputes Resolved</TableHead>
-              <TableHead className="text-right">FX Realized</TableHead>
               <TableHead>Notes</TableHead>
             </TableRow>
           </TableHeader>
@@ -147,7 +140,6 @@ export default function MonthEndClose() {
                 <TableCell className="text-right font-mono">{m.invoicesCount}</TableCell>
                 <TableCell className="text-right font-mono font-medium">${m.totalRevenue.toLocaleString()}</TableCell>
                 <TableCell className="text-right font-mono text-xs">{m.disputesResolved}</TableCell>
-                <TableCell className="text-right font-mono text-xs text-green-600">+${m.fxRealizedGain.toFixed(2)}</TableCell>
                 <TableCell className="text-xs text-muted-foreground">{m.notes || "—"}</TableCell>
               </TableRow>
             ))}
@@ -158,16 +150,16 @@ export default function MonthEndClose() {
       <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2"><Lock className="h-5 w-5" />{currentPeriod} 마감 확정</AlertDialogTitle>
+            <AlertDialogTitle className="flex items-center gap-2"><Lock className="h-5 w-5" />Confirm Close {currentPeriod}</AlertDialogTitle>
             <AlertDialogDescription>
-              이 작업은 되돌릴 수 없습니다. 마감 후 {currentPeriod} 기간의 인보이스, 예약, 입금 기록은 수정 불가(읽기전용)로 전환됩니다.
-              추가 조정이 필요한 경우 반드시 Credit Note (수정세금계산서)로 처리해야 합니다.
+              This action cannot be undone. After closing, invoices, bookings, and remittances for {currentPeriod} become read-only.
+              Further adjustments must go through a separate correction process.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>취소</AlertDialogCancel>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleClose} style={{ background: "#1a1a2e" }}>
-              <Lock className="h-4 w-4 mr-1" />Close & Lock
+              <Lock className="h-4 w-4 mr-1" />Close &amp; Lock
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
