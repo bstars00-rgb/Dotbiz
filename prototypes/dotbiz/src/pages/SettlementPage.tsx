@@ -24,6 +24,7 @@ import { downloadCSV, timestamp } from "@/lib/download";
 import { bookings as allBookings, type Booking } from "@/mocks/bookings";
 import PaymentDialog from "@/components/PaymentDialog";
 import InvoicePreviewDialog, { type InvoiceData } from "@/components/InvoicePreviewDialog";
+import GuestVoucherDialog from "@/components/GuestVoucherDialog";
 import { toast } from "sonner";
 
 const billStatusColors: Record<string, string> = { Settled: "default", Pending: "secondary", Overdue: "destructive" };
@@ -92,6 +93,8 @@ export default function SettlementPage() {
 
   /* PaymentDialog state (PREPAY) */
   const [paymentTarget, setPaymentTarget] = useState<Booking | null>(null);
+  /* Guest Voucher Dialog state */
+  const [guestVoucherTarget, setGuestVoucherTarget] = useState<Booking | null>(null);
   const handlePaymentComplete = () => {
     if (!paymentTarget) return;
     /* Mutate mock: mark as fully paid */
@@ -314,18 +317,9 @@ export default function SettlementPage() {
                   <CreditCard className="h-3 w-3 mr-1" />Pay {pendingSelected.size} bookings
                 </Button>
                 <Button size="sm" variant="outline" onClick={() => {
-                  selectedPendingItems.forEach(p => {
-                    const type = p.daysLeft < 0 ? "Overdue" : p.daysLeft === 0 ? "D-Day" : p.daysLeft <= 1 ? "D-1" : p.daysLeft <= 3 ? "D-3" : "D-7";
-                    paymentReminders.unshift({
-                      id: `rmd-${Date.now()}-${p.id}`, bookingId: p.id, ellisCode: p.ellisCode, guestName: p.guestName, hotelName: p.hotelName, amount: p.sumAmount,
-                      deadline: p.cancelDeadline, type, channel: "Email", recipient: p.guestEmail,
-                      sentAt: new Date().toISOString().replace("T", " ").slice(0, 19), status: "Sent", note: "Bulk send by OP",
-                    });
-                  });
-                  refresh();
-                  toast.success(`${pendingSelected.size} reminder(s) sent`, { description: "Logged in Reminder Log tab" });
+                  toast.info("Bulk PDF generation", { description: "Use 'Generate PDF' per row to customize price individually." });
                 }}>
-                  Send Links
+                  Bulk Generate (per-row)
                 </Button>
                 <Button size="sm" variant="ghost" className="ml-auto" onClick={() => setPendingSelected(new Set())}>Clear</Button>
               </div>
@@ -366,17 +360,8 @@ export default function SettlementPage() {
                       <TableCell><Badge variant={urgency} className="text-[10px]">{label}</Badge></TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1">
-                          <Button size="sm" variant="outline" className="h-7 text-[11px]" onClick={() => {
-                            const type = p.daysLeft < 0 ? "Overdue" : p.daysLeft === 0 ? "D-Day" : p.daysLeft <= 1 ? "D-1" : p.daysLeft <= 3 ? "D-3" : p.daysLeft <= 7 ? "D-7" : "D-7";
-                            paymentReminders.unshift({
-                              id: `rmd-${Date.now()}`, bookingId: p.id, ellisCode: p.ellisCode, guestName: p.guestName, hotelName: p.hotelName, amount: p.sumAmount,
-                              deadline: p.cancelDeadline, type, channel: "Email", recipient: p.guestEmail,
-                              sentAt: new Date().toISOString().replace("T", " ").slice(0, 19), status: "Sent", note: "Manual send by OP",
-                            });
-                            refresh();
-                            toast.success(`Payment link sent to ${p.guestEmail}`, { description: `${type} reminder · logged in Reminder Log tab` });
-                          }}>
-                            Send Link
+                          <Button size="sm" variant="outline" className="h-7 text-[11px]" onClick={() => setGuestVoucherTarget(p)}>
+                            Generate PDF
                           </Button>
                           <Button size="sm" className="h-7 text-[11px] text-white" style={{ background: "#FF6000" }} onClick={() => setPaymentTarget(p)}>
                             <CreditCard className="h-3 w-3 mr-0.5" />Pay Now
@@ -791,6 +776,13 @@ export default function SettlementPage() {
         amount={paymentTarget?.sumAmount || 0}
         currency={paymentTarget?.currency || "USD"}
         onPaymentComplete={handlePaymentComplete}
+      />
+
+      {/* Guest-facing Voucher / Invoice generator */}
+      <GuestVoucherDialog
+        open={!!guestVoucherTarget}
+        onOpenChange={(o) => !o && setGuestVoucherTarget(null)}
+        booking={guestVoucherTarget}
       />
 
       {/* PREPAY Bulk Payment */}
