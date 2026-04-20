@@ -16,9 +16,10 @@ import { useScreenState } from "@/hooks/useScreenState";
 import { StateToolbar } from "@/components/StateToolbar";
 import { useAuth } from "@/contexts/AuthContext";
 import { useI18n } from "@/contexts/I18nContext";
-import { monthlySummary, dailyDetails, settlementApplications, billingDetails, invoices, accountsReceivable, pointsHistory, purchaseByHotel, disputeSummary } from "@/mocks/settlement";
+import { monthlySummary, dailyDetails, settlementApplications, billingDetails, invoices, accountsReceivable, pointsHistory, purchaseByHotel, disputeSummary, paymentReminders, reminderSummary, paymentMatchLog } from "@/mocks/settlement";
 import { currentCompany } from "@/mocks/companies";
-import { bookings as allBookings } from "@/mocks/bookings";
+import { bookings as allBookings, type Booking } from "@/mocks/bookings";
+import PaymentDialog from "@/components/PaymentDialog";
 import InvoicePreviewDialog, { type InvoiceData } from "@/components/InvoicePreviewDialog";
 import { toast } from "sonner";
 
@@ -46,6 +47,28 @@ export default function SettlementPage() {
   }, []);
   const overdueCount = pendingPayments.filter(p => p.daysLeft < 0).length;
   const d7Count = pendingPayments.filter(p => p.daysLeft >= 0 && p.daysLeft <= 7).length;
+
+  /* Force-refresh state after mock mutations */
+  const [, forceUpdate] = useState(0);
+  const refresh = () => forceUpdate(x => x + 1);
+
+  /* PaymentDialog state (PREPAY) */
+  const [paymentTarget, setPaymentTarget] = useState<Booking | null>(null);
+  const handlePaymentComplete = () => {
+    if (!paymentTarget) return;
+    /* Mutate mock: mark as fully paid */
+    const b = allBookings.find(x => x.id === paymentTarget.id);
+    if (b) {
+      b.paymentStatus = "Fully Paid";
+      b.paymentChannel = "Credit Card";
+      b.paymentMethod = "PG Card Payment";
+    }
+    toast.success(`${paymentTarget.ellisCode} paid $${paymentTarget.sumAmount.toLocaleString()}`, {
+      description: "Booking payment confirmed. Notification log updated.",
+    });
+    setPaymentTarget(null);
+    refresh();
+  };
 
   /* ── Applications state ── */
   const [appSelected, setAppSelected] = useState<Set<string>>(new Set());
@@ -124,6 +147,23 @@ export default function SettlementPage() {
         </div>
       </div>
 
+      {/* Master Approval Queue banner */}
+      {hasRole(["Master"]) && paymentMatchLog.filter(l => l.approvalStatus === "Pending Master").length > 0 && (
+        <Alert className="border-blue-300 bg-blue-50 dark:bg-blue-950/20">
+          <AlertTriangle className="h-4 w-4 text-blue-600" />
+          <AlertTitle className="text-blue-900 dark:text-blue-100">Master Approval Pending</AlertTitle>
+          <AlertDescription className="text-xs text-blue-800 dark:text-blue-200">
+            <strong>{paymentMatchLog.filter(l => l.approvalStatus === "Pending Master").length}건</strong>의 Payment Match가 Master 승인 대기 중입니다. 각 인보이스 상세에서 처리해주세요.
+            {" "}
+            {paymentMatchLog.filter(l => l.approvalStatus === "Pending Master").map(l => (
+              <Button key={l.id} variant="link" size="sm" className="h-auto p-0 mx-1 text-blue-600 underline" onClick={() => navigate(`/app/settlement/invoice/${l.invoiceNo}`)}>
+                {l.invoiceNo}
+              </Button>
+            ))}
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* PREPAY deadline-alert banner */}
       {isPrepay && (overdueCount > 0 || d7Count > 0) && (
         <Alert className="border-red-300 bg-red-50 dark:bg-red-950/20">
@@ -140,6 +180,7 @@ export default function SettlementPage() {
       <Tabs defaultValue={isPrepay ? "pending" : "invoices"}>
         <TabsList className="flex-wrap">
           {isPrepay && <TabsTrigger value="pending">Pending Payment {pendingPayments.length > 0 && <span className="ml-1 text-[10px] bg-red-500 text-white rounded-full px-1.5">{pendingPayments.length}</span>}</TabsTrigger>}
+          {isPrepay && <TabsTrigger value="reminders">Reminder Log</TabsTrigger>}
           <TabsTrigger value="applications">Applications</TabsTrigger>
           <TabsTrigger value="billing">Billing Details</TabsTrigger>
           <TabsTrigger value="invoices">Invoices</TabsTrigger>
@@ -188,10 +229,19 @@ export default function SettlementPage() {
                       <TableCell><Badge variant="destructive" className="text-[10px]">{p.paymentStatus}</Badge></TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1">
-                          <Button size="sm" variant="outline" className="h-7 text-[11px]" onClick={() => toast.success(`Payment link sent to ${p.guestEmail}`, { description: `D-${Math.max(0, p.daysLeft)} reminder via email + in-app` })}>
+                          <Button size="sm" variant="outline" className="h-7 text-[11px]" onClick={() => {
+                            const type = p.daysLeft < 0 ? "Overdue" : p.daysLeft === 0 ? "D-Day" : p.daysLeft <= 1 ? "D-1" : p.daysLeft <= 3 ? "D-3" : p.daysLeft <= 7 ? "D-7" : "D-7";
+                            paymentReminders.unshift({
+                              id: `rmd-${Date.now()}`, bookingId: p.id, ellisCode: p.ellisCode, guestName: p.guestName, hotelName: p.hotelName, amount: p.sumAmount,
+                              deadline: p.cancelDeadline, type, channel: "Email", recipient: p.guestEmail,
+                              sentAt: new Date().toISOString().replace("T", " ").slice(0, 19), status: "Sent", note: "Manual send by OP",
+                            });
+                            refresh();
+                            toast.success(`Payment link sent to ${p.guestEmail}`, { description: `${type} reminder · logged in Reminder Log tab` });
+                          }}>
                             Send Link
                           </Button>
-                          <Button size="sm" className="h-7 text-[11px] text-white" style={{ background: "#FF6000" }} onClick={() => toast.info("Payment dialog opens (Phase 3)", { description: "PG card payment simulation coming soon." })}>
+                          <Button size="sm" className="h-7 text-[11px] text-white" style={{ background: "#FF6000" }} onClick={() => setPaymentTarget(p)}>
                             <CreditCard className="h-3 w-3 mr-0.5" />Pay Now
                           </Button>
                         </div>
@@ -202,6 +252,65 @@ export default function SettlementPage() {
                 {pendingPayments.length === 0 && (
                   <TableRow><TableCell colSpan={8} className="text-center text-sm text-muted-foreground py-8">No pending payments.</TableCell></TableRow>
                 )}
+              </TableBody>
+            </Table>
+          </TabsContent>
+        )}
+
+        {/* ══════ Reminder Log Tab (PREPAY) ══════ */}
+        {isPrepay && (
+          <TabsContent value="reminders" className="space-y-4 mt-4">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+              <Card className="p-3"><p className="text-xs text-muted-foreground">Sent This Month</p><p className="text-lg font-bold">{reminderSummary.totalSentThisMonth}</p></Card>
+              <Card className="p-3"><p className="text-xs text-muted-foreground">Open Rate</p><p className="text-lg font-bold">{reminderSummary.openRate}%</p></Card>
+              <Card className="p-3"><p className="text-xs text-muted-foreground">Payment After Reminder</p><p className="text-lg font-bold text-green-600">{reminderSummary.paymentAfterReminderRate}%</p></Card>
+              <Card className="p-3"><p className="text-xs text-muted-foreground">Auto-cancelled</p><p className="text-lg font-bold text-red-600">{reminderSummary.autoCancelled}</p></Card>
+              <Card className="p-3"><p className="text-xs text-muted-foreground">Scheduled Today</p><p className="text-lg font-bold" style={{ color: "#FF6000" }}>{reminderSummary.scheduledToday}</p></Card>
+            </div>
+
+            <Alert className="border-blue-200 bg-blue-50 dark:bg-blue-900/10">
+              <Clock className="h-4 w-4 text-blue-600" />
+              <AlertTitle>자동 스케줄러 (cron daily 09:00 KST)</AlertTitle>
+              <AlertDescription className="text-xs">
+                D-7 / D-3 / D-1 / D-Day / Overdue 시점에 이메일·인앱·SMS 자동 발송. 발송 후 24시간 내 결제 완료 시 다음 단계 알림 자동 취소.
+              </AlertDescription>
+            </Alert>
+
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Sent At</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Channel</TableHead>
+                  <TableHead>ELLIS Code</TableHead>
+                  <TableHead>Hotel · Guest</TableHead>
+                  <TableHead>Recipient</TableHead>
+                  <TableHead className="text-right">Amount</TableHead>
+                  <TableHead>Deadline</TableHead>
+                  <TableHead>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {paymentReminders.map(r => {
+                  const typeColor = r.type === "Overdue" ? "destructive" : r.type === "D-Day" || r.type === "D-1" ? "destructive" : r.type === "D-3" ? "secondary" : "default";
+                  const statusColor = r.status === "Opened" ? "default" : r.status === "Failed" ? "destructive" : "secondary";
+                  return (
+                    <TableRow key={r.id}>
+                      <TableCell className="font-mono text-xs">{r.sentAt}</TableCell>
+                      <TableCell><Badge variant={typeColor} className="text-[10px]">{r.type}</Badge></TableCell>
+                      <TableCell className="text-xs">{r.channel}</TableCell>
+                      <TableCell className="font-mono text-xs">{r.ellisCode}</TableCell>
+                      <TableCell className="text-xs">{r.hotelName} · {r.guestName}</TableCell>
+                      <TableCell className="text-xs truncate max-w-[160px]">{r.recipient}</TableCell>
+                      <TableCell className="text-right font-mono text-xs">${r.amount.toLocaleString()}</TableCell>
+                      <TableCell className="text-xs">{r.deadline}</TableCell>
+                      <TableCell>
+                        <Badge variant={statusColor} className="text-[10px]">{r.status}</Badge>
+                        {r.openedAt && <p className="text-[9px] text-muted-foreground mt-0.5">opened {r.openedAt.split(" ")[0]}</p>}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </TabsContent>
@@ -501,6 +610,15 @@ export default function SettlementPage() {
 
       {/* Invoice Preview (A4 + 5 languages) */}
       <InvoicePreviewDialog open={!!previewInvoice} onOpenChange={(o) => !o && setPreviewInvoice(null)} invoice={previewInvoice} />
+
+      {/* PREPAY PG Card Payment */}
+      <PaymentDialog
+        open={!!paymentTarget}
+        onOpenChange={(o) => !o && setPaymentTarget(null)}
+        amount={paymentTarget?.sumAmount || 0}
+        currency={paymentTarget?.currency || "USD"}
+        onPaymentComplete={handlePaymentComplete}
+      />
 
       <StateToolbar state={state} setState={setState} />
     </div>

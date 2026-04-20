@@ -15,6 +15,7 @@ import { bookings as allBookings, type Booking } from "@/mocks/bookings";
 import { currentCompany } from "@/mocks/companies";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+import { CheckCircle, XCircle, UserCheck } from "lucide-react";
 
 /* DIDA-inspired Settlement Detail Page
  * URL: /app/settlement/invoice/:invoiceNo
@@ -29,7 +30,9 @@ import { toast } from "sonner";
 export default function SettlementDetailPage() {
   const { invoiceNo } = useParams<{ invoiceNo: string }>();
   const navigate = useNavigate();
-  const { hasRole } = useAuth();
+  const { hasRole, user } = useAuth();
+  const isMaster = hasRole(["Master"]);
+  const userRole = user?.role || "OP";
 
   const [invoice, setInvoice] = useState<InvoiceWithMatch | null>(() => invoices.find(i => i.invoiceNo === invoiceNo) || null);
   const [matchLog, setMatchLog] = useState<PaymentMatchLog[]>(initialLog);
@@ -53,10 +56,10 @@ export default function SettlementDetailPage() {
 
   const logsForInvoice = matchLog.filter(l => l.invoiceNo === invoiceNo);
 
-  if (!hasRole(["Master"])) {
+  if (!hasRole(["Master", "OP"])) {
     return (
       <div className="p-6">
-        <Alert><AlertTitle>Access Restricted</AlertTitle><AlertDescription>Settlement Detail is only accessible to Master accounts.</AlertDescription></Alert>
+        <Alert><AlertTitle>Access Restricted</AlertTitle><AlertDescription>Settlement Detail requires Master or OP role.</AlertDescription></Alert>
       </div>
     );
   }
@@ -103,7 +106,7 @@ export default function SettlementDetailPage() {
     const result = detectExclusions(received);
     setMatchResult(result);
 
-    /* Add to log */
+    /* Add to log — requires Master approval before reconcile */
     const newLog: PaymentMatchLog = {
       id: `pml-${Date.now()}`,
       invoiceNo: invoice.invoiceNo,
@@ -112,9 +115,10 @@ export default function SettlementDetailPage() {
       variance: result.variance,
       detectedExclusions: result.exclusions.map(b => b.id),
       matchedAt: new Date().toISOString().replace("T", " ").slice(0, 19),
-      matchedBy: "System (Auto-match)",
+      matchedBy: `${user?.name || "Unknown"} (${userRole})`,
       status: result.perfectMatch ? "Auto-matched" : "Manual-review",
       vlookupTimeSavedMinutes: result.exclusions.length > 0 ? 30 + result.exclusions.length * 15 : 10,
+      approvalStatus: "Pending Master",
     };
     setMatchLog(prev => [newLog, ...prev]);
 
@@ -159,12 +163,66 @@ export default function SettlementDetailPage() {
     setDisputeTarget(null);
   };
 
+  const approveMatch = (logId: string) => {
+    if (!isMaster) { toast.error("Master 권한 필요"); return; }
+    setMatchLog(prev => prev.map(l => l.id === logId ? {
+      ...l, approvalStatus: "Approved" as const,
+      approvedBy: `${user?.name} (Master)`, approvedAt: new Date().toISOString().replace("T", " ").slice(0, 19),
+    } : l));
+    /* Reconcile invoice */
+    setInvoice(prev => prev ? { ...prev, matchStatus: "Reconciled" } : prev);
+    toast.success("Payment match approved", { description: "Invoice reconciled. Disputes confirmed." });
+  };
+
+  const rejectMatch = (logId: string) => {
+    if (!isMaster) { toast.error("Master 권한 필요"); return; }
+    const reason = window.prompt("Rejection reason?", "Need manual review");
+    if (!reason) return;
+    setMatchLog(prev => prev.map(l => l.id === logId ? {
+      ...l, approvalStatus: "Rejected" as const,
+      approvedBy: `${user?.name} (Master)`, approvedAt: new Date().toISOString().replace("T", " ").slice(0, 19),
+      rejectedReason: reason,
+    } : l));
+    toast.warning("Match rejected — OP will re-run", { description: reason });
+  };
+
   const resolveDispute = (b: Booking) => {
     b.disputeStatus = "Resolved";
     b.disputeResolvedDate = new Date().toISOString().split("T")[0];
-    toast.success(`Dispute resolved: ${b.ellisCode}`, { description: "Booking will be included in next invoice cycle." });
-    /* force re-render */
-    setInvoice(prev => prev ? { ...prev } : prev);
+
+    /* Carry over to next invoice (Mar → Apr) */
+    const currentIdx = invoices.findIndex(i => i.invoiceNo === invoice?.invoiceNo);
+    const nextInvoice = invoices.slice(currentIdx + 1).find(i => i.status === "Issued" || i.status === "Unpaid");
+    /* Fallback: find by period sequence (next month) */
+    const targetNext = nextInvoice || invoices.find(i => i.carriedOverFrom === invoice?.invoiceNo);
+
+    if (targetNext) {
+      targetNext.carriedOverBookingIds = [...new Set([...(targetNext.carriedOverBookingIds || []), b.id])];
+      targetNext.carriedOverAmount = (targetNext.carriedOverAmount || 0) + b.sumAmount;
+      /* Also add to bookingIds so it's billed next cycle */
+      if (!targetNext.bookingIds.includes(b.id)) {
+        targetNext.bookingIds = [...targetNext.bookingIds, b.id];
+        targetNext.total += b.sumAmount;
+        targetNext.supplyAmount = Math.round(targetNext.total / 1.1);
+        targetNext.vat = targetNext.total - targetNext.supplyAmount;
+      }
+      /* Point booking to new invoice */
+      b.invoiceNo = targetNext.invoiceNo;
+    }
+
+    /* Remove from current invoice disputedBookingIds */
+    setInvoice(prev => {
+      if (!prev) return prev;
+      const newDisputed = prev.disputedBookingIds.filter(id => id !== b.id);
+      const newAmt = newDisputed.reduce((s, id) => s + (allBookings.find(x => x.id === id)?.sumAmount || 0), 0);
+      return { ...prev, disputedBookingIds: newDisputed, disputedAmount: newAmt };
+    });
+
+    toast.success(`Dispute resolved: ${b.ellisCode}`, {
+      description: targetNext
+        ? `Carried over to ${targetNext.invoiceNo} (${targetNext.period}). Will be billed in next cycle.`
+        : "No next invoice available — booking marked resolved only.",
+    });
   };
 
   const matchStatusBadge = {
@@ -204,6 +262,11 @@ export default function SettlementDetailPage() {
             </p>
             {invoice.remarks && (
               <p className="text-xs text-amber-700 dark:text-amber-300">⚠️ {invoice.remarks}</p>
+            )}
+            {invoice.carriedOverBookingIds && invoice.carriedOverBookingIds.length > 0 && (
+              <p className="text-xs text-blue-700 dark:text-blue-300">
+                🔄 Carried over from <span className="font-mono">{invoice.carriedOverFrom}</span>: {invoice.carriedOverBookingIds.length} booking(s) · ${(invoice.carriedOverAmount || 0).toLocaleString()}
+              </p>
             )}
           </div>
           <div className="flex items-center gap-2">
@@ -362,10 +425,14 @@ export default function SettlementDetailPage() {
             {linkedBookings.map(b => {
               const isDisputed = b.disputed && b.disputeStatus === "Open";
               const isResolved = b.disputeStatus === "Resolved";
-              const rowClass = isDisputed ? "bg-amber-50 dark:bg-amber-950/10" : isResolved ? "bg-slate-50 dark:bg-slate-900/20 opacity-70" : "";
+              const isCarriedOver = invoice.carriedOverBookingIds?.includes(b.id);
+              const rowClass = isDisputed ? "bg-amber-50 dark:bg-amber-950/10" : isCarriedOver ? "bg-blue-50 dark:bg-blue-950/10" : isResolved ? "bg-slate-50 dark:bg-slate-900/20 opacity-70" : "";
               return (
                 <TableRow key={b.id} className={rowClass}>
-                  <TableCell className="font-mono text-xs">{b.ellisCode}</TableCell>
+                  <TableCell className="font-mono text-xs">
+                    {b.ellisCode}
+                    {isCarriedOver && <Badge variant="outline" className="ml-1 text-[9px] bg-blue-50 text-blue-700 border-blue-300">🔄 Carried</Badge>}
+                  </TableCell>
                   <TableCell className="text-sm">{b.hotelName}</TableCell>
                   <TableCell className="text-xs">{b.checkIn} ({b.nights}N)</TableCell>
                   <TableCell className="text-xs">{b.guestName}</TableCell>
@@ -444,41 +511,73 @@ export default function SettlementDetailPage() {
       {/* ─────────── Payment Match Log ─────────── */}
       {logsForInvoice.length > 0 && (
         <Card className="p-5">
-          <h2 className="text-base font-bold mb-3">Payment Match History</h2>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-base font-bold">Payment Match History · Master Approval</h2>
+            <Badge variant="outline" className="text-[10px]">
+              <UserCheck className="h-3 w-3 mr-0.5" />
+              {isMaster ? "Master: You can approve/reject" : "OP: Read-only, awaits Master"}
+            </Badge>
+          </div>
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Matched At</TableHead>
-                <TableHead>Expected</TableHead>
-                <TableHead>Received</TableHead>
+                <TableHead>By</TableHead>
                 <TableHead>Variance</TableHead>
                 <TableHead>Exclusions</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Time Saved</TableHead>
+                <TableHead>Approval</TableHead>
+                <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {logsForInvoice.map(l => (
-                <TableRow key={l.id}>
-                  <TableCell className="text-xs font-mono">{l.matchedAt}</TableCell>
-                  <TableCell className="font-mono text-xs">${l.expectedAmount.toLocaleString()}</TableCell>
-                  <TableCell className="font-mono text-xs">${l.receivedAmount.toLocaleString()}</TableCell>
-                  <TableCell className="font-mono text-xs font-medium">${l.variance.toLocaleString()}</TableCell>
-                  <TableCell className="text-xs">
-                    {l.detectedExclusions.length > 0
-                      ? l.detectedExclusions.map(id => {
-                          const b = allBookings.find(x => x.id === id);
-                          return b?.ellisCode;
-                        }).join(", ")
-                      : "—"
-                    }
-                  </TableCell>
-                  <TableCell><Badge variant={l.status === "Auto-matched" ? "default" : "secondary"} className="text-[10px]">{l.status}</Badge></TableCell>
-                  <TableCell className="text-xs">~{l.vlookupTimeSavedMinutes}min</TableCell>
-                </TableRow>
-              ))}
+              {logsForInvoice.map(l => {
+                const approvalColor = l.approvalStatus === "Approved" ? "default" : l.approvalStatus === "Rejected" ? "destructive" : "secondary";
+                return (
+                  <TableRow key={l.id}>
+                    <TableCell className="text-xs font-mono">{l.matchedAt}</TableCell>
+                    <TableCell className="text-xs">{l.matchedBy}</TableCell>
+                    <TableCell className="font-mono text-xs font-medium">${l.variance.toLocaleString()}</TableCell>
+                    <TableCell className="text-xs">
+                      {l.detectedExclusions.length > 0
+                        ? l.detectedExclusions.map(id => allBookings.find(x => x.id === id)?.ellisCode).join(", ")
+                        : "—"}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={approvalColor} className="text-[10px]">{l.approvalStatus}</Badge>
+                      {l.approvedBy && <p className="text-[9px] text-muted-foreground mt-0.5">{l.approvedBy} · {l.approvedAt}</p>}
+                      {l.rejectedReason && <p className="text-[9px] text-red-600 mt-0.5 max-w-[180px] truncate">{l.rejectedReason}</p>}
+                    </TableCell>
+                    <TableCell>
+                      {l.approvalStatus === "Pending Master" && isMaster && (
+                        <div className="flex items-center gap-1">
+                          <Button size="sm" variant="outline" className="h-7 text-[11px] text-green-700 border-green-300" onClick={() => approveMatch(l.id)}>
+                            <CheckCircle className="h-3 w-3 mr-0.5" />Approve
+                          </Button>
+                          <Button size="sm" variant="outline" className="h-7 text-[11px] text-red-700 border-red-300" onClick={() => rejectMatch(l.id)}>
+                            <XCircle className="h-3 w-3 mr-0.5" />Reject
+                          </Button>
+                        </div>
+                      )}
+                      {l.approvalStatus === "Pending Master" && !isMaster && (
+                        <span className="text-[10px] text-muted-foreground">Awaiting Master</span>
+                      )}
+                      {l.approvalStatus === "Approved" && (
+                        <span className="text-[10px] text-green-600 flex items-center gap-1"><CheckCircle className="h-3 w-3" />Reconciled</span>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
+          {!isMaster && logsForInvoice.some(l => l.approvalStatus === "Pending Master") && (
+            <Alert className="mt-3 border-blue-200 bg-blue-50 dark:bg-blue-900/10">
+              <UserCheck className="h-4 w-4 text-blue-600" />
+              <AlertDescription className="text-xs">
+                OP 계정: 매칭 실행 가능. 최종 승인은 <strong>Master</strong> 계정이 필요합니다. (예: <code>master@dotbiz.com</code>)
+              </AlertDescription>
+            </Alert>
+          )}
         </Card>
       )}
 

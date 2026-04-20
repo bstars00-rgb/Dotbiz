@@ -63,6 +63,10 @@ export interface InvoiceWithMatch {
   disputedBookingIds: string[];
   disputedAmount: number;
   remarks?: string;
+  /* Carry-over from previous cycle (resolved disputes) */
+  carriedOverBookingIds?: string[];
+  carriedOverFrom?: string;  /* previous invoice no */
+  carriedOverAmount?: number;
 }
 
 export const invoices: InvoiceWithMatch[] = [
@@ -99,6 +103,10 @@ export const invoices: InvoiceWithMatch[] = [
     matchStatus: "Unpaid",
     disputedBookingIds: [],
     disputedAmount: 0,
+    /* Demonstrates carry-over pattern (will populate when Mar disputes are resolved) */
+    carriedOverBookingIds: [],
+    carriedOverFrom: "INV-2026-0089",
+    carriedOverAmount: 0,
   },
   {
     invoiceNo: "INV-2026-0045", period: "Jan 2026", status: "Paid",
@@ -133,12 +141,18 @@ export interface PaymentMatchLog {
   invoiceNo: string;
   receivedAmount: number;
   expectedAmount: number;
-  variance: number;  /* expected - received */
-  detectedExclusions: string[];  /* booking IDs auto-detected as excluded */
+  variance: number;
+  detectedExclusions: string[];
   matchedAt: string;
-  matchedBy: string;
+  matchedBy: string;  /* OP name who ran match */
   status: "Auto-matched" | "Manual-review" | "Resolved";
-  vlookupTimeSavedMinutes: number;  /* KPI */
+  vlookupTimeSavedMinutes: number;
+  /* Master approval workflow */
+  approvalStatus: "Pending Master" | "Approved" | "Rejected";
+  approvedBy?: string;
+  approvedAt?: string;
+  rejectedReason?: string;
+  opNote?: string;  /* OP's note when submitting for approval */
 }
 
 export const paymentMatchLog: PaymentMatchLog[] = [
@@ -146,19 +160,77 @@ export const paymentMatchLog: PaymentMatchLog[] = [
     id: "pml-001", invoiceNo: "INV-2026-0089",
     expectedAmount: 4180, receivedAmount: 2820, variance: 1360,
     detectedExclusions: ["bk-002", "bk-003"],
-    matchedAt: "2026-04-15 14:22:05", matchedBy: "System (Auto-match)",
+    matchedAt: "2026-04-15 14:22:05", matchedBy: "Sarah Kim (OP)",
     status: "Auto-matched",
     vlookupTimeSavedMinutes: 45,
+    approvalStatus: "Pending Master",  /* Awaiting Master approval — demo */
+    opNote: "2건 분쟁 자동 감지. 고객사와 이미 Shilla Stay 룸타입 불일치 건은 티켓 TK-2026-007에서 협의 중.",
   },
   {
     id: "pml-002", invoiceNo: "INV-2026-0067",
     expectedAmount: 3850, receivedAmount: 3850, variance: 0,
     detectedExclusions: [],
-    matchedAt: "2026-03-20 10:15:30", matchedBy: "System (Auto-match)",
+    matchedAt: "2026-03-20 10:15:30", matchedBy: "Sarah Kim (OP)",
     status: "Auto-matched",
     vlookupTimeSavedMinutes: 15,
+    approvalStatus: "Approved",
+    approvedBy: "James Park (Master)",
+    approvedAt: "2026-03-20 11:02:18",
   },
 ];
+
+/* ── Payment Deadline Reminder Log (PREPAY) ──
+ * 자동 스케줄러가 결제 데드라인 D-7/3/1/Overdue 시점에 발송한 알림 이력.
+ * 실제 프로덕션에서는 cron job이 매일 돌며 조건 충족 시 생성.
+ */
+export type ReminderType = "D-7" | "D-3" | "D-1" | "D-Day" | "Overdue";
+export type ReminderChannel = "Email" | "In-app" | "SMS";
+export type ReminderStatus = "Sent" | "Delivered" | "Opened" | "Failed" | "Scheduled";
+
+export interface PaymentReminder {
+  id: string;
+  bookingId: string;
+  ellisCode: string;
+  guestName: string;
+  hotelName: string;
+  amount: number;
+  deadline: string;
+  type: ReminderType;
+  channel: ReminderChannel;
+  recipient: string;  /* email or phone */
+  sentAt: string;
+  status: ReminderStatus;
+  openedAt?: string;
+  note?: string;
+}
+
+/* 실제 bk-005 (Mandarin Oriental $2250, DL 2026-04-19), bk-009 (Park Hyatt Saigon $920, DL 2026-04-20),
+ * bk-014 (Raffles Singapore $1650, DL 2026-04-25) 등의 PREPAY 대상에 매칭되는 발송 이력 */
+export const paymentReminders: PaymentReminder[] = [
+  /* bk-009 Park Hyatt Saigon — DL 2026-04-20, 현재 2026-04-20 기준 D-Day */
+  { id: "rmd-001", bookingId: "bk-009", ellisCode: "K26040109301H01", guestName: "David Park", hotelName: "Park Hyatt Saigon", amount: 920, deadline: "2026-04-20 17:00", type: "D-7", channel: "Email", recipient: "david@example.com", sentAt: "2026-04-13 09:00:00", status: "Opened", openedAt: "2026-04-13 14:22:11" },
+  { id: "rmd-002", bookingId: "bk-009", ellisCode: "K26040109301H01", guestName: "David Park", hotelName: "Park Hyatt Saigon", amount: 920, deadline: "2026-04-20 17:00", type: "D-3", channel: "Email", recipient: "david@example.com", sentAt: "2026-04-17 09:00:00", status: "Delivered" },
+  { id: "rmd-003", bookingId: "bk-009", ellisCode: "K26040109301H01", guestName: "David Park", hotelName: "Park Hyatt Saigon", amount: 920, deadline: "2026-04-20 17:00", type: "D-1", channel: "In-app", recipient: "david@example.com", sentAt: "2026-04-19 09:00:00", status: "Delivered" },
+  { id: "rmd-004", bookingId: "bk-009", ellisCode: "K26040109301H01", guestName: "David Park", hotelName: "Park Hyatt Saigon", amount: 920, deadline: "2026-04-20 17:00", type: "D-Day", channel: "Email", recipient: "david@example.com", sentAt: "2026-04-20 08:00:00", status: "Sent", note: "Final reminder — payment required by 17:00 KST" },
+
+  /* bk-014 Raffles Singapore — DL 2026-04-25, D-5 */
+  { id: "rmd-005", bookingId: "bk-014", ellisCode: "K26040816352H01", guestName: "Michael Tan", hotelName: "Raffles Singapore", amount: 1650, deadline: "2026-04-25 17:00", type: "D-7", channel: "Email", recipient: "michael@example.com", sentAt: "2026-04-18 09:00:00", status: "Opened", openedAt: "2026-04-18 10:15:03" },
+
+  /* bk-005 Mandarin Oriental — DL 2026-04-19, 이미 1일 경과 */
+  { id: "rmd-006", bookingId: "bk-005", ellisCode: "K26032510083H01", guestName: "Robert Chen", hotelName: "Mandarin Oriental Tokyo", amount: 2250, deadline: "2026-04-19 17:00", type: "D-7", channel: "Email", recipient: "robert@example.com", sentAt: "2026-04-12 09:00:00", status: "Opened", openedAt: "2026-04-12 16:48:22" },
+  { id: "rmd-007", bookingId: "bk-005", ellisCode: "K26032510083H01", guestName: "Robert Chen", hotelName: "Mandarin Oriental Tokyo", amount: 2250, deadline: "2026-04-19 17:00", type: "D-3", channel: "Email", recipient: "robert@example.com", sentAt: "2026-04-16 09:00:00", status: "Delivered" },
+  { id: "rmd-008", bookingId: "bk-005", ellisCode: "K26032510083H01", guestName: "Robert Chen", hotelName: "Mandarin Oriental Tokyo", amount: 2250, deadline: "2026-04-19 17:00", type: "D-1", channel: "Email", recipient: "robert@example.com", sentAt: "2026-04-18 09:00:00", status: "Delivered" },
+  { id: "rmd-009", bookingId: "bk-005", ellisCode: "K26032510083H01", guestName: "Robert Chen", hotelName: "Mandarin Oriental Tokyo", amount: 2250, deadline: "2026-04-19 17:00", type: "D-Day", channel: "SMS", recipient: "+86-138-1234-5678", sentAt: "2026-04-19 08:00:00", status: "Delivered" },
+  { id: "rmd-010", bookingId: "bk-005", ellisCode: "K26032510083H01", guestName: "Robert Chen", hotelName: "Mandarin Oriental Tokyo", amount: 2250, deadline: "2026-04-19 17:00", type: "Overdue", channel: "Email", recipient: "robert@example.com", sentAt: "2026-04-20 09:00:00", status: "Sent", note: "Payment overdue. Booking will be auto-cancelled in 48 hours." },
+];
+
+export const reminderSummary = {
+  totalSentThisMonth: 47,
+  openRate: 72.3,
+  paymentAfterReminderRate: 84.5,
+  autoCancelled: 2,
+  scheduledToday: 6,
+};
 
 /* ── Dispute Summary KPI ── */
 export const disputeSummary = {
