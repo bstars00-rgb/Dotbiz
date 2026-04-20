@@ -51,6 +51,40 @@ export default function SettlementPage() {
   }, []);
   const overdueCount = pendingPayments.filter(p => p.daysLeft < 0).length;
   const d7Count = pendingPayments.filter(p => p.daysLeft >= 0 && p.daysLeft <= 7).length;
+  const todayCount = pendingPayments.filter(p => p.daysLeft === 0).length;
+  const todayTotal = pendingPayments.filter(p => p.daysLeft === 0).reduce((s, p) => s + p.sumAmount, 0);
+  const overdueTotal = pendingPayments.filter(p => p.daysLeft < 0).reduce((s, p) => s + p.sumAmount, 0);
+
+  /* Pending Payment filters */
+  const [pendingFilter, setPendingFilter] = useState<"all" | "overdue" | "today" | "tomorrow" | "week" | "custom">("all");
+  const [pendingFrom, setPendingFrom] = useState("");
+  const [pendingTo, setPendingTo] = useState("");
+  const filteredPending = useMemo(() => {
+    if (pendingFilter === "overdue") return pendingPayments.filter(p => p.daysLeft < 0);
+    if (pendingFilter === "today") return pendingPayments.filter(p => p.daysLeft === 0);
+    if (pendingFilter === "tomorrow") return pendingPayments.filter(p => p.daysLeft === 1);
+    if (pendingFilter === "week") return pendingPayments.filter(p => p.daysLeft >= 0 && p.daysLeft <= 7);
+    if (pendingFilter === "custom") {
+      return pendingPayments.filter(p => {
+        const dl = p.cancelDeadline.split(" ")[0];
+        if (pendingFrom && dl < pendingFrom) return false;
+        if (pendingTo && dl > pendingTo) return false;
+        return true;
+      });
+    }
+    return pendingPayments;
+  }, [pendingFilter, pendingFrom, pendingTo, pendingPayments]);
+
+  /* Bulk selection */
+  const [pendingSelected, setPendingSelected] = useState<Set<string>>(new Set());
+  const togglePending = (id: string) => setPendingSelected(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const selectAllPending = () => {
+    if (pendingSelected.size === filteredPending.length) setPendingSelected(new Set());
+    else setPendingSelected(new Set(filteredPending.map(p => p.id)));
+  };
+  const selectedPendingItems = filteredPending.filter(p => pendingSelected.has(p.id));
+  const selectedPendingTotal = selectedPendingItems.reduce((s, p) => s + p.sumAmount, 0);
+  const [bulkPayOpen, setBulkPayOpen] = useState(false);
 
   /* Force-refresh state after mock mutations */
   const [, forceUpdate] = useState(0);
@@ -212,41 +246,124 @@ export default function SettlementPage() {
         {/* ══════ PREPAY Pending Payment Tab ══════ */}
         {isPrepay && (
           <TabsContent value="pending" className="space-y-4 mt-4">
-            <Alert className="border-amber-200 bg-amber-50 dark:bg-amber-900/10">
-              <Clock className="h-4 w-4 text-amber-600" />
-              <AlertTitle className="text-amber-900 dark:text-amber-100">PREPAY — Payment Deadline Management</AlertTitle>
-              <AlertDescription className="text-xs text-amber-800 dark:text-amber-200">
-                Non-refundable bookings are paid instantly by card and don't appear here.
-                The list below shows bookings with open Time Limit awaiting payment. After deadline, booking is auto-cancelled or forced-pay flow triggers.
-              </AlertDescription>
-            </Alert>
+            {/* Today's Action Summary */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <Card className={`p-4 border-2 ${overdueCount > 0 ? "border-red-500 bg-red-50 dark:bg-red-950/20" : ""}`}>
+                <div className="flex items-center gap-2 mb-1">
+                  <AlertTriangle className={`h-4 w-4 ${overdueCount > 0 ? "text-red-600" : "text-muted-foreground"}`} />
+                  <p className="text-xs font-medium">Overdue</p>
+                </div>
+                <p className={`text-2xl font-bold ${overdueCount > 0 ? "text-red-600" : ""}`}>{overdueCount} <span className="text-sm font-normal">bookings</span></p>
+                <p className="text-xs text-muted-foreground">${overdueTotal.toLocaleString()} · collect immediately</p>
+              </Card>
+              <Card className={`p-4 border-2 ${todayCount > 0 ? "border-amber-500 bg-amber-50 dark:bg-amber-950/20" : ""}`}>
+                <div className="flex items-center gap-2 mb-1">
+                  <Clock className={`h-4 w-4 ${todayCount > 0 ? "text-amber-600" : "text-muted-foreground"}`} />
+                  <p className="text-xs font-medium">Due Today</p>
+                </div>
+                <p className={`text-2xl font-bold ${todayCount > 0 ? "text-amber-600" : ""}`}>{todayCount} <span className="text-sm font-normal">bookings</span></p>
+                <p className="text-xs text-muted-foreground">${todayTotal.toLocaleString()} · action required today</p>
+              </Card>
+              <Card className="p-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
+                  <p className="text-xs font-medium">This Week</p>
+                </div>
+                <p className="text-2xl font-bold">{d7Count} <span className="text-sm font-normal">bookings</span></p>
+                <p className="text-xs text-muted-foreground">within 7 days</p>
+              </Card>
+            </div>
+
+            {/* Filter Bar */}
+            <Card className="p-3">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs font-medium text-muted-foreground mr-1">Filter by deadline:</span>
+                {[
+                  { key: "all" as const, label: "All", count: pendingPayments.length },
+                  { key: "overdue" as const, label: "Overdue", count: overdueCount },
+                  { key: "today" as const, label: "Today", count: todayCount },
+                  { key: "tomorrow" as const, label: "Tomorrow", count: pendingPayments.filter(p => p.daysLeft === 1).length },
+                  { key: "week" as const, label: "Next 7 days", count: d7Count },
+                  { key: "custom" as const, label: "Custom range", count: -1 },
+                ].map(f => (
+                  <button
+                    key={f.key}
+                    onClick={() => setPendingFilter(f.key)}
+                    className={`px-3 py-1 rounded-full text-xs border transition-colors ${pendingFilter === f.key ? "bg-primary text-primary-foreground border-primary" : "bg-background hover:bg-muted"}`}
+                  >
+                    {f.label}{f.count >= 0 && <span className="ml-1 opacity-60">({f.count})</span>}
+                  </button>
+                ))}
+                {pendingFilter === "custom" && (
+                  <div className="flex items-center gap-2 ml-2">
+                    <input type="date" value={pendingFrom} onChange={e => setPendingFrom(e.target.value)} className="border rounded px-2 py-1 text-xs bg-background" />
+                    <span className="text-xs text-muted-foreground">→</span>
+                    <input type="date" value={pendingTo} onChange={e => setPendingTo(e.target.value)} className="border rounded px-2 py-1 text-xs bg-background" />
+                  </div>
+                )}
+                <span className="ml-auto text-xs text-muted-foreground">{filteredPending.length} result(s)</span>
+              </div>
+            </Card>
+
+            {/* Bulk Action Bar */}
+            {pendingSelected.size > 0 && (
+              <div className="flex items-center gap-3 p-3 bg-orange-50 dark:bg-orange-950/20 border-2 border-orange-300 dark:border-orange-900 rounded-lg sticky top-0 z-10">
+                <span className="text-sm font-medium">{pendingSelected.size} selected</span>
+                <span className="text-sm font-bold" style={{ color: "#FF6000" }}>Total: ${selectedPendingTotal.toLocaleString()}</span>
+                <Button size="sm" className="text-white" style={{ background: "#FF6000" }} onClick={() => setBulkPayOpen(true)}>
+                  <CreditCard className="h-3 w-3 mr-1" />Pay {pendingSelected.size} bookings
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => {
+                  selectedPendingItems.forEach(p => {
+                    const type = p.daysLeft < 0 ? "Overdue" : p.daysLeft === 0 ? "D-Day" : p.daysLeft <= 1 ? "D-1" : p.daysLeft <= 3 ? "D-3" : "D-7";
+                    paymentReminders.unshift({
+                      id: `rmd-${Date.now()}-${p.id}`, bookingId: p.id, ellisCode: p.ellisCode, guestName: p.guestName, hotelName: p.hotelName, amount: p.sumAmount,
+                      deadline: p.cancelDeadline, type, channel: "Email", recipient: p.guestEmail,
+                      sentAt: new Date().toISOString().replace("T", " ").slice(0, 19), status: "Sent", note: "Bulk send by OP",
+                    });
+                  });
+                  refresh();
+                  toast.success(`${pendingSelected.size} reminder(s) sent`, { description: "Logged in Reminder Log tab" });
+                }}>
+                  Send Links
+                </Button>
+                <Button size="sm" variant="ghost" className="ml-auto" onClick={() => setPendingSelected(new Set())}>Clear</Button>
+              </div>
+            )}
 
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-10">
+                    <Checkbox
+                      checked={filteredPending.length > 0 && pendingSelected.size === filteredPending.length}
+                      onCheckedChange={selectAllPending}
+                    />
+                  </TableHead>
                   <TableHead>ELLIS Code</TableHead>
                   <TableHead>Hotel</TableHead>
+                  <TableHead>Guest</TableHead>
                   <TableHead>Check-in</TableHead>
                   <TableHead className="text-right">Amount</TableHead>
                   <TableHead>Deadline</TableHead>
                   <TableHead>Days Left</TableHead>
-                  <TableHead>Status</TableHead>
                   <TableHead></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {pendingPayments.map(p => {
+                {filteredPending.map(p => {
                   const urgency = p.daysLeft < 0 ? "destructive" : p.daysLeft <= 3 ? "destructive" : p.daysLeft <= 7 ? "secondary" : "default";
                   const label = p.daysLeft < 0 ? `${Math.abs(p.daysLeft)}d overdue` : p.daysLeft === 0 ? "Today" : `${p.daysLeft} days`;
                   return (
-                    <TableRow key={p.id} className={p.daysLeft < 0 ? "bg-red-50 dark:bg-red-950/10" : p.daysLeft <= 3 ? "bg-amber-50 dark:bg-amber-950/10" : ""}>
+                    <TableRow key={p.id} className={p.daysLeft < 0 ? "bg-red-50 dark:bg-red-950/10" : p.daysLeft === 0 ? "bg-amber-50 dark:bg-amber-950/10" : p.daysLeft <= 3 ? "bg-orange-50/60 dark:bg-orange-950/10" : ""}>
+                      <TableCell><Checkbox checked={pendingSelected.has(p.id)} onCheckedChange={() => togglePending(p.id)} /></TableCell>
                       <TableCell className="font-mono text-xs">{p.ellisCode}</TableCell>
                       <TableCell className="text-sm">{p.hotelName}</TableCell>
+                      <TableCell className="text-xs">{p.guestName}</TableCell>
                       <TableCell className="text-xs">{p.checkIn}</TableCell>
                       <TableCell className="text-right font-mono font-medium">${p.sumAmount.toLocaleString()}</TableCell>
-                      <TableCell className="text-xs">{p.cancelDeadline}</TableCell>
+                      <TableCell className="text-xs font-mono">{p.cancelDeadline}</TableCell>
                       <TableCell><Badge variant={urgency} className="text-[10px]">{label}</Badge></TableCell>
-                      <TableCell><Badge variant="destructive" className="text-[10px]">{p.paymentStatus}</Badge></TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1">
                           <Button size="sm" variant="outline" className="h-7 text-[11px]" onClick={() => {
@@ -269,8 +386,8 @@ export default function SettlementPage() {
                     </TableRow>
                   );
                 })}
-                {pendingPayments.length === 0 && (
-                  <TableRow><TableCell colSpan={8} className="text-center text-sm text-muted-foreground py-8">No pending payments.</TableCell></TableRow>
+                {filteredPending.length === 0 && (
+                  <TableRow><TableCell colSpan={9} className="text-center text-sm text-muted-foreground py-8">No bookings match the filter.</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>
@@ -302,9 +419,10 @@ export default function SettlementPage() {
                 <TableRow>
                   <TableHead>Sent At</TableHead>
                   <TableHead>Type</TableHead>
-                  <TableHead>Channel</TableHead>
+                  <TableHead title="Delivery channel: Email / In-app / SMS">Sent Via</TableHead>
                   <TableHead>ELLIS Code</TableHead>
-                  <TableHead>Hotel · Guest</TableHead>
+                  <TableHead>Hotel</TableHead>
+                  <TableHead>Guest</TableHead>
                   <TableHead>Recipient</TableHead>
                   <TableHead className="text-right">Amount</TableHead>
                   <TableHead>Deadline</TableHead>
@@ -319,9 +437,10 @@ export default function SettlementPage() {
                     <TableRow key={r.id}>
                       <TableCell className="font-mono text-xs">{r.sentAt}</TableCell>
                       <TableCell><Badge variant={typeColor} className="text-[10px]">{r.type}</Badge></TableCell>
-                      <TableCell className="text-xs">{r.channel}</TableCell>
+                      <TableCell className="text-xs"><Badge variant="outline" className="text-[10px]">{r.channel}</Badge></TableCell>
                       <TableCell className="font-mono text-xs">{r.ellisCode}</TableCell>
-                      <TableCell className="text-xs">{r.hotelName} · {r.guestName}</TableCell>
+                      <TableCell className="text-xs">{r.hotelName}</TableCell>
+                      <TableCell className="text-xs">{r.guestName}</TableCell>
                       <TableCell className="text-xs truncate max-w-[160px]">{r.recipient}</TableCell>
                       <TableCell className="text-right font-mono text-xs">${r.amount.toLocaleString()}</TableCell>
                       <TableCell className="text-xs">{r.deadline}</TableCell>
@@ -429,7 +548,8 @@ export default function SettlementPage() {
                 <TableHead>Invoice No</TableHead>
                 <TableHead>Type</TableHead>
                 <TableHead>Period</TableHead>
-                <TableHead>Bookings</TableHead>
+                <TableHead>Booking / Hotel</TableHead>
+                <TableHead>Count</TableHead>
                 <TableHead>Currency</TableHead>
                 <TableHead>Due</TableHead>
                 <TableHead>Status</TableHead>
@@ -453,7 +573,13 @@ export default function SettlementPage() {
                     </TableCell>
                     <TableCell><Badge variant={inv.billingType === "PREPAY" ? "destructive" : "default"} className="text-[10px]">{inv.billingType}</Badge></TableCell>
                     <TableCell className="text-xs">{inv.period}</TableCell>
-                    <TableCell className="text-xs text-muted-foreground">{inv.bookingIds.length}</TableCell>
+                    <TableCell className="text-xs">
+                      {inv.billingType === "PREPAY" && inv.bookingIds.length > 0 ? (() => {
+                        const b = allBookings.find(x => x.id === inv.bookingIds[0]);
+                        return b ? <><span className="font-mono text-[#0066cc]">{b.ellisCode}</span><br /><span className="text-muted-foreground">{b.hotelName}</span></> : "—";
+                      })() : <span className="text-muted-foreground italic">Aggregate</span>}
+                    </TableCell>
+                    <TableCell className="text-xs text-center font-mono">{inv.bookingIds.length}</TableCell>
                     <TableCell><Badge variant="outline" className="text-[10px] font-mono">{curr}</Badge></TableCell>
                     <TableCell className="text-sm">{inv.dueDate}</TableCell>
                     <TableCell><Badge variant={invStatusColors[inv.status] as "default" | "secondary" | "destructive"}>{inv.status}</Badge></TableCell>
@@ -644,13 +770,31 @@ export default function SettlementPage() {
       {/* Invoice Preview (A4 + 5 languages) */}
       <InvoicePreviewDialog open={!!previewInvoice} onOpenChange={(o) => !o && setPreviewInvoice(null)} invoice={previewInvoice} />
 
-      {/* PREPAY PG Card Payment */}
+      {/* PREPAY PG Card Payment — single */}
       <PaymentDialog
         open={!!paymentTarget}
         onOpenChange={(o) => !o && setPaymentTarget(null)}
         amount={paymentTarget?.sumAmount || 0}
         currency={paymentTarget?.currency || "USD"}
         onPaymentComplete={handlePaymentComplete}
+      />
+
+      {/* PREPAY Bulk Payment */}
+      <PaymentDialog
+        open={bulkPayOpen}
+        onOpenChange={(o) => !o && setBulkPayOpen(false)}
+        amount={selectedPendingTotal}
+        currency="USD"
+        onPaymentComplete={() => {
+          selectedPendingItems.forEach(p => {
+            const b = allBookings.find(x => x.id === p.id);
+            if (b) { b.paymentStatus = "Fully Paid"; b.paymentChannel = "Credit Card"; b.paymentMethod = "PG Card Payment (Bulk)"; }
+          });
+          toast.success(`${pendingSelected.size} bookings paid`, { description: `Total $${selectedPendingTotal.toLocaleString()} charged in one transaction.` });
+          setPendingSelected(new Set());
+          setBulkPayOpen(false);
+          refresh();
+        }}
       />
 
       <StateToolbar state={state} setState={setState} />

@@ -135,20 +135,20 @@ export const invoices: InvoiceWithMatch[] = [
     billingType: "POSTPAY", customerCompanyId: "comp-004",
   },
 
-  /* ── PREPAY: Asia Tours Ltd (comp-002) — 예약당 1건 ── */
+  /* ── PREPAY: Asia Tours Ltd (comp-002) — 1 invoice per booking ── */
   {
-    invoiceNo: "INV-2026-PRE-0201", period: "bk-014 Raffles Singapore", status: "Issued",
+    invoiceNo: "INV-2026-PRE-0201", period: "Apr 2026", status: "Issued",
     supplyAmount: 1650, vat: 0, total: 1650, contractCurrency: "USD",
     issuedDate: "2026-04-08", dueDate: "2026-04-25",
     bookingIds: ["bk-014"],
-    receivedAmount: 825,  /* partial prepay */
+    receivedAmount: 825,
     paymentDate: "2026-04-08",
     matchStatus: "Partial", disputedBookingIds: [], disputedAmount: 0,
     remarks: "PREPAY · Per-booking invoice · 50% prepaid, awaiting remainder",
     billingType: "PREPAY", customerCompanyId: "comp-002",
   },
   {
-    invoiceNo: "INV-2026-PRE-0205", period: "bk-009 Park Hyatt Saigon", status: "Issued",
+    invoiceNo: "INV-2026-PRE-0205", period: "Apr 2026", status: "Issued",
     supplyAmount: 920, vat: 0, total: 920, contractCurrency: "USD",
     issuedDate: "2026-04-01", dueDate: "2026-04-20",
     bookingIds: ["bk-009"],
@@ -158,7 +158,7 @@ export const invoices: InvoiceWithMatch[] = [
     billingType: "PREPAY", customerCompanyId: "comp-002",
   },
   {
-    invoiceNo: "INV-2026-PRE-0198", period: "bk-006 Lotte Hanoi", status: "Paid",
+    invoiceNo: "INV-2026-PRE-0198", period: "Mar 2026", status: "Paid",
     supplyAmount: 360, vat: 0, total: 360, contractCurrency: "USD",
     issuedDate: "2026-03-26", dueDate: "2026-04-04",
     bookingIds: ["bk-006"],
