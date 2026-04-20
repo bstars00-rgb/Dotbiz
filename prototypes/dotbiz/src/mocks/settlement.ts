@@ -69,9 +69,18 @@ export interface InvoiceWithMatch {
   carriedOverBookingIds?: string[];
   carriedOverFrom?: string;
   carriedOverAmount?: number;
-  /* Billing type tag — POSTPAY = 월 집계, PREPAY = 예약당 1건 */
+  /* Billing type tag — POSTPAY = monthly aggregate, PREPAY = 1 per booking */
   billingType: "POSTPAY" | "PREPAY";
   customerCompanyId?: string;
+  /* ── Audit metadata (DIDA-style) ── */
+  firstInsertUser: string;      /* BATCH_USER = scheduler / API_USER = API call / human name */
+  firstInsertTime: string;
+  lastUpdateUser: string;
+  lastUpdateTime: string;
+  /* ── Summary totals (per-invoice aggregate) ── */
+  paidAmount?: number;          /* alias for receivedAmount shown as Paid Amt */
+  balance?: number;             /* total - paidAmount */
+  revenue?: number;             /* our margin on this invoice */
 }
 
 /* Invoices:
@@ -92,6 +101,9 @@ export const invoices: InvoiceWithMatch[] = [
     disputedAmount: 1360,
     remarks: "Customer remittance missing 2 items — auto-detected and tagged as dispute",
     billingType: "POSTPAY", customerCompanyId: "comp-001",
+    firstInsertUser: "BATCH_USER", firstInsertTime: "2026-04-01 01:00:40",
+    lastUpdateUser: "Sarah Kim", lastUpdateTime: "2026-04-15 14:43:43",
+    paidAmount: 2820, balance: 1360, revenue: 209,
   },
   {
     invoiceNo: "INV-2026-0067", period: "Feb 2026", status: "Paid",
@@ -101,6 +113,9 @@ export const invoices: InvoiceWithMatch[] = [
     receivedAmount: 3850, paymentDate: "2026-03-20",
     matchStatus: "Full", disputedBookingIds: [], disputedAmount: 0,
     billingType: "POSTPAY", customerCompanyId: "comp-001",
+    firstInsertUser: "BATCH_USER", firstInsertTime: "2026-03-01 01:00:40",
+    lastUpdateUser: "API_USER", lastUpdateTime: "2026-03-20 10:15:30",
+    paidAmount: 3850, balance: 0, revenue: 192,
   },
   {
     invoiceNo: "INV-2026-0130", period: "Apr 2026", status: "Issued",
@@ -111,6 +126,9 @@ export const invoices: InvoiceWithMatch[] = [
     matchStatus: "Unpaid", disputedBookingIds: [], disputedAmount: 0,
     carriedOverBookingIds: [], carriedOverFrom: "INV-2026-0089", carriedOverAmount: 0,
     billingType: "POSTPAY", customerCompanyId: "comp-001",
+    firstInsertUser: "BATCH_USER", firstInsertTime: "2026-05-01 01:00:41",
+    lastUpdateUser: "BATCH_USER", lastUpdateTime: "2026-05-01 02:02:03",
+    paidAmount: 0, balance: 10630, revenue: 531,
   },
 
   /* ── POSTPAY: Sakura Travel Japan (comp-003, JPY 계약) ── */
@@ -122,9 +140,12 @@ export const invoices: InvoiceWithMatch[] = [
     receivedAmount: 495000, paymentDate: "2026-04-25",
     matchStatus: "Full", disputedBookingIds: [], disputedAmount: 0,
     billingType: "POSTPAY", customerCompanyId: "comp-003",
+    firstInsertUser: "BATCH_USER", firstInsertTime: "2026-04-03 01:00:40",
+    lastUpdateUser: "Tran Thuy Tien", lastUpdateTime: "2026-04-25 10:43:43",
+    paidAmount: 495000, balance: 0, revenue: 24750,
   },
 
-  /* ── POSTPAY: Dragon Holidays Shanghai (comp-004, CNY 계약) ── */
+  /* ── POSTPAY: Dragon Holidays Shanghai (comp-004, CNY contract) ── */
   {
     invoiceNo: "INV-2026-CN-0008", period: "Mar 2026 H2", status: "Paid",
     supplyAmount: 56550, vat: 0, total: 56550, contractCurrency: "CNY",
@@ -133,6 +154,9 @@ export const invoices: InvoiceWithMatch[] = [
     receivedAmount: 56550, paymentDate: "2026-04-18",
     matchStatus: "Full", disputedBookingIds: [], disputedAmount: 0,
     billingType: "POSTPAY", customerCompanyId: "comp-004",
+    firstInsertUser: "API_USER", firstInsertTime: "2026-04-05 09:20:00",
+    lastUpdateUser: "API_USER", lastUpdateTime: "2026-04-18 16:20:18",
+    paidAmount: 56550, balance: 0, revenue: 2828,
   },
 
   /* ── PREPAY: Asia Tours Ltd (comp-002) — 1 invoice per booking ── */
@@ -146,6 +170,9 @@ export const invoices: InvoiceWithMatch[] = [
     matchStatus: "Partial", disputedBookingIds: [], disputedAmount: 0,
     remarks: "PREPAY · Per-booking invoice · 50% prepaid, awaiting remainder",
     billingType: "PREPAY", customerCompanyId: "comp-002",
+    firstInsertUser: "API_USER", firstInsertTime: "2026-04-08 14:30:02",
+    lastUpdateUser: "Kevin Lee", lastUpdateTime: "2026-04-15 09:12:33",
+    paidAmount: 825, balance: 825, revenue: 82,
   },
   {
     invoiceNo: "INV-2026-PRE-0205", period: "Apr 2026", status: "Issued",
@@ -156,6 +183,9 @@ export const invoices: InvoiceWithMatch[] = [
     matchStatus: "Unpaid", disputedBookingIds: [], disputedAmount: 0,
     remarks: "PREPAY · Payment deadline imminent (D-Day) — auto-reminders in progress",
     billingType: "PREPAY", customerCompanyId: "comp-002",
+    firstInsertUser: "API_USER", firstInsertTime: "2026-04-01 09:30:41",
+    lastUpdateUser: "BATCH_USER", lastUpdateTime: "2026-04-20 08:00:00",
+    paidAmount: 0, balance: 920, revenue: 46,
   },
   {
     invoiceNo: "INV-2026-PRE-0198", period: "Mar 2026", status: "Paid",
@@ -165,6 +195,9 @@ export const invoices: InvoiceWithMatch[] = [
     receivedAmount: 360, paymentDate: "2026-04-02",
     matchStatus: "Full", disputedBookingIds: [], disputedAmount: 0,
     billingType: "PREPAY", customerCompanyId: "comp-002",
+    firstInsertUser: "API_USER", firstInsertTime: "2026-03-26 08:55:19",
+    lastUpdateUser: "API_USER", lastUpdateTime: "2026-04-02 11:20:10",
+    paidAmount: 360, balance: 0, revenue: 18,
   },
 
   /* ── Historical ── */
@@ -175,6 +208,9 @@ export const invoices: InvoiceWithMatch[] = [
     bookingIds: [], receivedAmount: 35200, paymentDate: "2026-02-22",
     matchStatus: "Full", disputedBookingIds: [], disputedAmount: 0,
     billingType: "POSTPAY", customerCompanyId: "comp-001",
+    firstInsertUser: "BATCH_USER", firstInsertTime: "2026-02-01 01:00:40",
+    lastUpdateUser: "James Park", lastUpdateTime: "2026-02-22 15:30:00",
+    paidAmount: 35200, balance: 0, revenue: 1760,
   },
   {
     invoiceNo: "INV-2025-0076", period: "Oct 2025", status: "Overdue",
@@ -184,6 +220,9 @@ export const invoices: InvoiceWithMatch[] = [
     matchStatus: "Unpaid", disputedBookingIds: [], disputedAmount: 0,
     remarks: "60+ days overdue — assign to collections team",
     billingType: "POSTPAY", customerCompanyId: "comp-001",
+    firstInsertUser: "BATCH_USER", firstInsertTime: "2025-11-01 01:00:40",
+    lastUpdateUser: "Sarah Kim", lastUpdateTime: "2026-04-10 14:22:05",
+    paidAmount: 0, balance: 29400, revenue: 1470,
   },
 ];
 

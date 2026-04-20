@@ -554,8 +554,11 @@ export default function SettlementPage() {
                 <TableHead>Due</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Total</TableHead>
-                <TableHead className="text-right">Received</TableHead>
-                <TableHead className="text-right">Variance</TableHead>
+                <TableHead className="text-right">Paid</TableHead>
+                <TableHead className="text-right">Balance</TableHead>
+                <TableHead className="text-right">Revenue</TableHead>
+                <TableHead title="User/time of invoice creation">First Insert</TableHead>
+                <TableHead title="User/time of most recent update">Last Update</TableHead>
                 <TableHead></TableHead>
               </TableRow>
             </TableHeader>
@@ -584,9 +587,20 @@ export default function SettlementPage() {
                     <TableCell className="text-sm">{inv.dueDate}</TableCell>
                     <TableCell><Badge variant={invStatusColors[inv.status] as "default" | "secondary" | "destructive"}>{inv.status}</Badge></TableCell>
                     <TableCell className="text-right font-mono font-bold">{fmt(inv.total)}</TableCell>
-                    <TableCell className="text-right font-mono text-sm">{fmt(inv.receivedAmount)}</TableCell>
+                    <TableCell className="text-right font-mono text-sm">{fmt(inv.paidAmount ?? inv.receivedAmount)}</TableCell>
                     <TableCell className={`text-right font-mono text-sm font-medium ${variance > 0 ? "text-amber-600" : variance < 0 ? "text-blue-600" : "text-green-600"}`}>
                       {variance === 0 ? "—" : `${curr} ${Math.abs(variance).toLocaleString()}`}
+                    </TableCell>
+                    <TableCell className="text-right font-mono text-xs text-green-700 dark:text-green-400">
+                      {inv.revenue !== undefined ? `${curr} ${inv.revenue.toLocaleString()}` : "—"}
+                    </TableCell>
+                    <TableCell className="text-[10px] text-muted-foreground">
+                      <p className="font-mono">{inv.firstInsertUser}</p>
+                      <p className="font-mono">{inv.firstInsertTime}</p>
+                    </TableCell>
+                    <TableCell className="text-[10px] text-muted-foreground">
+                      <p className="font-mono">{inv.lastUpdateUser}</p>
+                      <p className="font-mono">{inv.lastUpdateTime}</p>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1">

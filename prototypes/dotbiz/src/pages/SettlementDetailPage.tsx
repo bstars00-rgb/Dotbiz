@@ -419,17 +419,28 @@ export default function SettlementDetailPage() {
           </div>
         </div>
 
+        <div className="overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>ELLIS Code</TableHead>
-              <TableHead>Hotel</TableHead>
-              <TableHead>Check-in</TableHead>
-              <TableHead>Guest</TableHead>
-              <TableHead className="text-right">Amount</TableHead>
-              <TableHead>Status</TableHead>
+              <TableHead title="Booking Item Code (ELLIS)">Booking Item Code</TableHead>
+              <TableHead>Booking Status</TableHead>
+              <TableHead title="Customer Payment Status">C. Pmt Status</TableHead>
+              <TableHead title="Hotel (seller) booking code">Seller BKG Code</TableHead>
+              <TableHead>Hotel Country</TableHead>
+              <TableHead>Hotel Name</TableHead>
+              <TableHead>Traveler</TableHead>
+              <TableHead title="Check-In">C/I</TableHead>
+              <TableHead title="Check-Out">C/O</TableHead>
+              <TableHead title="Nights" className="text-right">Nts</TableHead>
+              <TableHead title="Booking Currency">B. Cur</TableHead>
+              <TableHead title="Booking Sum Amount" className="text-right">B. Sum Amt</TableHead>
+              <TableHead title="Paid Amount" className="text-right">Paid Amt</TableHead>
+              <TableHead title="Booking Balance (unpaid)" className="text-right">B. Balance</TableHead>
+              <TableHead title="Our margin" className="text-right">Revenue</TableHead>
               <TableHead>Dispute</TableHead>
-              <TableHead className="w-40"></TableHead>
+              <TableHead>Dispute Remark</TableHead>
+              <TableHead className="w-32">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -438,46 +449,60 @@ export default function SettlementDetailPage() {
               const isResolved = b.disputeStatus === "Resolved";
               const isCarriedOver = invoice.carriedOverBookingIds?.includes(b.id);
               const rowClass = isDisputed ? "bg-amber-50 dark:bg-amber-950/10" : isCarriedOver ? "bg-blue-50 dark:bg-blue-950/10" : isResolved ? "bg-slate-50 dark:bg-slate-900/20 opacity-70" : "";
+              /* Derived values */
+              const checkOut = (() => { const d = new Date(b.checkIn); d.setDate(d.getDate() + b.nights); return d.toISOString().split("T")[0]; })();
+              const paid = b.paymentStatus === "Fully Paid" ? b.sumAmount : b.paymentStatus === "Partially Paid" ? Math.round(b.sumAmount * 0.5) : 0;
+              const balance = b.sumAmount - paid;
+              const revenue = Math.round(b.sumAmount * 0.05); /* mock 5% margin */
               return (
                 <TableRow key={b.id} className={rowClass}>
-                  <TableCell className="font-mono text-xs">
-                    {b.ellisCode}
-                    {isCarriedOver && <Badge variant="outline" className="ml-1 text-[9px] bg-blue-50 text-blue-700 border-blue-300">🔄 Carried</Badge>}
+                  <TableCell className="font-mono text-xs text-[#0066cc]">
+                    <button className="hover:underline" onClick={() => navigate(`/app/bookings/${b.id}`)}>{b.ellisCode}</button>
+                    {isCarriedOver && <Badge variant="outline" className="ml-1 text-[9px] bg-blue-50 text-blue-700 border-blue-300">🔄</Badge>}
                   </TableCell>
-                  <TableCell className="text-sm">{b.hotelName}</TableCell>
-                  <TableCell className="text-xs">{b.checkIn} ({b.nights}N)</TableCell>
-                  <TableCell className="text-xs">{b.guestName}</TableCell>
-                  <TableCell className="text-right font-mono font-medium">{fmt(b.sumAmount)}</TableCell>
-                  <TableCell>
+                  <TableCell className="text-xs">
                     <Badge variant={b.bookingStatus === "Confirmed" ? "default" : "destructive"} className="text-[10px]">{b.bookingStatus}</Badge>
                   </TableCell>
-                  <TableCell>
-                    {isDisputed ? (
-                      <div className="flex flex-col">
-                        <Badge variant="secondary" className="text-[10px] bg-amber-100 text-amber-900 border-amber-300 w-fit">Open</Badge>
-                        <span className="text-[10px] text-muted-foreground mt-0.5 max-w-[180px] truncate">{b.disputeReason}</span>
-                      </div>
-                    ) : isResolved ? (
-                      <Badge variant="outline" className="text-[10px]">Resolved {b.disputeResolvedDate}</Badge>
-                    ) : (
-                      <span className="text-[10px] text-muted-foreground">—</span>
-                    )}
+                  <TableCell className="text-xs">
+                    <Badge variant={b.paymentStatus === "Fully Paid" ? "default" : b.paymentStatus === "Not Paid" ? "destructive" : "secondary"} className="text-[10px]">{b.paymentStatus}</Badge>
+                  </TableCell>
+                  <TableCell className="font-mono text-[10px]">{b.hotelConfirmCode || "—"}</TableCell>
+                  <TableCell className="text-xs">{b.country}</TableCell>
+                  <TableCell className="text-xs">{b.hotelName}</TableCell>
+                  <TableCell className="text-xs">{b.traveler}</TableCell>
+                  <TableCell className="font-mono text-[10px]">{b.checkIn}</TableCell>
+                  <TableCell className="font-mono text-[10px]">{checkOut}</TableCell>
+                  <TableCell className="text-xs text-right font-mono">{b.nights}</TableCell>
+                  <TableCell className="text-[10px] font-mono">{b.currency}</TableCell>
+                  <TableCell className="text-right font-mono text-xs font-medium">{b.sumAmount.toFixed(2)}</TableCell>
+                  <TableCell className={`text-right font-mono text-xs ${paid > 0 ? "text-green-600" : ""}`}>{paid.toFixed(2)}</TableCell>
+                  <TableCell className={`text-right font-mono text-xs ${balance > 0 ? "text-amber-600 font-medium" : "text-green-600"}`}>{balance.toFixed(2)}</TableCell>
+                  <TableCell className="text-right font-mono text-xs text-green-700 dark:text-green-400">{revenue.toFixed(2)}</TableCell>
+                  <TableCell className="text-xs">
+                    {isDisputed ? <Badge variant="secondary" className="text-[10px] bg-amber-100 text-amber-900 border-amber-300">Yes</Badge>
+                      : isResolved ? <Badge variant="outline" className="text-[10px]">Resolved</Badge>
+                      : <span className="text-muted-foreground">No</span>}
+                  </TableCell>
+                  <TableCell className="text-[10px] max-w-[180px]">
+                    {isDisputed ? <span className="text-amber-700 dark:text-amber-400">{b.disputeReason}</span>
+                      : isResolved ? <span className="text-muted-foreground">Resolved {b.disputeResolvedDate}</span>
+                      : <span className="text-muted-foreground">N</span>}
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1">
                       {!b.disputed && (
-                        <Button size="sm" variant="outline" className="h-7 text-[11px]" onClick={() => openDispute(b)}>
-                          <AlertTriangle className="h-3 w-3 mr-1" />Dispute
+                        <Button size="sm" variant="outline" className="h-6 text-[10px]" onClick={() => openDispute(b)}>
+                          <AlertTriangle className="h-3 w-3 mr-0.5" />Dispute
                         </Button>
                       )}
                       {isDisputed && (
                         <>
                           {b.disputeTicketId && (
-                            <Button size="sm" variant="ghost" className="h-7 text-[11px]" onClick={() => navigate(`/app/tickets?highlight=${b.disputeTicketId}`)}>
-                              <TicketIcon className="h-3 w-3 mr-0.5" />{b.disputeTicketId}
+                            <Button size="sm" variant="ghost" className="h-6 text-[10px]" onClick={() => navigate(`/app/tickets?highlight=${b.disputeTicketId}`)}>
+                              <TicketIcon className="h-3 w-3" />{b.disputeTicketId}
                             </Button>
                           )}
-                          <Button size="sm" variant="outline" className="h-7 text-[11px] text-green-700 border-green-300" onClick={() => resolveDispute(b)}>
+                          <Button size="sm" variant="outline" className="h-6 text-[10px] text-green-700 border-green-300" onClick={() => resolveDispute(b)}>
                             Resolve
                           </Button>
                         </>
@@ -487,8 +512,29 @@ export default function SettlementDetailPage() {
                 </TableRow>
               );
             })}
+            {/* Summary row */}
+            {linkedBookings.length > 0 && (() => {
+              const sumB = linkedBookings.reduce((s, b) => s + b.sumAmount, 0);
+              const sumPaid = linkedBookings.reduce((s, b) => s + (b.paymentStatus === "Fully Paid" ? b.sumAmount : b.paymentStatus === "Partially Paid" ? Math.round(b.sumAmount * 0.5) : 0), 0);
+              const sumBal = sumB - sumPaid;
+              const sumRev = linkedBookings.reduce((s, b) => s + Math.round(b.sumAmount * 0.05), 0);
+              const disputeCount = linkedBookings.filter(b => b.disputed && b.disputeStatus === "Open").length;
+              return (
+                <TableRow className="bg-slate-100 dark:bg-slate-800/40 font-bold border-t-2">
+                  <TableCell colSpan={11} className="text-right text-xs">TOTAL ({linkedBookings.length} bookings)</TableCell>
+                  <TableCell className="text-right font-mono text-xs">{sumB.toFixed(2)}</TableCell>
+                  <TableCell className="text-right font-mono text-xs text-green-600">{sumPaid.toFixed(2)}</TableCell>
+                  <TableCell className={`text-right font-mono text-xs ${sumBal > 0 ? "text-amber-600" : "text-green-600"}`}>{sumBal.toFixed(2)}</TableCell>
+                  <TableCell className="text-right font-mono text-xs text-green-700 dark:text-green-400">{sumRev.toFixed(2)}</TableCell>
+                  <TableCell className="text-xs">{disputeCount > 0 ? <Badge variant="destructive" className="text-[10px]">{disputeCount}</Badge> : "0"}</TableCell>
+                  <TableCell />
+                  <TableCell />
+                </TableRow>
+              );
+            })()}
           </TableBody>
         </Table>
+        </div>
 
         {linkedBookings.length === 0 && (
           <p className="text-center text-sm text-muted-foreground py-8">No bookings linked to this invoice.</p>

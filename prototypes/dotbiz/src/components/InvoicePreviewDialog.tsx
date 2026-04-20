@@ -135,128 +135,144 @@ export default function InvoicePreviewDialog({ open, onOpenChange, invoice, cust
           </div>
         </div>
 
-        {/* A4 Invoice */}
-        <div id="printable-voucher" className="bg-white text-slate-900 p-10" style={{ fontFamily: "Arial, sans-serif" }}>
-          {/* Header */}
-          <div className="flex items-start justify-between mb-6 pb-4 border-b-4" style={{ borderColor: "#FF6000" }}>
+        {/* A4 Invoice — clean sample style (matches reference 765887) */}
+        <div id="printable-voucher" className="bg-white text-slate-900 p-12" style={{ fontFamily: "Arial, sans-serif" }}>
+          {/* Header: Logo + Invoice No box */}
+          <div className="flex items-start justify-between mb-8">
             <div>
               {showLogo && (
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="relative w-10 h-10 shrink-0">
+                <div className="flex items-center gap-2 mb-6">
+                  <div className="relative w-8 h-8 shrink-0">
                     <div className="absolute inset-0 rounded-full" style={{ background: "conic-gradient(from 180deg, #FF6000, #FF8C00, #FFCF8F, #FF6000)" }} />
                     <div className="absolute inset-[2px] rounded-full bg-white flex items-center justify-center">
-                      <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none"><path d="M12 3C7.5 3 4 6.5 4 11c0 3 1.5 5.5 4 7l1-2c-2-1-3-3-3-5 0-3.3 2.7-6 6-6s6 2.7 6 6c0 2-1 3.8-2.5 5l1 2c2.3-1.5 3.5-4 3.5-7 0-4.5-3.5-8-8-8z" fill="#FF6000" /><circle cx="12" cy="4" r="2.5" fill="#009505" /></svg>
+                      <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none"><path d="M12 3C7.5 3 4 6.5 4 11c0 3 1.5 5.5 4 7l1-2c-2-1-3-3-3-5 0-3.3 2.7-6 6-6s6 2.7 6 6c0 2-1 3.8-2.5 5l1 2c2.3-1.5 3.5-4 3.5-7 0-4.5-3.5-8-8-8z" fill="#FF6000" /><circle cx="12" cy="4" r="2.5" fill="#009505" /></svg>
                     </div>
                   </div>
-                  <span className="text-xl font-bold" style={{ color: "#FF6000" }}>DOTBIZ</span>
+                  <span className="text-xl font-bold" style={{ color: "#FF6000" }}>OHMYHOTEL</span>
                 </div>
               )}
-              <h1 className="text-4xl font-bold tracking-wider" style={{ color: "#1a1a2e" }}>{t("invoice")}</h1>
-              <p className="text-xs text-slate-500 mt-1">{t("generated")}</p>
+              <h1 className="text-4xl font-bold text-slate-900">{t("invoice")}</h1>
             </div>
-            <div className="text-right text-sm">
-              <p className="text-slate-500 text-xs uppercase">{t("invoiceNo")}</p>
-              <p className="font-mono font-bold text-lg" style={{ color: "#FF6000" }}>{invoice.invoiceNo}</p>
-              <div className="mt-3 space-y-0.5 text-xs">
-                <p><span className="text-slate-500">{t("issueDate")}:</span> <span className="font-medium">{invoice.issuedDate}</span></p>
-                <p><span className="text-slate-500">{t("dueDate")}:</span> <span className={`font-medium ${invoice.status === "Overdue" ? "text-red-600" : ""}`}>{invoice.dueDate}</span></p>
-                <p><span className="text-slate-500">{t("period")}:</span> <span className="font-medium">{invoice.period}</span></p>
-                <p><span className="text-slate-500">{t("status")}:</span> <span className={`font-bold ${invoice.status === "Paid" ? "text-green-600" : invoice.status === "Overdue" ? "text-red-600" : "text-orange-600"}`}>{invoice.status}</span></p>
+            <div className="border border-slate-300 rounded px-5 py-3 text-right min-w-[220px]">
+              <p className="text-xs text-slate-500 uppercase">{t("invoiceNo")}</p>
+              <p className="font-bold text-2xl">{invoice.invoiceNo}</p>
+              <div className="mt-2 text-[11px] text-slate-600">
+                <p><span className="font-medium">{t("issueDate")}:</span> {invoice.issuedDate}</p>
+                <p><span className="font-medium">{t("dueDate")}:</span> {invoice.dueDate}</p>
               </div>
             </div>
           </div>
 
-          {/* Supplier & Customer */}
-          <div className="grid grid-cols-2 gap-6 mb-6">
-            <div className="border rounded p-4 bg-slate-50">
-              <h3 className="text-xs font-bold text-slate-500 uppercase mb-2">{t("supplier")}</h3>
-              <div className="space-y-1 text-sm">
-                <p className="font-bold text-base">OhMyHotel Global Pte. Ltd.</p>
-                <p><span className="text-slate-500 text-xs">{t("regNo")}:</span> 202543984E</p>
-                <p><span className="text-slate-500 text-xs">{t("ceo")}:</span> Lee Misoon</p>
-                <p><span className="text-slate-500 text-xs">{t("address")}:</span> 111 Somerset Road, #06-01H, Singapore 238164</p>
-                <p><span className="text-slate-500 text-xs">{t("businessType")}:</span> Travel Services / Hotel Booking B2B</p>
-              </div>
+          {/* Bill To / From */}
+          <div className="grid grid-cols-2 gap-8 mb-6">
+            <div>
+              <h3 className="text-xs font-bold text-slate-500 uppercase mb-2">Bill To</h3>
+              <p className="font-semibold text-sm">{activeCustomer.name}</p>
+              <p className="text-xs text-slate-600 mt-0.5">{activeCustomer.address}</p>
+              <p className="text-xs text-slate-600">Reg. {activeCustomer.businessRegNo}</p>
             </div>
-            <div className="border rounded p-4 bg-orange-50">
-              <h3 className="text-xs font-bold text-slate-500 uppercase mb-2">{t("customer")}</h3>
-              <div className="space-y-1 text-sm">
-                <p className="font-bold text-base">{activeCustomer.name}</p>
-                <p><span className="text-slate-500 text-xs">{t("regNo")}:</span> <span className="font-mono">{activeCustomer.businessRegNo}</span></p>
-                <p><span className="text-slate-500 text-xs">{t("address")}:</span> {activeCustomer.address}</p>
-                <p><span className="text-slate-500 text-xs">{t("businessType")}:</span> Travel Agency · {activeCustomer.billingType}</p>
-                <p><span className="text-slate-500 text-xs">Contract Currency:</span> <span className="font-mono">{activeCustomer.contractCurrency}</span></p>
-              </div>
+            <div>
+              <h3 className="text-xs font-bold text-slate-500 uppercase mb-2">From</h3>
+              <p className="font-semibold text-sm">Ohmyhotel SG</p>
+              <p className="text-xs text-slate-600 mt-0.5">OhMyHotel Global Pte. Ltd.</p>
+              <p className="text-xs text-slate-600">Reg. 202543984E</p>
             </div>
           </div>
 
-          {/* Booking Items Table */}
-          <h3 className="text-sm font-bold uppercase mb-2" style={{ color: "#FF6000" }}>{t("items")}</h3>
-          <table className="w-full mb-6 text-sm border">
+          {/* Currency / Total / Check Out + Approved by (with seal) */}
+          <div className="grid grid-cols-[1fr_auto] gap-8 mb-8">
+            <div className="grid grid-cols-2 gap-6">
+              <div>
+                <p className="text-xs text-slate-500 uppercase">Currency</p>
+                <p className="font-semibold text-sm mt-1">{activeCustomer.contractCurrency}</p>
+              </div>
+              <div>
+                <p className="text-xs text-slate-500 uppercase">Total Amount</p>
+                <p className="font-semibold text-sm mt-1">{activeCustomer.contractCurrency} {invoice.total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+              </div>
+              <div className="col-span-2">
+                <p className="text-xs text-slate-500 uppercase">Check Out (Period)</p>
+                <p className="font-semibold text-sm mt-1">{invoice.period}</p>
+              </div>
+            </div>
+            {/* Approved by (signature + seal) */}
+            <div className="relative w-48 flex flex-col items-center justify-end">
+              <div className="relative w-full h-20">
+                {/* Seal circle */}
+                <div className="absolute right-0 top-0 w-24 h-24 rounded-full border-[3px] flex items-center justify-center" style={{ borderColor: "#1e3a8a", opacity: 0.8 }}>
+                  <div className="absolute inset-2 rounded-full border border-blue-900 opacity-60" />
+                  <span className="text-[8px] font-bold text-blue-900 text-center leading-tight">OHMYHOTEL<br/>GLOBAL<br/>PTE. LTD.<br/><span className="text-[7px]">202543984E</span></span>
+                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-blue-900 text-xl">★</div>
+                </div>
+                {/* Signature scribble */}
+                <svg viewBox="0 0 120 40" className="absolute left-0 bottom-0 w-24 h-10">
+                  <path d="M5 30 Q 20 10 35 25 T 65 20 T 95 25" stroke="#1e3a8a" strokeWidth="1.5" fill="none" />
+                  <path d="M15 28 L 50 15" stroke="#1e3a8a" strokeWidth="1" fill="none" />
+                </svg>
+              </div>
+              <p className="text-xs text-slate-500 mt-2 border-t border-slate-300 pt-1 w-full text-center">Approved by</p>
+            </div>
+          </div>
+
+          {/* Items table — simple Qty/Price style (matches sample) */}
+          <table className="w-full mb-6 text-sm">
             <thead>
-              <tr className="bg-slate-100 border-b-2" style={{ borderColor: "#1a1a2e" }}>
-                <th className="py-2 px-3 text-left text-xs font-bold">{t("itemNo")}</th>
-                <th className="py-2 px-3 text-left text-xs font-bold">{t("bookingId")}</th>
-                <th className="py-2 px-3 text-left text-xs font-bold">{t("hotel")}</th>
-                <th className="py-2 px-3 text-left text-xs font-bold">{t("checkIn")}</th>
-                <th className="py-2 px-3 text-center text-xs font-bold">{t("nights")}</th>
-                <th className="py-2 px-3 text-left text-xs font-bold">{t("guest")}</th>
-                <th className="py-2 px-3 text-right text-xs font-bold">{t("amount")}</th>
+              <tr className="border-b-2 border-slate-900">
+                <th className="py-2 text-left text-xs font-bold w-8">#</th>
+                <th className="py-2 text-left text-xs font-bold">Description</th>
+                <th className="py-2 text-right text-xs font-bold">Qty</th>
+                <th className="py-2 text-right text-xs font-bold">Price</th>
               </tr>
             </thead>
             <tbody>
-              {sampleBookings.map((b, i) => (
-                <tr key={b.no} className={i % 2 === 0 ? "bg-white" : "bg-slate-50"}>
-                  <td className="py-2 px-3 text-center">{b.no}</td>
-                  <td className="py-2 px-3 font-mono text-xs">{b.bookingId}</td>
-                  <td className="py-2 px-3">{b.hotel}</td>
-                  <td className="py-2 px-3 text-xs">{b.checkIn}</td>
-                  <td className="py-2 px-3 text-center">{b.nights}</td>
-                  <td className="py-2 px-3 text-xs">{b.guest}</td>
-                  <td className="py-2 px-3 text-right font-medium">USD {(b.amount * scale).toFixed(2)}</td>
-                </tr>
-              ))}
+              <tr className="border-b border-slate-200">
+                <td className="py-3">1</td>
+                <td className="py-3">Reservation</td>
+                <td className="py-3 text-right">{invoice.bookingIds.length || sampleBookings.length}</td>
+                <td className="py-3 text-right">{activeCustomer.contractCurrency} {invoice.total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+              </tr>
+              <tr className="border-b border-slate-200">
+                <td className="py-3">2</td>
+                <td className="py-3">Cancellation Fee</td>
+                <td className="py-3 text-right">0</td>
+                <td className="py-3 text-right">{activeCustomer.contractCurrency} 0.00</td>
+              </tr>
             </tbody>
           </table>
 
-          {/* Summary — sum of booking amounts (VAT internally included, equals customer remittance) */}
-          <div className="flex justify-end mb-6">
-            <div className="w-80 border rounded overflow-hidden">
-              <h3 className="px-4 py-2 text-xs font-bold uppercase" style={{ background: "#1a1a2e", color: "white" }}>{t("summary")}</h3>
-              <div className="p-4 space-y-2 text-sm">
-                <div className="flex justify-between"><span className="text-slate-600">{t("subtotal")}</span><span className="font-medium">USD {invoice.total.toLocaleString()}</span></div>
-                <div className="h-px bg-slate-300 my-2" />
-                <div className="flex justify-between text-base">
-                  <span className="font-bold">{t("total")}</span>
-                  <span className="font-bold" style={{ color: "#FF6000" }}>USD {invoice.total.toLocaleString()}</span>
-                </div>
-                <p className="text-[10px] text-slate-500 pt-1">* Tax included · Matches customer remittance amount</p>
-              </div>
+          {/* Totals panel */}
+          <div className="bg-slate-100 rounded p-4 mb-6">
+            <div className="flex justify-between items-center mb-1">
+              <span className="text-sm text-slate-700">Total Amount</span>
+              <span className="font-bold text-base">{activeCustomer.contractCurrency} {invoice.total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+            </div>
+            <div className="flex justify-between items-center mb-1">
+              <span className="text-sm text-slate-700">Total Paid</span>
+              <span className="text-base text-slate-700">-{activeCustomer.contractCurrency} {(invoice.receivedAmount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+            </div>
+            <div className="h-px bg-slate-300 my-2" />
+            <div className="flex justify-between items-center">
+              <span className="font-bold text-red-600">Balance</span>
+              <span className="font-bold text-red-600 text-lg">{activeCustomer.contractCurrency} {(invoice.total - (invoice.receivedAmount || 0)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
             </div>
           </div>
 
-          {/* Bank Info */}
+          <p className="text-[10px] text-slate-500 mb-8">* Tax included. Customer remits the exact amount in contract currency.</p>
+
+          {/* Bank Info + Thank You */}
           {showBankInfo && (
-            <div className="border rounded p-4 mb-4 bg-slate-50">
-              <h3 className="text-xs font-bold uppercase mb-2" style={{ color: "#FF6000" }}>{t("bank")}</h3>
-              <div className="grid grid-cols-3 gap-4 text-sm">
-                <div><p className="text-xs text-slate-500">{t("bankName")}</p><p className="font-medium">DBS Bank Singapore</p></div>
-                <div><p className="text-xs text-slate-500">{t("accountNo")}</p><p className="font-mono font-medium">012-345678-9</p></div>
-                <div><p className="text-xs text-slate-500">{t("accountHolder")}</p><p className="font-medium">OhMyHotel Global Pte. Ltd.</p></div>
-              </div>
+            <div className="mb-6">
+              <p className="text-sm"><span className="font-bold">Bank Account:</span> Citi Bank / OHMYHOTEL GLOBAL PTE. LTD. / 143746003</p>
             </div>
           )}
 
-          {/* Notes */}
-          <div className="border-l-4 pl-4 py-2" style={{ borderColor: "#FF6000" }}>
-            <p className="text-xs font-bold uppercase mb-1" style={{ color: "#FF6000" }}>{t("note")}</p>
-            <p className="text-xs text-slate-700">{t("noteText")}</p>
-          </div>
+          <p className="text-center text-2xl font-medium text-slate-700 my-8">Thank you for your business</p>
 
           {/* Footer */}
-          <div className="mt-8 pt-4 border-t text-center">
-            <p className="text-[10px] text-slate-500">OHMYHOTEL & CO., Ltd. (105-87-71311) · GT Dongdaemun Building 6F, Jongno-gu, Seoul · Tel: +82-2-762-0552</p>
-            <p className="text-[10px] text-slate-500 mt-1">© 2026 OHMYHOTEL GLOBAL PTE. LTD. All rights reserved.</p>
+          <div className="pt-4 border-t text-center">
+            <p className="text-xs text-slate-600">111 Somerset Road, #06-01H, 111 Somerset, Singapore 238164</p>
+            <p className="text-xs text-slate-500 mt-0.5">Tel: / Fax:</p>
+            <p className="text-[10px] text-slate-400 mt-2">© 2026 OHMYHOTEL GLOBAL PTE. LTD. All rights reserved.</p>
           </div>
         </div>
 
