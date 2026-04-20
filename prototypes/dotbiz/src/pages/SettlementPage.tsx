@@ -16,12 +16,11 @@ import { useScreenState } from "@/hooks/useScreenState";
 import { StateToolbar } from "@/components/StateToolbar";
 import { useAuth } from "@/contexts/AuthContext";
 import { useI18n } from "@/contexts/I18nContext";
-import { monthlySummary, dailyDetails, settlementApplications, billingDetails, invoices, accountsReceivable, pointsHistory, purchaseByHotel, disputeSummary, paymentReminders, reminderSummary, paymentMatchLog } from "@/mocks/settlement";
+import { billingDetails, invoices, accountsReceivable, disputeSummary, paymentReminders, reminderSummary, paymentMatchLog } from "@/mocks/settlement";
 import { eInvoiceLog, countrySummary, taxComplianceSummary } from "@/mocks/eInvoiceLog";
 import { creditNotes, auditTrail } from "@/mocks/settlement";
 import { taxRules } from "@/mocks/taxProfiles";
-import { Globe, FileMinus, History, TrendingUp, TrendingDown, Upload, Lock } from "lucide-react";
-import { fxHistory, fxSummary, calculateFx } from "@/mocks/fxRates";
+import { Globe, FileMinus, History, Upload, Lock } from "lucide-react";
 import BankReconciliation from "@/components/BankReconciliation";
 import MonthEndClose from "@/components/MonthEndClose";
 import { companies } from "@/mocks/companies";
@@ -34,7 +33,6 @@ import { toast } from "sonner";
 
 const billStatusColors: Record<string, string> = { Settled: "default", Pending: "secondary", Overdue: "destructive" };
 const invStatusColors: Record<string, string> = { Paid: "default", Issued: "secondary", Overdue: "destructive" };
-const appStatusColors: Record<string, string> = { Eligible: "default", Pending: "secondary", Applied: "default" };
 
 export default function SettlementPage() {
   const navigate = useNavigate();
@@ -78,10 +76,6 @@ export default function SettlementPage() {
     setPaymentTarget(null);
     refresh();
   };
-
-  /* ── Applications state ── */
-  const [appSelected, setAppSelected] = useState<Set<string>>(new Set());
-  const toggleApp = (id: string) => setAppSelected(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
 
   /* ── Billing Details filters ── */
   const [billDateType, setBillDateType] = useState("Created Date");
@@ -190,23 +184,16 @@ export default function SettlementPage() {
         <TabsList className="!h-auto flex-wrap justify-start gap-1">
           {isPrepay && <TabsTrigger value="pending">Pending Payment {pendingPayments.length > 0 && <span className="ml-1 text-[10px] bg-red-500 text-white rounded-full px-1.5">{pendingPayments.length}</span>}</TabsTrigger>}
           {isPrepay && <TabsTrigger value="reminders">Reminder Log</TabsTrigger>}
-          <TabsTrigger value="applications">Applications</TabsTrigger>
-          <TabsTrigger value="billing">Billing Details</TabsTrigger>
           <TabsTrigger value="invoices">Invoices</TabsTrigger>
+          <TabsTrigger value="billing">Billing Details</TabsTrigger>
           <TabsTrigger value="ar">Accounts Receivable</TabsTrigger>
-          <TabsTrigger value="points">OP Points</TabsTrigger>
-          <TabsTrigger value="purchase">Purchase by Hotel</TabsTrigger>
-          <TabsTrigger value="tax">
-            <Globe className="h-3 w-3 mr-1" />
-            Tax Compliance
-          </TabsTrigger>
-          <TabsTrigger value="fx">
-            <TrendingUp className="h-3 w-3 mr-1" />
-            FX Gain/Loss
-          </TabsTrigger>
           <TabsTrigger value="bank">
             <Upload className="h-3 w-3 mr-1" />
             Bank Reconciliation
+          </TabsTrigger>
+          <TabsTrigger value="tax">
+            <Globe className="h-3 w-3 mr-1" />
+            Tax Compliance
           </TabsTrigger>
           <TabsTrigger value="closing">
             <Lock className="h-3 w-3 mr-1" />
@@ -341,61 +328,6 @@ export default function SettlementPage() {
           </TabsContent>
         )}
 
-        {/* ══════ Applications Tab ══════ */}
-        <TabsContent value="applications" className="space-y-4 mt-4">
-          <Card className="p-4">
-            <div className="flex items-center gap-3 mb-3">
-              <div>
-                <label className="text-sm font-medium">From</label>
-                <input type="date" defaultValue="2026-03-01" className="border rounded px-2 py-1.5 text-sm bg-background ml-1" />
-              </div>
-              <div>
-                <label className="text-sm font-medium">To</label>
-                <input type="date" defaultValue="2026-04-11" className="border rounded px-2 py-1.5 text-sm bg-background ml-1" />
-              </div>
-              <Button size="sm"><Search className="h-3 w-3 mr-1" />Search</Button>
-            </div>
-            <p className="text-sm text-muted-foreground">{settlementApplications.length} bookings eligible for settlement</p>
-          </Card>
-
-          {appSelected.size > 0 && (
-            <div className="flex items-center gap-3 p-3 bg-primary/5 border border-primary/20 rounded-lg">
-              <span className="text-sm font-medium">{appSelected.size} selected</span>
-              <span className="text-sm font-bold" style={{ color: "#FF6000" }}>Total: ${settlementApplications.filter(a => appSelected.has(a.id)).reduce((s, a) => s + a.amount, 0).toLocaleString()}</span>
-              <Button size="sm" onClick={() => { toast.success("Settlement applied", { description: `${appSelected.size} bookings submitted for settlement.` }); setAppSelected(new Set()); }}>
-                <CheckCircle2 className="h-3 w-3 mr-1" />Apply Settlement
-              </Button>
-            </div>
-          )}
-
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-10"><Checkbox checked={appSelected.size === settlementApplications.length} onCheckedChange={() => { if (appSelected.size === settlementApplications.length) setAppSelected(new Set()); else setAppSelected(new Set(settlementApplications.map(a => a.id))); }} /></TableHead>
-                <TableHead>Booking Date</TableHead>
-                <TableHead>ELLIS Code</TableHead>
-                <TableHead>Hotel</TableHead>
-                <TableHead>Check-in</TableHead>
-                <TableHead>Amount</TableHead>
-                <TableHead>Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {settlementApplications.map(a => (
-                <TableRow key={a.id}>
-                  <TableCell><Checkbox checked={appSelected.has(a.id)} onCheckedChange={() => toggleApp(a.id)} disabled={a.settlementStatus === "Applied"} /></TableCell>
-                  <TableCell className="text-sm">{a.bookingDate}</TableCell>
-                  <TableCell className="font-mono text-sm">{a.ellisCode}</TableCell>
-                  <TableCell className="text-sm">{a.hotelName}</TableCell>
-                  <TableCell className="text-sm">{a.checkIn}</TableCell>
-                  <TableCell className="text-sm font-medium">${a.amount.toLocaleString()}</TableCell>
-                  <TableCell><Badge variant={appStatusColors[a.settlementStatus] as "default" | "secondary"} className="text-[10px]">{a.settlementStatus}</Badge></TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TabsContent>
-
         {/* ══════ Billing Details Tab ══════ */}
         <TabsContent value="billing" className="space-y-4 mt-4">
           <Card className="p-4">
@@ -464,18 +396,26 @@ export default function SettlementPage() {
             </select>
             <span className="text-sm text-muted-foreground">{filteredInvoices.length} invoices</span>
           </div>
+          <Alert className="border-blue-200 bg-blue-50 dark:bg-blue-900/10">
+            <AlertDescription className="text-xs">
+              <strong>계약 통화 (Contract Currency)</strong>는 고객사와 계약 시 고정됩니다.
+              고객사는 계약 통화로 인보이스를 수령하고 <strong>그 금액 그대로</strong> 송금합니다. (환율은 고객사가 자체 처리)
+              <br />POSTPAY = 정산 주기별 집계 인보이스 · PREPAY = 예약당 1건 인보이스
+            </AlertDescription>
+          </Alert>
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Invoice No</TableHead>
+                <TableHead>Type</TableHead>
                 <TableHead>Period</TableHead>
                 <TableHead>Bookings</TableHead>
-                <TableHead>Issued</TableHead>
+                <TableHead>Currency</TableHead>
                 <TableHead>Due</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Total</TableHead>
-                <TableHead>Received</TableHead>
-                <TableHead>Variance</TableHead>
+                <TableHead className="text-right">Total</TableHead>
+                <TableHead className="text-right">Received</TableHead>
+                <TableHead className="text-right">Variance</TableHead>
                 <TableHead></TableHead>
               </TableRow>
             </TableHeader>
@@ -483,21 +423,24 @@ export default function SettlementPage() {
               {filteredInvoices.map(inv => {
                 const variance = inv.total - inv.receivedAmount;
                 const hasDispute = inv.disputedAmount > 0;
+                const curr = inv.contractCurrency;
+                const fmt = (n: number) => `${curr} ${n.toLocaleString()}`;
                 return (
                   <TableRow key={inv.invoiceNo} className={`cursor-pointer hover:bg-muted/50 ${hasDispute ? "bg-amber-50/60 dark:bg-amber-950/10" : ""}`} onClick={() => navigate(`/app/settlement/invoice/${inv.invoiceNo}`)}>
                     <TableCell className="font-mono text-sm text-[#0066cc] hover:underline">
                       {inv.invoiceNo}
                       {hasDispute && <Sparkles className="h-3 w-3 inline ml-1 text-amber-500" />}
                     </TableCell>
-                    <TableCell>{inv.period}</TableCell>
+                    <TableCell><Badge variant={inv.billingType === "PREPAY" ? "destructive" : "default"} className="text-[10px]">{inv.billingType}</Badge></TableCell>
+                    <TableCell className="text-xs">{inv.period}</TableCell>
                     <TableCell className="text-xs text-muted-foreground">{inv.bookingIds.length}</TableCell>
-                    <TableCell className="text-sm">{inv.issuedDate}</TableCell>
+                    <TableCell><Badge variant="outline" className="text-[10px] font-mono">{curr}</Badge></TableCell>
                     <TableCell className="text-sm">{inv.dueDate}</TableCell>
                     <TableCell><Badge variant={invStatusColors[inv.status] as "default" | "secondary" | "destructive"}>{inv.status}</Badge></TableCell>
-                    <TableCell className="font-bold">${inv.total.toLocaleString()}</TableCell>
-                    <TableCell className="text-sm">${inv.receivedAmount.toLocaleString()}</TableCell>
-                    <TableCell className={`text-sm font-medium ${variance > 0 ? "text-amber-600" : variance < 0 ? "text-blue-600" : "text-green-600"}`}>
-                      {variance === 0 ? "—" : `$${Math.abs(variance).toLocaleString()}`}
+                    <TableCell className="text-right font-mono font-bold">{fmt(inv.total)}</TableCell>
+                    <TableCell className="text-right font-mono text-sm">{fmt(inv.receivedAmount)}</TableCell>
+                    <TableCell className={`text-right font-mono text-sm font-medium ${variance > 0 ? "text-amber-600" : variance < 0 ? "text-blue-600" : "text-green-600"}`}>
+                      {variance === 0 ? "—" : `${curr} ${Math.abs(variance).toLocaleString()}`}
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1">
@@ -648,42 +591,6 @@ export default function SettlementPage() {
                     </Badge>
                   </TableCell>
                   <TableCell><Badge variant="destructive" className="text-[10px]">{ar.paymentStatus}</Badge></TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TabsContent>
-
-        {/* ══════ OP Points Tab ══════ */}
-        <TabsContent value="points" className="space-y-4 mt-4">
-          <Table>
-            <TableHeader><TableRow><TableHead>Date</TableHead><TableHead>Type</TableHead><TableHead>Description</TableHead><TableHead>Amount</TableHead><TableHead>Balance</TableHead></TableRow></TableHeader>
-            <TableBody>
-              {pointsHistory.map((p) => (
-                <TableRow key={`${p.date}-${p.description}`}>
-                  <TableCell>{p.date}</TableCell>
-                  <TableCell><Badge variant={p.type === "Earned" ? "default" : "secondary"}>{p.type}</Badge></TableCell>
-                  <TableCell>{p.description}</TableCell>
-                  <TableCell className={p.amount > 0 ? "text-green-600 font-medium" : "text-red-500 font-medium"}>{p.amount > 0 ? "+" : ""}{p.amount.toLocaleString()}</TableCell>
-                  <TableCell className="font-medium">{p.balance.toLocaleString()}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TabsContent>
-
-        {/* ══════ Purchase by Hotel Tab ══════ */}
-        <TabsContent value="purchase" className="space-y-4 mt-4">
-          <Table>
-            <TableHeader><TableRow><TableHead>Hotel</TableHead><TableHead>Total Amount</TableHead><TableHead>Bookings</TableHead><TableHead>Avg Value</TableHead><TableHead>Share</TableHead></TableRow></TableHeader>
-            <TableBody>
-              {purchaseByHotel.map(h => (
-                <TableRow key={h.hotelName}>
-                  <TableCell className="font-medium">{h.hotelName}</TableCell>
-                  <TableCell>${h.totalAmount.toLocaleString()}</TableCell>
-                  <TableCell>{h.bookingCount}</TableCell>
-                  <TableCell>${h.avgTransaction}</TableCell>
-                  <TableCell>{h.share}%</TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -921,118 +828,6 @@ export default function SettlementPage() {
           </Card>
         </TabsContent>
 
-        {/* ══════ FX Gain/Loss Tab ══════ */}
-        <TabsContent value="fx" className="space-y-4 mt-4">
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-            <Card className="p-3">
-              <div className="flex items-center gap-2 mb-1"><TrendingUp className="h-4 w-4 text-green-600" /><p className="text-xs text-muted-foreground">Realized (This Month)</p></div>
-              <p className={`text-lg font-bold ${fxSummary.realizedGainUsd >= 0 ? "text-green-600" : "text-red-600"}`}>
-                {fxSummary.realizedGainUsd >= 0 ? "+" : ""}${fxSummary.realizedGainUsd.toLocaleString()}
-              </p>
-            </Card>
-            <Card className="p-3">
-              <div className="flex items-center gap-2 mb-1"><TrendingDown className="h-4 w-4 text-amber-600" /><p className="text-xs text-muted-foreground">Unrealized (Month-end M2M)</p></div>
-              <p className={`text-lg font-bold ${fxSummary.unrealizedGainUsd >= 0 ? "text-green-600" : "text-red-600"}`}>
-                {fxSummary.unrealizedGainUsd >= 0 ? "+" : ""}${fxSummary.unrealizedGainUsd.toLocaleString()}
-              </p>
-            </Card>
-            <Card className="p-3">
-              <p className="text-xs text-muted-foreground">Total Exposure (USD)</p>
-              <p className="text-lg font-bold">${fxSummary.totalExposureUsd.toLocaleString()}</p>
-            </Card>
-            <Card className="p-3">
-              <p className="text-xs text-muted-foreground">Hedge Ratio</p>
-              <p className="text-lg font-bold text-red-600">{fxSummary.hedgeRatio}%</p>
-              <p className="text-[10px] text-muted-foreground">무헷지 — 리스크 노출</p>
-            </Card>
-            <Card className="p-3">
-              <p className="text-xs text-muted-foreground">Rate Source</p>
-              <p className="text-sm font-bold">BOK · Exim Bank</p>
-              <p className="text-[10px] text-muted-foreground">매매기준율 일별 갱신</p>
-            </Card>
-          </div>
-
-          <Alert className="border-blue-200 bg-blue-50 dark:bg-blue-900/10">
-            <AlertDescription className="text-xs">
-              <strong>환율 정책</strong>: 예약 시점 환율로 KRW 원가를 고정(Booking Rate), 정산 시점 환율로 USD 청구(Settlement Rate). 월말 미정산 건은 M2M (Mark-to-Market) 평가 → 미실현손익 계상.
-            </AlertDescription>
-          </Alert>
-
-          {/* FX Rate History */}
-          <Card className="p-5">
-            <h2 className="text-base font-bold mb-3">월말 환율 테이블 (USD 기준)</h2>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead className="text-right">KRW</TableHead>
-                  <TableHead className="text-right">JPY</TableHead>
-                  <TableHead className="text-right">CNY</TableHead>
-                  <TableHead className="text-right">VND</TableHead>
-                  <TableHead className="text-right">SGD</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {["2026-01-31", "2026-02-28", "2026-03-31", "2026-04-30"].map(d => (
-                  <TableRow key={d}>
-                    <TableCell className="font-mono text-xs">{d}</TableCell>
-                    {(["KRW","JPY","CNY","VND","SGD"] as const).map(c => {
-                      const rate = fxHistory.find(f => f.date === d && f.target === c)?.rate || 0;
-                      return <TableCell key={c} className="text-right font-mono text-xs">{c === "VND" ? rate.toLocaleString() : rate.toFixed(c === "SGD" ? 3 : 2)}</TableCell>;
-                    })}
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </Card>
-
-          {/* Per-booking FX breakdown */}
-          <Card className="p-5">
-            <h2 className="text-base font-bold mb-3">예약별 FX 손익 내역 (Mar 2026 정산 건)</h2>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>ELLIS Code</TableHead>
-                  <TableHead>Hotel</TableHead>
-                  <TableHead>Country</TableHead>
-                  <TableHead className="text-right">USD</TableHead>
-                  <TableHead className="text-right">Booking Rate</TableHead>
-                  <TableHead className="text-right">Settlement Rate</TableHead>
-                  <TableHead className="text-right">Realized Gain (Local)</TableHead>
-                  <TableHead className="text-right">Realized (USD)</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {allBookings.slice(0, 6).map(b => {
-                  const curr = b.country === "Japan" ? "JPY" : b.country === "China" ? "CNY" : b.country === "Vietnam" ? "VND" : b.country === "Singapore" ? "SGD" : "KRW";
-                  const fx = calculateFx({
-                    amountUsd: b.sumAmount,
-                    hotelCurrency: curr as "KRW" | "JPY" | "CNY" | "VND" | "SGD",
-                    bookingDate: b.bookingDate.split(" ")[0],
-                    settlementDate: "2026-04-15",
-                  });
-                  const gainPositive = fx.realizedGainLocal >= 0;
-                  return (
-                    <TableRow key={b.id}>
-                      <TableCell className="font-mono text-xs">{b.ellisCode}</TableCell>
-                      <TableCell className="text-xs">{b.hotelName}</TableCell>
-                      <TableCell className="text-xs">{curr}</TableCell>
-                      <TableCell className="text-right font-mono text-xs">${b.sumAmount.toLocaleString()}</TableCell>
-                      <TableCell className="text-right font-mono text-xs">{fx.bookingRate.toLocaleString()}</TableCell>
-                      <TableCell className="text-right font-mono text-xs">{fx.settlementRate.toLocaleString()}</TableCell>
-                      <TableCell className={`text-right font-mono text-xs font-medium ${gainPositive ? "text-green-600" : "text-red-600"}`}>
-                        {gainPositive ? "+" : ""}{Math.round(fx.realizedGainLocal).toLocaleString()} {curr}
-                      </TableCell>
-                      <TableCell className={`text-right font-mono text-xs font-medium ${gainPositive ? "text-green-600" : "text-red-600"}`}>
-                        {gainPositive ? "+" : ""}${fx.realizedGainUsd.toFixed(2)}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </Card>
-        </TabsContent>
 
         {/* ══════ Bank Reconciliation Tab ══════ */}
         <TabsContent value="bank" className="space-y-4 mt-4">

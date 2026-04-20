@@ -56,6 +56,10 @@ export default function SettlementDetailPage() {
 
   const logsForInvoice = matchLog.filter(l => l.invoiceNo === invoiceNo);
 
+  /* Contract-currency aware formatter — all amounts in invoice's fixed currency */
+  const curr = invoice?.contractCurrency || "USD";
+  const fmt = (n: number) => `${curr} ${n.toLocaleString()}`;
+
   if (!hasRole(["Master", "OP"])) {
     return (
       <div className="p-6">
@@ -125,11 +129,11 @@ export default function SettlementDetailPage() {
     if (result.perfectMatch) {
       toast.success("✓ Full match — no exclusions detected", { description: "Payment reconciled successfully." });
     } else if (result.exclusions.length > 0) {
-      toast.warning(`⚠️ ${result.exclusions.length} exclusion(s) auto-detected`, { description: `Variance $${result.variance.toLocaleString()} matches these bookings exactly. Consider disputing.` });
+      toast.warning(`⚠️ ${result.exclusions.length} exclusion(s) auto-detected`, { description: `Variance ${fmt(result.variance)} matches these bookings exactly. Consider disputing.` });
     } else if (result.variance > 0) {
-      toast.error("No exact subset found", { description: `Variance $${result.variance.toLocaleString()} doesn't match any combination. Manual review required.` });
+      toast.error("No exact subset found", { description: `Variance ${fmt(result.variance)} doesn't match any combination. Manual review required.` });
     } else {
-      toast.error("Overpayment detected", { description: `Received $${Math.abs(result.variance).toLocaleString()} more than expected.` });
+      toast.error("Overpayment detected", { description: `Received ${fmt(Math.abs(result.variance))} more than expected.` });
     }
   };
 
@@ -265,7 +269,7 @@ export default function SettlementDetailPage() {
             )}
             {invoice.carriedOverBookingIds && invoice.carriedOverBookingIds.length > 0 && (
               <p className="text-xs text-blue-700 dark:text-blue-300">
-                🔄 Carried over from <span className="font-mono">{invoice.carriedOverFrom}</span>: {invoice.carriedOverBookingIds.length} booking(s) · ${(invoice.carriedOverAmount || 0).toLocaleString()}
+                🔄 Carried over from <span className="font-mono">{invoice.carriedOverFrom}</span>: {invoice.carriedOverBookingIds.length} booking(s) · {fmt(invoice.carriedOverAmount || 0)}
               </p>
             )}
           </div>
@@ -284,26 +288,26 @@ export default function SettlementDetailPage() {
         {/* Summary Row */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div>
-            <p className="text-xs text-muted-foreground">Invoice Total</p>
-            <p className="text-2xl font-bold">${invoice.total.toLocaleString()}</p>
+            <p className="text-xs text-muted-foreground">Invoice Total <Badge variant="outline" className="ml-1 text-[9px] font-mono">{curr}</Badge></p>
+            <p className="text-2xl font-bold font-mono">{fmt(invoice.total)}</p>
             <p className="text-[10px] text-muted-foreground">{invoice.bookingIds.length} bookings</p>
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Received</p>
-            <p className="text-2xl font-bold text-green-600 dark:text-green-400">${invoice.receivedAmount.toLocaleString()}</p>
+            <p className="text-2xl font-bold font-mono text-green-600 dark:text-green-400">{fmt(invoice.receivedAmount)}</p>
             <p className="text-[10px] text-muted-foreground">{invoice.paymentDate || "—"}</p>
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Variance (Disputed)</p>
-            <p className={`text-2xl font-bold ${invoice.disputedAmount > 0 ? "text-red-600 dark:text-red-400" : ""}`}>
-              ${invoice.disputedAmount.toLocaleString()}
+            <p className={`text-2xl font-bold font-mono ${invoice.disputedAmount > 0 ? "text-red-600 dark:text-red-400" : ""}`}>
+              {fmt(invoice.disputedAmount)}
             </p>
             <p className="text-[10px] text-muted-foreground">{invoice.disputedBookingIds.length} booking(s)</p>
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Outstanding</p>
-            <p className="text-2xl font-bold">${(invoice.total - invoice.receivedAmount).toLocaleString()}</p>
-            <p className="text-[10px] text-muted-foreground">Awaiting resolution</p>
+            <p className="text-2xl font-bold font-mono">{fmt(invoice.total - invoice.receivedAmount)}</p>
+            <p className="text-[10px] text-muted-foreground">Awaiting remittance</p>
           </div>
         </div>
       </Card>
@@ -318,12 +322,13 @@ export default function SettlementDetailPage() {
           </Badge>
         </div>
         <p className="text-xs text-muted-foreground mb-4">
-          고객사가 분쟁 건을 빼고 송금하면, 차액 = 제외된 예약 금액의 합. 시스템이 조합을 자동으로 찾아냅니다.
+          계약 통화는 <strong className="text-foreground font-mono">{curr}</strong>로 고정. 고객사는 해당 통화로 청구 금액 <strong>그대로</strong> 송금합니다 (환율 변환 없음).
+          분쟁 건을 빼고 송금하면, 차액 = 제외된 예약 금액의 합. 시스템이 조합을 자동으로 찾아냅니다.
         </p>
 
         <div className="flex items-end gap-3 flex-wrap">
           <div className="flex-1 min-w-[200px]">
-            <label className="text-xs font-medium text-muted-foreground">고객 실제 입금액 (USD)</label>
+            <label className="text-xs font-medium text-muted-foreground">고객 실제 송금액 ({curr})</label>
             <Input
               type="number"
               value={receivedInput}
@@ -333,8 +338,8 @@ export default function SettlementDetailPage() {
             />
           </div>
           <div>
-            <label className="text-xs font-medium text-muted-foreground">Expected</label>
-            <p className="mt-1 font-mono text-lg h-10 flex items-center">${invoice.total.toLocaleString()}</p>
+            <label className="text-xs font-medium text-muted-foreground">Expected (계약 통화)</label>
+            <p className="mt-1 font-mono text-lg h-10 flex items-center">{fmt(invoice.total)}</p>
           </div>
           <Button onClick={runMatch} style={{ background: "#FF6000" }} className="text-white hover:opacity-90">
             <Sparkles className="h-4 w-4 mr-1" />Run Auto-Match
@@ -356,7 +361,7 @@ export default function SettlementDetailPage() {
               <Alert className="border-amber-300 bg-amber-50 dark:bg-amber-950/20">
                 <AlertTriangle className="h-4 w-4 text-amber-600" />
                 <AlertTitle className="text-amber-900 dark:text-amber-100">
-                  Variance ${matchResult.variance.toLocaleString()} → {matchResult.exclusions.length} booking(s) auto-detected as excluded
+                  Variance {fmt(matchResult.variance)} → {matchResult.exclusions.length} booking(s) auto-detected as excluded
                 </AlertTitle>
                 <AlertDescription className="text-amber-800 dark:text-amber-200 text-xs mt-2">
                   <p className="mb-2">다음 예약들의 합이 차액과 정확히 일치합니다. 분쟁으로 등록하시겠습니까?</p>
@@ -367,7 +372,7 @@ export default function SettlementDetailPage() {
                         <span>·</span>
                         <span>{b.hotelName}</span>
                         <span>·</span>
-                        <span className="font-bold">${b.sumAmount.toLocaleString()}</span>
+                        <span className="font-bold font-mono">{fmt(b.sumAmount)}</span>
                         <Button size="sm" variant="ghost" className="ml-auto h-6 text-[11px]" onClick={() => openDispute(b)}>
                           Register Dispute →
                         </Button>
@@ -381,7 +386,7 @@ export default function SettlementDetailPage() {
                 <AlertTriangle className="h-4 w-4" />
                 <AlertTitle>No matching combination found</AlertTitle>
                 <AlertDescription className="text-xs">
-                  Variance ${matchResult.variance.toLocaleString()} doesn't match any subset of bookings. Manual review required — check for partial dispute amounts, late fees, or FX differences.
+                  Variance {fmt(matchResult.variance)} doesn't match any subset of bookings. Manual review — check partial dispute amounts, late fees, or rounding.
                 </AlertDescription>
               </Alert>
             ) : (
@@ -389,7 +394,7 @@ export default function SettlementDetailPage() {
                 <AlertTriangle className="h-4 w-4" />
                 <AlertTitle>Overpayment</AlertTitle>
                 <AlertDescription className="text-xs">
-                  Received ${Math.abs(matchResult.variance).toLocaleString()} more than expected. Check for duplicate payment or advance credit.
+                  Received {fmt(Math.abs(matchResult.variance))} more than expected. Check for duplicate remittance or advance credit.
                 </AlertDescription>
               </Alert>
             )}
@@ -436,7 +441,7 @@ export default function SettlementDetailPage() {
                   <TableCell className="text-sm">{b.hotelName}</TableCell>
                   <TableCell className="text-xs">{b.checkIn} ({b.nights}N)</TableCell>
                   <TableCell className="text-xs">{b.guestName}</TableCell>
-                  <TableCell className="text-right font-mono font-medium">${b.sumAmount.toLocaleString()}</TableCell>
+                  <TableCell className="text-right font-mono font-medium">{fmt(b.sumAmount)}</TableCell>
                   <TableCell>
                     <Badge variant={b.bookingStatus === "Confirmed" ? "default" : "destructive"} className="text-[10px]">{b.bookingStatus}</Badge>
                   </TableCell>
@@ -536,7 +541,7 @@ export default function SettlementDetailPage() {
                   <TableRow key={l.id}>
                     <TableCell className="text-xs font-mono">{l.matchedAt}</TableCell>
                     <TableCell className="text-xs">{l.matchedBy}</TableCell>
-                    <TableCell className="font-mono text-xs font-medium">${l.variance.toLocaleString()}</TableCell>
+                    <TableCell className="font-mono text-xs font-medium">{fmt(l.variance)}</TableCell>
                     <TableCell className="text-xs">
                       {l.detectedExclusions.length > 0
                         ? l.detectedExclusions.map(id => allBookings.find(x => x.id === id)?.ellisCode).join(", ")
@@ -595,7 +600,7 @@ export default function SettlementDetailPage() {
               <div className="p-3 bg-muted/40 rounded-md text-sm">
                 <p><strong>{disputeTarget.hotelName}</strong></p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Guest: {disputeTarget.guestName} · {disputeTarget.checkIn} ({disputeTarget.nights}N) · <span className="font-mono font-bold">${disputeTarget.sumAmount.toLocaleString()}</span>
+                  Guest: {disputeTarget.guestName} · {disputeTarget.checkIn} ({disputeTarget.nights}N) · <span className="font-mono font-bold">{fmt(disputeTarget.sumAmount)}</span>
                 </p>
               </div>
 

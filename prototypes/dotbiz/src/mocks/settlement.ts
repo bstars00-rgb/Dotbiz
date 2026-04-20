@@ -53,9 +53,11 @@ export interface InvoiceWithMatch {
   supplyAmount: number;
   vat: number;
   total: number;
+  /* 계약 통화 — 고객사와 계약 시 고정. 환율 손익 계산 안 함. */
+  contractCurrency: "USD" | "KRW" | "JPY" | "CNY" | "VND" | "SGD";
   issuedDate: string;
   dueDate: string;
-  /* New fields for Settlement Detail */
+  /* Settlement Detail */
   bookingIds: string[];
   receivedAmount: number;
   paymentDate: string;
@@ -63,72 +65,125 @@ export interface InvoiceWithMatch {
   disputedBookingIds: string[];
   disputedAmount: number;
   remarks?: string;
-  /* Carry-over from previous cycle (resolved disputes) */
+  /* Carry-over from previous cycle */
   carriedOverBookingIds?: string[];
-  carriedOverFrom?: string;  /* previous invoice no */
+  carriedOverFrom?: string;
   carriedOverAmount?: number;
+  /* Billing type tag — POSTPAY = 월 집계, PREPAY = 예약당 1건 */
+  billingType: "POSTPAY" | "PREPAY";
+  customerCompanyId?: string;
 }
 
+/* Invoices:
+ *  POSTPAY = 정산 주기별 집계 인보이스 (1건에 여러 예약)
+ *  PREPAY  = 예약당 1건 (선불이라 예약 확정 전 결제)
+ */
 export const invoices: InvoiceWithMatch[] = [
+  /* ── POSTPAY: TravelCo International (comp-001, USD) ── */
   {
     invoiceNo: "INV-2026-0089", period: "Mar 2026", status: "Partial",
-    supplyAmount: 3800, vat: 380, total: 4180,
+    supplyAmount: 3800, vat: 380, total: 4180, contractCurrency: "USD",
     issuedDate: "2026-04-01", dueDate: "2026-04-30",
-    bookingIds: ["bk-001", "bk-002", "bk-003", "bk-007", "bk-008"],  /* 5건, 총 $4,180 */
-    receivedAmount: 2820,   /* 고객사가 bk-002($580) + bk-003($780) 제외하고 송금 */
+    bookingIds: ["bk-001", "bk-002", "bk-003", "bk-007", "bk-008"],
+    receivedAmount: 2820,
     paymentDate: "2026-04-15",
     matchStatus: "Partial",
     disputedBookingIds: ["bk-002", "bk-003"],
     disputedAmount: 1360,
     remarks: "고객사 송금에서 2건 누락 — 자동 감지 및 분쟁 태깅 완료",
+    billingType: "POSTPAY", customerCompanyId: "comp-001",
   },
   {
     invoiceNo: "INV-2026-0067", period: "Feb 2026", status: "Paid",
-    supplyAmount: 3500, vat: 350, total: 3850,
+    supplyAmount: 3500, vat: 350, total: 3850, contractCurrency: "USD",
     issuedDate: "2026-03-01", dueDate: "2026-03-31",
     bookingIds: ["bk-004"],
-    receivedAmount: 3850,
-    paymentDate: "2026-03-20",
-    matchStatus: "Full",
-    disputedBookingIds: [],
-    disputedAmount: 0,
+    receivedAmount: 3850, paymentDate: "2026-03-20",
+    matchStatus: "Full", disputedBookingIds: [], disputedAmount: 0,
+    billingType: "POSTPAY", customerCompanyId: "comp-001",
   },
   {
     invoiceNo: "INV-2026-0130", period: "Apr 2026", status: "Issued",
-    supplyAmount: 9664, vat: 966, total: 10630,
+    supplyAmount: 9664, vat: 966, total: 10630, contractCurrency: "USD",
     issuedDate: "2026-05-01", dueDate: "2026-05-31",
     bookingIds: ["bk-009", "bk-010", "bk-011", "bk-012", "bk-013", "bk-014", "bk-015"],
-    receivedAmount: 0,
-    paymentDate: "",
-    matchStatus: "Unpaid",
-    disputedBookingIds: [],
-    disputedAmount: 0,
-    /* Demonstrates carry-over pattern (will populate when Mar disputes are resolved) */
-    carriedOverBookingIds: [],
-    carriedOverFrom: "INV-2026-0089",
-    carriedOverAmount: 0,
+    receivedAmount: 0, paymentDate: "",
+    matchStatus: "Unpaid", disputedBookingIds: [], disputedAmount: 0,
+    carriedOverBookingIds: [], carriedOverFrom: "INV-2026-0089", carriedOverAmount: 0,
+    billingType: "POSTPAY", customerCompanyId: "comp-001",
+  },
+
+  /* ── POSTPAY: Sakura Travel Japan (comp-003, JPY 계약) ── */
+  {
+    invoiceNo: "INV-2026-JP-0012", period: "Mar 2026", status: "Paid",
+    supplyAmount: 495000, vat: 0, total: 495000, contractCurrency: "JPY",
+    issuedDate: "2026-04-03", dueDate: "2026-05-03",
+    bookingIds: ["bk-005"],
+    receivedAmount: 495000, paymentDate: "2026-04-25",
+    matchStatus: "Full", disputedBookingIds: [], disputedAmount: 0,
+    billingType: "POSTPAY", customerCompanyId: "comp-003",
+  },
+
+  /* ── POSTPAY: Dragon Holidays Shanghai (comp-004, CNY 계약) ── */
+  {
+    invoiceNo: "INV-2026-CN-0008", period: "Mar 2026 H2", status: "Paid",
+    supplyAmount: 56550, vat: 0, total: 56550, contractCurrency: "CNY",
+    issuedDate: "2026-04-05", dueDate: "2026-04-19",
+    bookingIds: ["bk-007"],
+    receivedAmount: 56550, paymentDate: "2026-04-18",
+    matchStatus: "Full", disputedBookingIds: [], disputedAmount: 0,
+    billingType: "POSTPAY", customerCompanyId: "comp-004",
+  },
+
+  /* ── PREPAY: Asia Tours Ltd (comp-002) — 예약당 1건 ── */
+  {
+    invoiceNo: "INV-2026-PRE-0201", period: "bk-014 Raffles Singapore", status: "Issued",
+    supplyAmount: 1650, vat: 0, total: 1650, contractCurrency: "USD",
+    issuedDate: "2026-04-08", dueDate: "2026-04-25",
+    bookingIds: ["bk-014"],
+    receivedAmount: 825,  /* partial prepay */
+    paymentDate: "2026-04-08",
+    matchStatus: "Partial", disputedBookingIds: [], disputedAmount: 0,
+    remarks: "PREPAY · 예약 단건 인보이스 · 50% 선결제 완료, 잔금 대기",
+    billingType: "PREPAY", customerCompanyId: "comp-002",
   },
   {
+    invoiceNo: "INV-2026-PRE-0205", period: "bk-009 Park Hyatt Saigon", status: "Issued",
+    supplyAmount: 920, vat: 0, total: 920, contractCurrency: "USD",
+    issuedDate: "2026-04-01", dueDate: "2026-04-20",
+    bookingIds: ["bk-009"],
+    receivedAmount: 0, paymentDate: "",
+    matchStatus: "Unpaid", disputedBookingIds: [], disputedAmount: 0,
+    remarks: "PREPAY · 결제 데드라인 임박 (D-Day) — 자동 알림 발송 중",
+    billingType: "PREPAY", customerCompanyId: "comp-002",
+  },
+  {
+    invoiceNo: "INV-2026-PRE-0198", period: "bk-006 Lotte Hanoi", status: "Paid",
+    supplyAmount: 360, vat: 0, total: 360, contractCurrency: "USD",
+    issuedDate: "2026-03-26", dueDate: "2026-04-04",
+    bookingIds: ["bk-006"],
+    receivedAmount: 360, paymentDate: "2026-04-02",
+    matchStatus: "Full", disputedBookingIds: [], disputedAmount: 0,
+    billingType: "PREPAY", customerCompanyId: "comp-002",
+  },
+
+  /* ── Historical ── */
+  {
     invoiceNo: "INV-2026-0045", period: "Jan 2026", status: "Paid",
-    supplyAmount: 32000, vat: 3200, total: 35200,
+    supplyAmount: 32000, vat: 3200, total: 35200, contractCurrency: "USD",
     issuedDate: "2026-02-01", dueDate: "2026-02-28",
     bookingIds: [], receivedAmount: 35200, paymentDate: "2026-02-22",
     matchStatus: "Full", disputedBookingIds: [], disputedAmount: 0,
-  },
-  {
-    invoiceNo: "INV-2025-0120", period: "Dec 2025", status: "Paid",
-    supplyAmount: 38000, vat: 3800, total: 41800,
-    issuedDate: "2026-01-01", dueDate: "2026-01-31",
-    bookingIds: [], receivedAmount: 41800, paymentDate: "2026-01-28",
-    matchStatus: "Full", disputedBookingIds: [], disputedAmount: 0,
+    billingType: "POSTPAY", customerCompanyId: "comp-001",
   },
   {
     invoiceNo: "INV-2025-0076", period: "Oct 2025", status: "Overdue",
-    supplyAmount: 26700, vat: 2670, total: 29400,
+    supplyAmount: 26700, vat: 2670, total: 29400, contractCurrency: "USD",
     issuedDate: "2025-11-01", dueDate: "2025-11-30",
     bookingIds: [], receivedAmount: 0, paymentDate: "",
     matchStatus: "Unpaid", disputedBookingIds: [], disputedAmount: 0,
     remarks: "60일 이상 연체 — 회수 담당자 배정 필요",
+    billingType: "POSTPAY", customerCompanyId: "comp-001",
   },
 ];
 
