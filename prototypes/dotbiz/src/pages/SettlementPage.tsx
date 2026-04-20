@@ -78,9 +78,11 @@ export default function SettlementPage() {
   };
 
   /* ── Billing Details filters ── */
-  const [billDateType, setBillDateType] = useState("Created Date");
+  const [billDateType, setBillDateType] = useState<"Created Date" | "Due Date" | "Settlement Date">("Created Date");
   const [billType, setBillType] = useState("All");
   const [billSearch, setBillSearch] = useState("");
+  const [billDateFrom, setBillDateFrom] = useState("");
+  const [billDateTo, setBillDateTo] = useState("");
 
   const filteredBills = useMemo(() => {
     let result = [...billingDetails];
@@ -89,8 +91,20 @@ export default function SettlementPage() {
       const q = billSearch.toLowerCase();
       result = result.filter(b => b.billId.toLowerCase().includes(q) || b.bookingId.toLowerCase().includes(q));
     }
+    /* Date range filter based on selected Date Type */
+    if (billDateFrom || billDateTo) {
+      result = result.filter(b => {
+        const target = billDateType === "Created Date" ? b.createdDate
+          : billDateType === "Due Date" ? b.dueDate
+          : b.settlementDate;
+        if (!target) return false;
+        if (billDateFrom && target < billDateFrom) return false;
+        if (billDateTo && target > billDateTo) return false;
+        return true;
+      });
+    }
     return result;
-  }, [billType, billSearch]);
+  }, [billType, billSearch, billDateType, billDateFrom, billDateTo]);
 
   /* ── Invoices filter ── */
   const [invStatus, setInvStatus] = useState("All");
@@ -330,13 +344,21 @@ export default function SettlementPage() {
 
         {/* ══════ Billing Details Tab ══════ */}
         <TabsContent value="billing" className="space-y-4 mt-4">
-          <Card className="p-4">
+          <Card className="p-4 space-y-3">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <div>
                 <label className="text-sm font-medium">Date Type</label>
-                <select value={billDateType} onChange={e => setBillDateType(e.target.value)} className="w-full border rounded px-2 py-1.5 text-sm bg-background mt-1">
+                <select value={billDateType} onChange={e => setBillDateType(e.target.value as typeof billDateType)} className="w-full border rounded px-2 py-1.5 text-sm bg-background mt-1">
                   {["Created Date", "Due Date", "Settlement Date"].map(o => <option key={o}>{o}</option>)}
                 </select>
+              </div>
+              <div>
+                <label className="text-sm font-medium">From</label>
+                <input type="date" value={billDateFrom} onChange={e => setBillDateFrom(e.target.value)} className="w-full border rounded px-2 py-1.5 text-sm bg-background mt-1" />
+              </div>
+              <div>
+                <label className="text-sm font-medium">To</label>
+                <input type="date" value={billDateTo} onChange={e => setBillDateTo(e.target.value)} className="w-full border rounded px-2 py-1.5 text-sm bg-background mt-1" />
               </div>
               <div>
                 <label className="text-sm font-medium">Bill Type</label>
@@ -344,12 +366,15 @@ export default function SettlementPage() {
                   {["All", "Hotel Booking", "Cancellation Fee", "Adjustment"].map(o => <option key={o}>{o}</option>)}
                 </select>
               </div>
-              <div>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="md:col-span-3">
                 <label className="text-sm font-medium">Bill ID / Booking ID</label>
                 <Input placeholder="Search..." value={billSearch} onChange={e => setBillSearch(e.target.value)} className="mt-1" />
               </div>
-              <div className="flex items-end">
-                <Button variant="outline" size="sm" onClick={() => { setBillType("All"); setBillSearch(""); }}><X className="h-3 w-3 mr-1" />Reset</Button>
+              <div className="flex items-end gap-2">
+                <Button size="sm" onClick={() => toast.success(`${filteredBills.length} records found`)}><Search className="h-3 w-3 mr-1" />Search</Button>
+                <Button variant="outline" size="sm" onClick={() => { setBillType("All"); setBillSearch(""); setBillDateFrom(""); setBillDateTo(""); setBillDateType("Created Date"); }}><X className="h-3 w-3 mr-1" />Reset</Button>
               </div>
             </div>
           </Card>

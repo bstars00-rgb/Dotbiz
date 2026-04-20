@@ -1,13 +1,12 @@
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Printer, Download } from "lucide-react";
 import { toast } from "sonner";
 import { bookings } from "@/mocks/bookings";
-import { currentCompany, companies, type Company } from "@/mocks/companies";
+import { currentCompany, type Company } from "@/mocks/companies";
 import { taxRules } from "@/mocks/taxProfiles";
-import { calculateTax, formatVatLabel, formatInvoiceSystem } from "@/lib/taxEngine";
 
 export interface InvoiceData {
   invoiceNo: string;
@@ -86,32 +85,18 @@ export default function InvoicePreviewDialog({ open, onOpenChange, invoice, cust
   const [lang, setLang] = useState<Lang>("EN");
   const [showLogo, setShowLogo] = useState(true);
   const [showBankInfo, setShowBankInfo] = useState(true);
-  /* Allow user to pick customer in preview to demo multi-country formats */
-  const [customerOverrideId, setCustomerOverrideId] = useState<string>("");
 
   const t = (k: string) => L[k]?.[lang] || L[k]?.EN || k;
 
-  const activeCustomer: Company = useMemo(() => {
-    if (customerOverrideId) return companies.find(c => c.id === customerOverrideId) || customer || currentCompany;
-    return customer || currentCompany;
-  }, [customerOverrideId, customer]);
-
-  /* Compute tax breakdown via engine */
-  const taxBreakdown = useMemo(() => {
-    if (!invoice) return null;
-    return calculateTax({
-      seller: SELLER_PROFILE,
-      buyer: activeCustomer.taxProfile,
-      hotelCountry: "KR",
-      amount: invoice.supplyAmount,
-      serviceType: "Hotel",
-      currency: "USD",
-    });
-  }, [invoice, activeCustomer]);
-
+  const activeCustomer: Company = customer || currentCompany;
   const buyerRule = taxRules[activeCustomer.taxProfile.country];
 
-  if (!invoice || !taxBreakdown) return null;
+  if (!invoice) return null;
+
+  /* 정책: 예약 금액은 내부적으로 VAT 포함 final price.
+   *      인보이스 total = booking 금액 합계 — 고객은 그 금액 그대로 송금.
+   *      (한국 전자세금계산서는 별도 NTS 연동으로 발행)
+   */
 
   /* Pick sample bookings for this invoice period */
   const sampleBookings = bookings.slice(0, 5).map((b, i) => ({
@@ -151,32 +136,6 @@ export default function InvoicePreviewDialog({ open, onOpenChange, invoice, cust
               </label>
             ))}
           </div>
-          <div className="flex items-center gap-2 text-sm ml-auto">
-            <span className="text-muted-foreground">Customer:</span>
-            <select value={customerOverrideId} onChange={e => setCustomerOverrideId(e.target.value)} className="border rounded px-2 py-1 text-xs bg-background">
-              <option value="">Default ({(customer || currentCompany).name})</option>
-              {companies.map(c => (
-                <option key={c.id} value={c.id}>{taxRules[c.taxProfile.country].flag} {c.name}</option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        {/* Tax Compliance Banner */}
-        <div className="px-6 py-2 border-b bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-950/20 dark:to-amber-950/20 text-xs flex items-center gap-3 flex-wrap no-print">
-          <span className="font-medium">{buyerRule.flag} {buyerRule.country}</span>
-          <span className="text-muted-foreground">·</span>
-          <span className={`font-bold px-2 py-0.5 rounded ${taxBreakdown.scheme === "Zero-rated" ? "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-200" : taxBreakdown.scheme === "Exempt" ? "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300" : "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200"}`}>
-            {formatVatLabel(taxBreakdown)}
-          </span>
-          {taxBreakdown.isCrossBorder && <span className="text-[10px] px-2 py-0.5 rounded bg-purple-100 text-purple-800 dark:bg-purple-900/40">Cross-border</span>}
-          {taxBreakdown.reverseChargeRequired && <span className="text-[10px] px-2 py-0.5 rounded bg-red-100 text-red-800 dark:bg-red-900/40">Buyer: Reverse Charge</span>}
-          {taxBreakdown.withholding > 0 && <span className="text-[10px] px-2 py-0.5 rounded bg-amber-100 text-amber-800 dark:bg-amber-900/40">WHT {(taxBreakdown.withholdingRate * 100).toFixed(1)}%</span>}
-          <span className="text-muted-foreground">·</span>
-          <span className="text-[11px]">{formatInvoiceSystem(taxBreakdown.invoiceFormat)}</span>
-          {activeCustomer.taxProfile.eInvoiceRegNo && (
-            <span className="text-[11px] font-mono text-muted-foreground">{activeCustomer.taxProfile.eInvoiceRegNo}</span>
-          )}
         </div>
 
         {/* A4 Invoice */}
@@ -265,52 +224,21 @@ export default function InvoicePreviewDialog({ open, onOpenChange, invoice, cust
             </tbody>
           </table>
 
-          {/* Summary — tax-aware breakdown */}
+          {/* Summary — 예약 금액 합계 (VAT 내부 포함, 고객 송금액과 동일) */}
           <div className="flex justify-end mb-6">
-            <div className="w-96 border rounded overflow-hidden">
+            <div className="w-80 border rounded overflow-hidden">
               <h3 className="px-4 py-2 text-xs font-bold uppercase" style={{ background: "#1a1a2e", color: "white" }}>{t("summary")}</h3>
               <div className="p-4 space-y-2 text-sm">
-                <div className="flex justify-between"><span className="text-slate-600">{t("subtotal")} (Supply)</span><span className="font-medium">USD {taxBreakdown.supply.toLocaleString()}</span></div>
-                <div className="flex justify-between">
-                  <span className="text-slate-600">
-                    {taxBreakdown.scheme === "Zero-rated" ? `${buyerRule.vatNameEn} (Zero-rated 0%)` : taxBreakdown.scheme === "Exempt" ? `${buyerRule.vatNameEn} (Exempt)` : `${buyerRule.vatNameEn} (${(taxBreakdown.vatRate * 100).toFixed(0)}%)`}
-                  </span>
-                  <span className="font-medium">USD {taxBreakdown.vat.toLocaleString()}</span>
-                </div>
+                <div className="flex justify-between"><span className="text-slate-600">{t("subtotal")}</span><span className="font-medium">USD {invoice.total.toLocaleString()}</span></div>
                 <div className="h-px bg-slate-300 my-2" />
                 <div className="flex justify-between text-base">
-                  <span className="font-bold">{t("total")} Invoice</span>
-                  <span className="font-bold" style={{ color: "#FF6000" }}>USD {taxBreakdown.total.toLocaleString()}</span>
+                  <span className="font-bold">{t("total")}</span>
+                  <span className="font-bold" style={{ color: "#FF6000" }}>USD {invoice.total.toLocaleString()}</span>
                 </div>
-                {taxBreakdown.withholding > 0 && (
-                  <>
-                    <div className="h-px bg-slate-300 my-2" />
-                    <div className="flex justify-between text-xs text-slate-600">
-                      <span>− Withholding {(taxBreakdown.withholdingRate * 100).toFixed(1)}%</span>
-                      <span>-USD {taxBreakdown.withholding.toLocaleString()}</span>
-                    </div>
-                    <div className="flex justify-between text-sm font-bold text-green-700 dark:text-green-400">
-                      <span>Net Payable (고객 송금액)</span>
-                      <span>USD {taxBreakdown.netPayable.toLocaleString()}</span>
-                    </div>
-                  </>
-                )}
+                <p className="text-[10px] text-slate-500 pt-1">* Tax included (VAT 내부 포함) · 고객 송금액과 동일</p>
               </div>
             </div>
           </div>
-
-          {/* Tax Compliance Notes */}
-          {taxBreakdown.notes.length > 0 && (
-            <div className="border rounded p-3 mb-4 bg-blue-50 dark:bg-blue-950/10">
-              <h3 className="text-xs font-bold mb-2 text-blue-900 dark:text-blue-100">🌍 Tax Compliance Notes</h3>
-              <ul className="space-y-1 text-xs text-slate-700 dark:text-slate-300">
-                {taxBreakdown.notes.map((n, i) => (<li key={i} className="flex gap-2"><span className="text-blue-600">•</span><span>{n}</span></li>))}
-              </ul>
-              {taxBreakdown.rulesApplied.length > 0 && (
-                <p className="text-[10px] text-slate-500 mt-2 font-mono">Applied: {taxBreakdown.rulesApplied.join(" | ")}</p>
-              )}
-            </div>
-          )}
 
           {/* Bank Info */}
           {showBankInfo && (
