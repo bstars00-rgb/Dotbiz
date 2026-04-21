@@ -19,6 +19,7 @@ import { useI18n } from "@/contexts/I18nContext";
 import { billingDetails, invoices, accountsReceivable, disputeSummary } from "@/mocks/settlement";
 import { companies, currentCompany } from "@/mocks/companies";
 import { bookings as allBookings, type Booking } from "@/mocks/bookings";
+import { downloadCSV, timestamp } from "@/lib/download";
 import PaymentDialog from "@/components/PaymentDialog";
 import InvoicePreviewDialog, { type InvoiceData } from "@/components/InvoicePreviewDialog";
 import TopUpDepositDialog from "@/components/TopUpDepositDialog";
@@ -119,17 +120,24 @@ export default function SettlementPage() {
   const [billDateType, setBillDateType] = useState<"Created Date" | "Due Date" | "Settlement Date">("Created Date");
   const [billType, setBillType] = useState("All");
   const [billSearch, setBillSearch] = useState("");
+  const [billInvoiceSearch, setBillInvoiceSearch] = useState("");
   const [billDateFrom, setBillDateFrom] = useState("");
   const [billDateTo, setBillDateTo] = useState("");
 
+  /* Tenant-scope: only this customer's bills */
+  const myBills = useMemo(() => billingDetails.filter(b => b.customerCompanyId === activeCompany.id), [activeCompany.id]);
+
   const filteredBills = useMemo(() => {
-    let result = [...billingDetails];
+    let result = [...myBills];
     if (billType !== "All") result = result.filter(b => b.billType === billType);
     if (billSearch) {
       const q = billSearch.toLowerCase();
       result = result.filter(b => b.billId.toLowerCase().includes(q) || b.bookingId.toLowerCase().includes(q));
     }
-    /* Date range filter based on selected Date Type */
+    if (billInvoiceSearch) {
+      const q = billInvoiceSearch.toLowerCase();
+      result = result.filter(b => b.invoiceNo.toLowerCase().includes(q));
+    }
     if (billDateFrom || billDateTo) {
       result = result.filter(b => {
         const target = billDateType === "Created Date" ? b.createdDate
@@ -142,7 +150,27 @@ export default function SettlementPage() {
       });
     }
     return result;
-  }, [billType, billSearch, billDateType, billDateFrom, billDateTo]);
+  }, [myBills, billType, billSearch, billInvoiceSearch, billDateType, billDateFrom, billDateTo]);
+
+  /* Excel export — for customer accounting team */
+  const exportBillsCsv = () => {
+    if (filteredBills.length === 0) { toast.error("No bills to export"); return; }
+    const rows = filteredBills.map(b => ({
+      "Bill ID": b.billId,
+      "Invoice No": b.invoiceNo,
+      "Booking ID": b.bookingId,
+      "Hotel": b.hotelName,
+      "Bill Type": b.billType,
+      "Currency": b.currency,
+      "Amount": b.amount,
+      "Created Date": b.createdDate,
+      "Due Date": b.dueDate,
+      "Settlement Date": b.settlementDate || "",
+      "Status": b.status,
+    }));
+    downloadCSV(`billing_details_${activeCompany.name.replace(/[^a-z0-9]/gi, "_")}_${timestamp()}.csv`, rows);
+    toast.success(`${rows.length} bills exported`, { description: "CSV ready for your accounting team (Excel-compatible)" });
+  };
 
   /* ── Invoices filter ── */
   const [invStatus, setInvStatus] = useState("All");
@@ -560,27 +588,37 @@ export default function SettlementPage() {
               </div>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <div className="md:col-span-3">
+              <div>
                 <label className="text-sm font-medium">Bill ID / Booking ID</label>
-                <Input placeholder="Search..." value={billSearch} onChange={e => setBillSearch(e.target.value)} className="mt-1" />
+                <Input placeholder="BILL-… or ELLIS code" value={billSearch} onChange={e => setBillSearch(e.target.value)} className="mt-1" />
               </div>
-              <div className="flex items-end gap-2">
+              <div>
+                <label className="text-sm font-medium">Invoice No</label>
+                <Input placeholder="e.g. INV-2026-0089" value={billInvoiceSearch} onChange={e => setBillInvoiceSearch(e.target.value)} className="mt-1" />
+              </div>
+              <div className="md:col-span-2 flex items-end gap-2">
                 <Button size="sm" onClick={() => toast.success(`${filteredBills.length} records found`)}><Search className="h-3 w-3 mr-1" />Search</Button>
-                <Button variant="outline" size="sm" onClick={() => { setBillType("All"); setBillSearch(""); setBillDateFrom(""); setBillDateTo(""); setBillDateType("Created Date"); }}><X className="h-3 w-3 mr-1" />Reset</Button>
+                <Button variant="outline" size="sm" onClick={() => { setBillType("All"); setBillSearch(""); setBillInvoiceSearch(""); setBillDateFrom(""); setBillDateTo(""); setBillDateType("Created Date"); }}><X className="h-3 w-3 mr-1" />Reset</Button>
+                <Button size="sm" variant="outline" className="ml-auto" onClick={exportBillsCsv}>
+                  <Download className="h-3 w-3 mr-1" />Export Excel (CSV)
+                </Button>
               </div>
             </div>
           </Card>
 
-          <p className="text-sm text-muted-foreground">{filteredBills.length} billing records</p>
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-muted-foreground">{filteredBills.length} billing records {billInvoiceSearch && <span className="ml-1 text-[10px] bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 px-1.5 py-0.5 rounded">filtered by invoice {billInvoiceSearch}</span>}</p>
+          </div>
 
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Bill ID</TableHead>
+                <TableHead>Invoice No</TableHead>
                 <TableHead>Type</TableHead>
                 <TableHead>Booking ID</TableHead>
                 <TableHead>Hotel</TableHead>
-                <TableHead>Amount</TableHead>
+                <TableHead className="text-right">Amount</TableHead>
                 <TableHead>Created</TableHead>
                 <TableHead>Due</TableHead>
                 <TableHead>Settled</TableHead>
@@ -591,16 +629,28 @@ export default function SettlementPage() {
               {filteredBills.map(b => (
                 <TableRow key={b.billId}>
                   <TableCell className="font-mono text-xs">{b.billId}</TableCell>
+                  <TableCell className="font-mono text-xs">
+                    <button className="text-[#0066cc] hover:underline" onClick={() => navigate(`/app/settlement/invoice/${b.invoiceNo}`)}>
+                      {b.invoiceNo}
+                    </button>
+                  </TableCell>
                   <TableCell className="text-xs">{b.billType}</TableCell>
-                  <TableCell className="font-mono text-xs">{b.bookingId}</TableCell>
+                  <TableCell className="font-mono text-xs">
+                    <button className="text-[#0066cc] hover:underline" onClick={() => navigate(`/app/bookings/${b.bookingId}`)}>
+                      {b.bookingId}
+                    </button>
+                  </TableCell>
                   <TableCell className="text-xs truncate max-w-[120px]">{b.hotelName}</TableCell>
-                  <TableCell className={`text-xs font-medium ${b.amount < 0 ? "text-red-500" : ""}`}>${b.amount.toLocaleString()}</TableCell>
+                  <TableCell className={`text-right text-xs font-mono font-medium ${b.amount < 0 ? "text-red-500" : ""}`}>{b.currency} {b.amount.toLocaleString()}</TableCell>
                   <TableCell className="text-xs">{b.createdDate}</TableCell>
                   <TableCell className="text-xs">{b.dueDate}</TableCell>
                   <TableCell className="text-xs">{b.settlementDate || "—"}</TableCell>
                   <TableCell><Badge variant={billStatusColors[b.status] as "default" | "secondary" | "destructive"} className="text-[10px]">{b.status}</Badge></TableCell>
                 </TableRow>
               ))}
+              {filteredBills.length === 0 && (
+                <TableRow><TableCell colSpan={10} className="text-center text-sm text-muted-foreground py-8">No billing records.</TableCell></TableRow>
+              )}
             </TableBody>
           </Table>
         </TabsContent>

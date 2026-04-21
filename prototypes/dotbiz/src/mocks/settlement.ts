@@ -24,18 +24,45 @@ export const settlementApplications = [
   { id: "sa-008", bookingDate: "2026-04-08", ellisCode: "ELS-2026-00240", hotelName: "Raffles Singapore", checkIn: "2026-04-28", amount: 1650, settlementStatus: "Eligible" as const },
 ];
 
-/* ── Billing Details (정산 내역) ── */
-export const billingDetails = [
-  { billId: "BILL-2026-0001", billType: "Hotel Booking" as const, bookingId: "ELS-2026-00128", hotelName: "Hotel Nikko Bangkok", amount: 780, createdDate: "2026-03-20", dueDate: "2026-04-05", settlementDate: "2026-04-03", status: "Settled" as const },
-  { billId: "BILL-2026-0002", billType: "Hotel Booking" as const, bookingId: "ELS-2026-00142", hotelName: "Grand Hyatt Seoul", amount: 840, createdDate: "2026-03-25", dueDate: "2026-04-10", settlementDate: "2026-04-08", status: "Settled" as const },
-  { billId: "BILL-2026-0003", billType: "Cancellation Fee" as const, bookingId: "ELS-2026-00112", hotelName: "ANA Crowne Plaza Osaka", amount: 65, createdDate: "2026-03-18", dueDate: "2026-04-02", settlementDate: "2026-04-01", status: "Settled" as const },
-  { billId: "BILL-2026-0004", billType: "Hotel Booking" as const, bookingId: "ELS-2026-00155", hotelName: "Shilla Stay Mapo", amount: 580, createdDate: "2026-03-28", dueDate: "2026-04-12", settlementDate: "", status: "Pending" as const },
-  { billId: "BILL-2026-0005", billType: "Hotel Booking" as const, bookingId: "ELS-2026-00183", hotelName: "The Peninsula Shanghai", amount: 1140, createdDate: "2026-04-01", dueDate: "2026-04-15", settlementDate: "", status: "Pending" as const },
-  { billId: "BILL-2026-0006", billType: "Adjustment" as const, bookingId: "ELS-2026-00128", hotelName: "Hotel Nikko Bangkok", amount: -45, createdDate: "2026-04-02", dueDate: "2026-04-16", settlementDate: "2026-04-10", status: "Settled" as const },
-  { billId: "BILL-2026-0007", billType: "Hotel Booking" as const, bookingId: "ELS-2026-00191", hotelName: "Marina Bay Sands", amount: 840, createdDate: "2026-04-03", dueDate: "2026-04-17", settlementDate: "", status: "Pending" as const },
-  { billId: "BILL-2026-0008", billType: "Hotel Booking" as const, bookingId: "ELS-2026-00212", hotelName: "Four Seasons Bali at Sayan", amount: 2900, createdDate: "2026-04-05", dueDate: "2026-04-19", settlementDate: "", status: "Overdue" as const },
-  { billId: "BILL-2026-0009", billType: "Cancellation Fee" as const, bookingId: "ELS-2026-00231", hotelName: "Park Hyatt Busan", amount: 130, createdDate: "2026-04-11", dueDate: "2026-04-25", settlementDate: "", status: "Pending" as const },
-  { billId: "BILL-2026-0010", billType: "Hotel Booking" as const, bookingId: "ELS-2026-00240", hotelName: "Raffles Singapore", amount: 1650, createdDate: "2026-04-12", dueDate: "2026-04-26", settlementDate: "", status: "Pending" as const },
+/* ── Billing Details ──
+ * Each booking generates one or more billing line items (Hotel Booking / Cancellation Fee / Adjustment).
+ * Tied to (a) bookingId via ELLIS code, and (b) invoiceNo so customer can drill from bill → invoice.
+ * customerCompanyId scopes per logged-in customer (cross-tenant isolation).
+ */
+export interface BillingLineItem {
+  billId: string;
+  billType: "Hotel Booking" | "Cancellation Fee" | "Adjustment";
+  bookingId: string;          /* ELLIS code (matches bookings.ellisCode) */
+  hotelName: string;
+  amount: number;
+  currency: string;
+  createdDate: string;
+  dueDate: string;
+  settlementDate: string;
+  status: "Settled" | "Pending" | "Overdue";
+  invoiceNo: string;          /* Which aggregate invoice this bill belongs to */
+  customerCompanyId: string;  /* For tenant scoping */
+}
+
+export const billingDetails: BillingLineItem[] = [
+  /* ── POSTPAY TravelCo (comp-001) — INV-2026-0089 (Mar) ── */
+  { billId: "BILL-2026-0001", billType: "Hotel Booking", bookingId: "K26032014532H01", hotelName: "Grand Hyatt Seoul", amount: 840, currency: "USD", createdDate: "2026-03-20", dueDate: "2026-04-30", settlementDate: "2026-04-15", status: "Settled", invoiceNo: "INV-2026-0089", customerCompanyId: "comp-001" },
+  { billId: "BILL-2026-0002", billType: "Hotel Booking", bookingId: "K26032209155H01", hotelName: "Shilla Stay Mapo", amount: 580, currency: "USD", createdDate: "2026-03-22", dueDate: "2026-04-30", settlementDate: "", status: "Pending", invoiceNo: "INV-2026-0089", customerCompanyId: "comp-001" },
+  { billId: "BILL-2026-0003", billType: "Hotel Booking", bookingId: "K26031511457H01", hotelName: "Hotel Nikko Bangkok", amount: 780, currency: "USD", createdDate: "2026-03-15", dueDate: "2026-04-30", settlementDate: "", status: "Pending", invoiceNo: "INV-2026-0089", customerCompanyId: "comp-001" },
+  { billId: "BILL-2026-0004", billType: "Hotel Booking", bookingId: "K26032813402H01", hotelName: "The Peninsula Shanghai", amount: 1140, currency: "USD", createdDate: "2026-03-28", dueDate: "2026-04-30", settlementDate: "2026-04-15", status: "Settled", invoiceNo: "INV-2026-0089", customerCompanyId: "comp-001" },
+  { billId: "BILL-2026-0005", billType: "Hotel Booking", bookingId: "K26033017227H01", hotelName: "Marina Bay Sands", amount: 840, currency: "USD", createdDate: "2026-03-30", dueDate: "2026-04-30", settlementDate: "2026-04-15", status: "Settled", invoiceNo: "INV-2026-0089", customerCompanyId: "comp-001" },
+  /* INV-2026-0067 (Feb 2026, paid) */
+  { billId: "BILL-2026-0006", billType: "Hotel Booking", bookingId: "K26031016208H01", hotelName: "ANA Crowne Plaza Osaka", amount: 330, currency: "USD", createdDate: "2026-03-10", dueDate: "2026-03-31", settlementDate: "2026-03-20", status: "Settled", invoiceNo: "INV-2026-0067", customerCompanyId: "comp-001" },
+  { billId: "BILL-2026-0007", billType: "Cancellation Fee", bookingId: "K26031016208H01", hotelName: "ANA Crowne Plaza Osaka", amount: 65, currency: "USD", createdDate: "2026-03-18", dueDate: "2026-03-31", settlementDate: "2026-03-20", status: "Settled", invoiceNo: "INV-2026-0067", customerCompanyId: "comp-001" },
+  /* INV-2026-0130 (Apr in progress) */
+  { billId: "BILL-2026-0008", billType: "Hotel Booking", bookingId: "K26040215182H01", hotelName: "Four Seasons Bali at Sayan", amount: 2900, currency: "USD", createdDate: "2026-04-02", dueDate: "2026-05-31", settlementDate: "", status: "Pending", invoiceNo: "INV-2026-0130", customerCompanyId: "comp-001" },
+  { billId: "BILL-2026-0009", billType: "Cancellation Fee", bookingId: "K26040514508H01", hotelName: "InterContinental Da Nang", amount: 130, currency: "USD", createdDate: "2026-04-09", dueDate: "2026-05-31", settlementDate: "", status: "Pending", invoiceNo: "INV-2026-0130", customerCompanyId: "comp-001" },
+  { billId: "BILL-2026-0010", billType: "Adjustment", bookingId: "K26032014532H01", hotelName: "Grand Hyatt Seoul", amount: -45, currency: "USD", createdDate: "2026-04-12", dueDate: "2026-04-30", settlementDate: "2026-04-15", status: "Settled", invoiceNo: "INV-2026-0089", customerCompanyId: "comp-001" },
+
+  /* ── PREPAY Asia Tours (comp-002) — Per-booking invoices ── */
+  { billId: "BILL-2026-0101", billType: "Hotel Booking", bookingId: "K26040816352H01", hotelName: "Raffles Singapore", amount: 1650, currency: "USD", createdDate: "2026-04-08", dueDate: "2026-04-25", settlementDate: "", status: "Pending", invoiceNo: "INV-2026-PRE-0201", customerCompanyId: "comp-002" },
+  { billId: "BILL-2026-0102", billType: "Hotel Booking", bookingId: "K26040109301H01", hotelName: "Park Hyatt Saigon", amount: 920, currency: "USD", createdDate: "2026-04-01", dueDate: "2026-04-20", settlementDate: "", status: "Pending", invoiceNo: "INV-2026-PRE-0205", customerCompanyId: "comp-002" },
+  { billId: "BILL-2026-0103", billType: "Hotel Booking", bookingId: "K26032608558H01", hotelName: "Lotte Hotel Hanoi", amount: 360, currency: "USD", createdDate: "2026-03-26", dueDate: "2026-04-04", settlementDate: "2026-04-02", status: "Settled", invoiceNo: "INV-2026-PRE-0198", customerCompanyId: "comp-002" },
 ];
 
 /* ── Invoices (확장) ──
