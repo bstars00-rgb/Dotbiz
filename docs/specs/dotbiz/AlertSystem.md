@@ -253,6 +253,18 @@ There is no `topup_manual_review` customer alert. The admin-side review queue is
 
 ---
 
+## 4c-2. PREPAY Payment Policy — Full amount only
+
+PREPAY bookings **always require the full booking amount** to be paid in a single transaction. Partial / split / deposit-style payments are **not supported** for PREPAY. This simplifies:
+
+- Deadline alerts (`prepay_deadline_*`) — a booking is simply Paid or Unpaid, no partial state
+- Cancellation/refund flow — single-transaction reversal
+- Dispute handling — clean 1:1 match between payment and booking
+
+The `paymentStatus` field for PREPAY bookings therefore only takes values `Not Paid` or `Fully Paid` (never `Partially Paid`). Any `Partially Paid` PREPAY rows in mocks are historical artifacts and should be treated as `Not Paid` for alert logic.
+
+---
+
 ## 4d. Partial Payment Detection (`partial_payment_detected`)
 
 When a POSTPAY remittance arrives with `received_amount < invoice.total`, ELLIS fires one alert per invoice (first detection only).
