@@ -29,7 +29,7 @@ Alerts appear in the bell-icon popover (unread count badge) and on the dedicated
 | `credit_low` | Settlement | `creditAvailable ≤ creditLowThreshold` | In-app, Email | No |
 | `credit_critical` | Settlement | `creditAvailable ≤ creditCriticalThreshold` | In-app, Email, SMS | **Yes** (Email minimum — SMS & in-app optional) |
 | `invoice_overdue` | Settlement | Invoice past `dueDate` (escalating ladder) | In-app, Email (SMS from D+7) | No |
-| `topup_expired` | Settlement | 7 days with no matching wire | In-app, Email | **Yes** |
+| `topup_expired` | Settlement | 7 days with no matching wire (D+5 pre-reminder first) | In-app, Email | **Yes** (Email minimum) |
 | `topup_manual_review` | Settlement | Wire received, ref code missing/unclear | In-app, Email | No |
 | `prepay_deadline_d7` | Booking | 7 days before PREPAY deadline | In-app, Email | No |
 | `prepay_deadline_d3` | Booking | 3 days before PREPAY deadline | In-app, Email | No |
@@ -45,6 +45,7 @@ Alerts appear in the bell-icon popover (unread count badge) and on the dedicated
 | `topup_confirmed` | Settlement | Wire matched to ref code | In-app, Email |
 | `invoice_issued` | Settlement | New invoice created | In-app, Email |
 | `invoice_due_soon` | Settlement | D-2 before `dueDate` — soft reminder | In-app, Email |
+| `topup_pending_reminder` | Settlement | D+5 — top-up requested, no wire yet | In-app, Email |
 | `payment_received` | Settlement | Payment reconciled | In-app |
 | `dispute_opened` | Dispute | Customer dispute raised (via OP) | In-app, Email |
 | `dispute_resolved` | Dispute | Dispute closed | In-app, Email |
@@ -61,6 +62,7 @@ Alerts appear in the bell-icon popover (unread count badge) and on the dedicated
 | `role_changed` | Account | User role modified | In-app, Email |
 | `contract_amendment` | Account | Settlement cycle/terms changed | In-app, Email |
 | `tax_filing_reminder` | Settlement | Quarter-end tax window open | In-app (default off) |
+| `topup_requested` | Settlement | Customer created a new top-up request | In-app |
 
 ---
 
@@ -191,6 +193,52 @@ At D+7 and beyond, a separate admin-side record is emitted via:
 - D+15 also notifies Finance Director role
 
 This admin flow is implemented by the same `alerts` table with `user_id = admin_user_id` and a flag `is_internal = true` that hides it from customer views.
+
+---
+
+---
+
+## 4c. Top-Up Lifecycle — Expiry & Reminders
+
+Flow:
+
+```
+Customer requests top-up → system allocates ref code (TUP-XX-YYYYMMDD-XXXX)
+          ↓                              ↓
+   topup_request.status = 'Pending'   topup_requested alert (P2, in-app)
+          ↓
+   (wait for wire matching ref code)
+          ↓ (if wire arrives within 7d)     ↓ (if no wire by D+5)
+   status = 'Matched'                       topup_pending_reminder (P1)
+   topup_confirmed alert (P1)                     ↓ (if no wire by D+7)
+                                                 status = 'Expired'
+                                                 topup_expired alert (P0, Locked)
+                                                 ref code added to blacklist
+```
+
+### Parameters (ELLIS `alert_rules`)
+
+| Setting | Default | Configurable |
+|---|---|---|
+| `topup_expired.expiry_days` | 7 | Yes (0–30) |
+| `topup_pending_reminder.reminder_schedule_days` | `[5]` | Yes |
+| `topup_expired.min_channels` | Email only | No (enforced) |
+
+### Auto-action at D+7
+
+- `topup_request.status := 'Expired'`
+- ref code written to `topup_expired_refs` (blacklist) so any late wire goes to `topup_manual_review` (see next section)
+- Customer's deposit balance untouched (nothing was ever added)
+
+### Recipients
+
+`Masters(company) ∪ {request.requester_user_id}` (deduplicated) — the user who initiated the request is always notified even if they are not a Master.
+
+### Body example
+
+> "Top-up request expired — USD 20,000 (TUP-SG-20260418-A4F7). No bank wire was received within 7 days. This reference code can no longer be used. Please create a new top-up request if you still wish to proceed."
+
+**Action**: "New Top-Up" → opens Top-Up Dialog on Settlement page.
 
 ---
 

@@ -33,6 +33,7 @@ export type AlertType =
   | "partial_payment_detected"
   /* P1 — Important */
   | "invoice_due_soon"       /* D-2 soft reminder before POSTPAY invoice dueDate */
+  | "topup_pending_reminder" /* D+5 — top-up requested but no wire yet */
   | "invoice_issued"
   | "payment_received"
   | "dispute_opened"
@@ -45,7 +46,8 @@ export type AlertType =
   | "subaccount_added"
   | "role_changed"
   | "contract_amendment"
-  | "tax_filing_reminder";
+  | "tax_filing_reminder"
+  | "topup_requested";       /* P2 — top-up request created (informational) */
 
 export interface Alert {
   id: string;
@@ -300,6 +302,8 @@ export const defaultAlertPreferences: AlertPreference[] = [
   { type: "booking_cancelled_by_hotel", enabled: true,  channels: ["In-app", "Email", "SMS"] },
   { type: "partial_payment_detected",   enabled: true,  channels: ["In-app", "Email"] },
   { type: "invoice_due_soon",           enabled: true,  channels: ["In-app", "Email"] },
+  { type: "topup_requested",            enabled: true,  channels: ["In-app"] },
+  { type: "topup_pending_reminder",     enabled: true,  channels: ["In-app", "Email"] },
   { type: "invoice_issued",             enabled: true,  channels: ["In-app", "Email"] },
   { type: "payment_received",           enabled: true,  channels: ["In-app"] },
   { type: "dispute_opened",             enabled: true,  channels: ["In-app", "Email"] },
@@ -337,6 +341,8 @@ export const alertTypeMeta: Record<AlertType, { label: string; category: AlertCa
   booking_cancelled_by_hotel: { label: "Booking Cancelled by Hotel",   category: "Booking",    priority: "P0" },
   partial_payment_detected:   { label: "Partial Payment Detected",     category: "Settlement", priority: "P0" },
   invoice_due_soon:           { label: "Invoice Due Soon (D-2)",       category: "Settlement", priority: "P1" },
+  topup_requested:            { label: "Top-up Requested",             category: "Settlement", priority: "P2" },
+  topup_pending_reminder:     { label: "Top-up Pending Reminder (D+5)", category: "Settlement", priority: "P1" },
   invoice_issued:             { label: "Invoice Issued",               category: "Settlement", priority: "P1" },
   payment_received:           { label: "Payment Received",             category: "Settlement", priority: "P1" },
   dispute_opened:             { label: "Dispute Opened",               category: "Dispute",    priority: "P1" },
