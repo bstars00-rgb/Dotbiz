@@ -265,6 +265,51 @@ The `paymentStatus` field for PREPAY bookings therefore only takes values `Not P
 
 ---
 
+## 4c-3. Booking Immutability
+
+**All booking records are permanent.** Bookings are NEVER deleted from the system — under any circumstance. Cancellations are expressed as status transitions:
+
+```
+bookingStatus: 'Confirmed' → 'Cancelled'
+cancelDate:    set to transition timestamp
+cancelledBy:   'customer' | 'hotel' | 'auto' | 'admin'
+cancelReason:  free-text or enum (by type)
+```
+
+The original record — dates, guest, hotel, amount — stays queryable forever. This supports:
+- Audit trail (financial, legal, tax)
+- Dispute investigation (even years later)
+- Cross-entity tax reconciliation (VN/KR/JP each require long-retention records)
+- Historical analytics
+
+Downstream systems (invoices, AR, settlement, deposit ledger) reference bookings by stable `id` and continue to work after cancellation.
+
+UI surfacing cancelled bookings: shown with a muted / strikethrough row + "Cancelled" badge, filterable via a toggle.
+
+---
+
+## 4c-4. Hotel-Cancellation Handling (Case-by-Case)
+
+When a hotel cancels a booking (triggering `booking_cancelled_by_hotel`), DOTBIZ does **not** perform any automatic financial action:
+
+- No automatic refund
+- No automatic credit note
+- No automatic compensation / credit grant
+- No hard promise about refund timeline or amount in the alert body
+
+Why: hotel-side cancellations are operationally difficult (guest already in transit, alternative-sourcing, rebooking fees, force-majeure carve-outs). OhMyHotel maintains an **offline SLA / compensation framework** that Finance + AM teams apply case-by-case.
+
+The alert's role is therefore limited to:
+1. **Inform** the customer (and guest) immediately that the booking is cancelled
+2. **Preserve** the booking record with `cancelledBy: 'hotel'` + reason code
+3. **Route** the customer to support: "Open a support ticket — our team will coordinate refund and any compensation per our SLA"
+
+The alert body does NOT include refund amounts or timelines. It simply says a ticket will be opened and the team will follow up.
+
+Downstream events (credit note issuance, refund payment, compensation credit) happen only after manual review and emit their own standard alerts (`credit_note_issued`, `payment_received`) when Finance executes them.
+
+---
+
 ## 4d. Partial Payment Detection (`partial_payment_detected`)
 
 When a POSTPAY remittance arrives with `received_amount < invoice.total`, ELLIS fires one alert per invoice (first detection only).

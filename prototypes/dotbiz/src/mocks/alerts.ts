@@ -170,7 +170,7 @@ export const alerts: Alert[] = [
     category: "Booking", priority: "P0",
     customerCompanyId: "comp-001",
     title: "Hotel cancelled: K26040514508H01 InterContinental Da Nang",
-    body: "Hotel reported overbooking. Refund of USD 870 will be processed within 5-7 business days. Apologies for the inconvenience.",
+    body: "The hotel reported overbooking and cancelled this booking (check-in 2026-04-08, Tom Wilson). A support ticket has been opened on your behalf — our team will coordinate any refund or compensation per our SLA. Please reply to the ticket with any constraints on alternate dates or hotels.",
     actionLabel: "View booking", actionPath: "/app/bookings/K26040514508H01",
     sentVia: ["In-app", "Email", "SMS"],
     createdAt: "2026-04-09 11:30:00",
