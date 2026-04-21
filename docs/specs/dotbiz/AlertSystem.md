@@ -30,7 +30,6 @@ Alerts appear in the bell-icon popover (unread count badge) and on the dedicated
 | `credit_critical` | Settlement | `creditAvailable ≤ creditCriticalThreshold` | In-app, Email, SMS | **Yes** (Email minimum — SMS & in-app optional) |
 | `invoice_overdue` | Settlement | Invoice past `dueDate` (escalating ladder) | In-app, Email (SMS from D+7) | No |
 | `topup_expired` | Settlement | 7 days with no matching wire (D+5 pre-reminder first) | In-app, Email | **Yes** (Email minimum) |
-| `topup_manual_review` | Settlement | Wire received, ref code missing/unclear | In-app, Email | No |
 | `prepay_deadline_d7` | Booking | 7 days before PREPAY deadline | In-app, Email | No |
 | `prepay_deadline_d3` | Booking | 3 days before PREPAY deadline | In-app, Email | No |
 | `prepay_deadline_d1` | Booking | 1 day before PREPAY deadline | In-app, Email | No |
@@ -239,6 +238,18 @@ Customer requests top-up → system allocates ref code (TUP-XX-YYYYMMDD-XXXX)
 > "Top-up request expired — USD 20,000 (TUP-SG-20260418-A4F7). No bank wire was received within 7 days. This reference code can no longer be used. Please create a new top-up request if you still wish to proceed."
 
 **Action**: "New Top-Up" → opens Top-Up Dialog on Settlement page.
+
+### Wire-matching failures — handled internally, no customer alert
+
+When a bank wire arrives but the ref code is missing / wrong / expired, or the amount is off-tolerance, the wire is routed to **internal Finance review** without emitting any customer-facing alert.
+
+Rationale:
+- Customers are generally careful when wiring funds; false positives would generate anxiety without benefit.
+- Top-up is meant to be done **ahead of time** — a day or two of reconciliation delay has no operational impact.
+- OhMyHotel Finance reconciles the wire manually, either matches it to the customer's next request or returns the funds.
+- When the wire is eventually matched, the existing `topup_confirmed` alert (P1) is emitted normally.
+
+There is no `topup_manual_review` customer alert. The admin-side review queue is part of ELLIS operations, not the DOTBIZ customer portal.
 
 ---
 

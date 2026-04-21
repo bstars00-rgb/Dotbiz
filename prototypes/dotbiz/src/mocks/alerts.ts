@@ -26,7 +26,6 @@ export type AlertType =
   | "invoice_overdue"       /* POSTPAY invoice past due date */
   | "topup_confirmed"       /* Wire received & matched */
   | "topup_expired"         /* No wire within 7 days */
-  | "topup_manual_review"   /* Wire received but ref code missing/wrong */
   /* P0 — Critical (booking) */
   | "prepay_deadline_d7" | "prepay_deadline_d3" | "prepay_deadline_d1" | "prepay_deadline_dday"
   | "booking_cancelled_by_hotel"
@@ -294,7 +293,6 @@ export const defaultAlertPreferences: AlertPreference[] = [
   { type: "invoice_overdue",            enabled: true,  channels: ["In-app", "Email"] },
   { type: "topup_confirmed",            enabled: true,  channels: ["In-app", "Email"] },
   { type: "topup_expired",              enabled: true,  channels: ["In-app", "Email"] },
-  { type: "topup_manual_review",        enabled: true,  channels: ["In-app", "Email"] },
   { type: "prepay_deadline_d7",         enabled: true,  channels: ["In-app", "Email"] },
   { type: "prepay_deadline_d3",         enabled: true,  channels: ["In-app", "Email"] },
   { type: "prepay_deadline_d1",         enabled: true,  channels: ["In-app", "Email"] },
@@ -333,7 +331,6 @@ export const alertTypeMeta: Record<AlertType, { label: string; category: AlertCa
   invoice_overdue:            { label: "Invoice Overdue",              category: "Settlement", priority: "P0" },
   topup_confirmed:            { label: "Top-up Confirmed",             category: "Settlement", priority: "P1" },
   topup_expired:              { label: "Top-up Expired",               category: "Settlement", priority: "P0" },
-  topup_manual_review:        { label: "Top-up Manual Review",         category: "Settlement", priority: "P0" },
   prepay_deadline_d7:         { label: "Payment Deadline D-7",         category: "Booking",    priority: "P0" },
   prepay_deadline_d3:         { label: "Payment Deadline D-3",         category: "Booking",    priority: "P0" },
   prepay_deadline_d1:         { label: "Payment Deadline D-1",         category: "Booking",    priority: "P0" },
