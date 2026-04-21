@@ -20,7 +20,6 @@ import { billingDetails, invoices, accountsReceivable, disputeSummary } from "@/
 import { Lock } from "lucide-react";
 import MonthEndClose from "@/components/MonthEndClose";
 import { companies, currentCompany } from "@/mocks/companies";
-import { downloadCSV, timestamp } from "@/lib/download";
 import { bookings as allBookings, type Booking } from "@/mocks/bookings";
 import PaymentDialog from "@/components/PaymentDialog";
 import InvoicePreviewDialog, { type InvoiceData } from "@/components/InvoicePreviewDialog";
@@ -527,82 +526,6 @@ export default function SettlementPage() {
               </Card>
             ))}
           </div>
-
-          {/* Customer-level Aging Breakdown (Deep) */}
-          <Card className="p-5">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-base font-bold">Customer Aging Breakdown</h3>
-              <Button size="sm" variant="outline" onClick={() => {
-                const rows = companies.map(c => {
-                  const share = (ar30 + ar60 + ar90 + arCurrent) > 0 ? Math.random() * 0.3 : 0;  /* demo distribution */
-                  return {
-                    Customer: c.name, Country: c.country, BillingType: c.billingType,
-                    Current: (arCurrent * share).toFixed(0),
-                    "1-30d": (ar30 * share).toFixed(0),
-                    "31-60d": (ar60 * share).toFixed(0),
-                    "60+d": (ar90 * share).toFixed(0),
-                    CreditLimit: c.depositAmount || 0,
-                  };
-                });
-                downloadCSV(`aging_by_customer_${timestamp()}.csv`, rows);
-                toast.success("Customer aging CSV exported");
-              }}>
-                <Download className="h-3 w-3 mr-1" />Export CSV
-              </Button>
-            </div>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Customer</TableHead>
-                  <TableHead>Country · Billing</TableHead>
-                  <TableHead className="text-right text-[10px] text-green-600">Current</TableHead>
-                  <TableHead className="text-right text-[10px] text-amber-600">1-30d</TableHead>
-                  <TableHead className="text-right text-[10px] text-orange-600">31-60d</TableHead>
-                  <TableHead className="text-right text-[10px] text-red-600">60+d</TableHead>
-                  <TableHead className="text-right">Total Outstanding</TableHead>
-                  <TableHead className="text-right">Deposit Covered</TableHead>
-                  <TableHead>DSO Risk</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {companies.map((c, idx) => {
-                  /* Distribute AR across companies for demo */
-                  const weights = [0.35, 0.22, 0.18, 0.10, 0.08, 0.05, 0.02];
-                  const w = weights[idx] || 0.05;
-                  const cur = Math.round(arCurrent * w);
-                  const d30 = Math.round(ar30 * w);
-                  const d60 = Math.round(ar60 * w);
-                  const d90 = Math.round(ar90 * w);
-                  const total = cur + d30 + d60 + d90;
-                  const deposit = c.depositAmount || 0;
-                  const coverage = deposit > 0 ? Math.min(100, Math.round((deposit / Math.max(total, 1)) * 100)) : 0;
-                  const dsoRisk = d90 > 0 ? "High" : d60 > 0 ? "Medium" : d30 > 0 ? "Low" : "—";
-                  const riskColor = dsoRisk === "High" ? "destructive" : dsoRisk === "Medium" ? "secondary" : "default";
-                  return (
-                    <TableRow key={c.id} className={d90 > 0 ? "bg-red-50/60 dark:bg-red-950/10" : d60 > 0 ? "bg-amber-50/60 dark:bg-amber-950/10" : ""}>
-                      <TableCell className="font-medium text-sm">{c.name}</TableCell>
-                      <TableCell className="text-xs">
-                        <Badge variant="outline" className="text-[10px] mr-1">{c.country}</Badge>
-                        <Badge variant="secondary" className="text-[10px]">{c.billingType}</Badge>
-                      </TableCell>
-                      <TableCell className="text-right font-mono text-xs">${cur.toLocaleString()}</TableCell>
-                      <TableCell className="text-right font-mono text-xs">${d30.toLocaleString()}</TableCell>
-                      <TableCell className="text-right font-mono text-xs">${d60.toLocaleString()}</TableCell>
-                      <TableCell className="text-right font-mono text-xs font-bold">{d90 > 0 ? `$${d90.toLocaleString()}` : "—"}</TableCell>
-                      <TableCell className="text-right font-mono font-medium">${total.toLocaleString()}</TableCell>
-                      <TableCell className="text-right font-mono text-xs">{deposit > 0 ? `${coverage}%` : "—"}</TableCell>
-                      <TableCell><Badge variant={riskColor} className="text-[10px]">{dsoRisk}</Badge></TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-            <div className="mt-3 flex items-center gap-3 text-xs text-muted-foreground">
-              <span>📊 Coverage = Deposit ÷ Outstanding</span>
-              <span>·</span>
-              <span>⚠️ High DSO Risk: 60+ days overdue → recommend collections team assignment</span>
-            </div>
-          </Card>
 
           {arSelected.size > 0 && (
             <div className="flex items-center gap-3 p-3 bg-primary/5 border border-primary/20 rounded-lg">
