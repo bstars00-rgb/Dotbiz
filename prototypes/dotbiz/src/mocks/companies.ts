@@ -30,7 +30,7 @@ export const companies: Company[] = [
     businessType: "Postpaid", billingType: "POSTPAY",
     address: "123 Gangnam-daero, Seoul", phone: "02-1234-5678", email: "info@travelco.com",
     contractDate: "2024-03-15", ellisSyncDate: "2026-04-15",
-    depositType: "Floating Deposit", depositAmount: 50000, settlementCycle: "Bi-weekly", paymentDueDays: 14,
+    depositType: "Floating Deposit", depositAmount: 50000, settlementCycle: "Bi-weekly", paymentDueDays: 5,
     contractCurrency: "USD", country: "South Korea",
   },
   {
@@ -45,7 +45,7 @@ export const companies: Company[] = [
     businessType: "Postpaid", billingType: "POSTPAY",
     address: "2-1-1 Nihonbashi, Chuo-ku, Tokyo", phone: "+81-3-1234-5678", email: "info@sakura-travel.co.jp",
     contractDate: "2024-09-01", ellisSyncDate: "2026-04-15",
-    depositType: "Bank Guarantee", depositAmount: 100000, settlementCycle: "Bi-weekly", paymentDueDays: 14,
+    depositType: "Bank Guarantee", depositAmount: 100000, settlementCycle: "Bi-weekly", paymentDueDays: 5,
     contractCurrency: "JPY", country: "Japan",
   },
   {
@@ -53,7 +53,7 @@ export const companies: Company[] = [
     businessType: "Postpaid", billingType: "POSTPAY",
     address: "1376 Nanjing Xi Lu, Jing'an, Shanghai", phone: "+86-21-5555-1234", email: "contact@dragon-holidays.cn",
     contractDate: "2025-01-15", ellisSyncDate: "2026-04-15",
-    depositType: "Guarantee Deposit", depositAmount: 80000, settlementCycle: "Bi-weekly", paymentDueDays: 14,
+    depositType: "Guarantee Deposit", depositAmount: 80000, settlementCycle: "Bi-weekly", paymentDueDays: 5,
     contractCurrency: "CNY", country: "China",
   },
   {
@@ -70,7 +70,7 @@ export const companies: Company[] = [
     address: "194 Hoa Hung, Ward 13, District 10, Ho Chi Minh City, Vietnam",
     phone: "+84-28-3864-7892", email: "ops@gotadi.vn",
     contractDate: "2025-08-01", ellisSyncDate: "2026-04-20",
-    depositType: "Floating Deposit", depositAmount: 40000, settlementCycle: "Bi-weekly", paymentDueDays: 14,
+    depositType: "Floating Deposit", depositAmount: 40000, settlementCycle: "Bi-weekly", paymentDueDays: 5,
     contractCurrency: "USD", country: "Vietnam",
   },
   {
@@ -87,7 +87,7 @@ export const companies: Company[] = [
     businessType: "Postpaid", billingType: "POSTPAY",
     address: "80 Robinson Road, #10-01, Singapore", phone: "+65-6888-1234", email: "sales@lioncitytravel.sg",
     contractDate: "2024-07-20", ellisSyncDate: "2026-04-15",
-    depositType: "Floating Deposit", depositAmount: 60000, settlementCycle: "Bi-weekly", paymentDueDays: 14,
+    depositType: "Floating Deposit", depositAmount: 60000, settlementCycle: "Bi-weekly", paymentDueDays: 5,
     contractCurrency: "SGD", country: "Singapore",
   },
 ];

@@ -135,11 +135,22 @@ creditLimit = contract.creditLimit                        -- explicit override w
 ### Contract fields (added)
 
 ```ts
-creditMultiplier?: number;           // e.g. 2.0
-creditLimit?: number;                // explicit override (beats multiplier)
-creditLowThreshold?: number;         // available ≤ this → alert `credit_low` (P0)
-creditCriticalThreshold?: number;    // available ≤ this → alert `credit_critical` (P0, undisableable)
+creditMultiplier?: number;           // e.g. 2.0   (commercial term — agreed with customer)
+creditLimit?: number;                // explicit override (commercial — beats multiplier)
 ```
+
+### Internal thresholds (NOT on customer contract)
+
+Low / Critical thresholds are **internal OhMyHotel policy** set by the Finance / Risk team in ELLIS admin. They do not appear on the signed customer contract and customers cannot self-edit them.
+
+Stored in `contract_alert_thresholds` (see [AlertSystem.md §5](./AlertSystem.md#5-data-model-ellis)), not on `contracts`:
+
+| alert_type | example threshold | meaning |
+|---|---|---|
+| `credit_low` | e.g. 20,000 USD | warn when `available ≤ this` |
+| `credit_critical` | e.g. 5,000 USD | hard-warn + SMS when `available ≤ this` |
+
+Hysteresis and dedupe windows are global per-type (`alert_rules` table) — editable by ELLIS admin, default 10% / 15 min.
 
 ### UI surfaces (already implemented)
 

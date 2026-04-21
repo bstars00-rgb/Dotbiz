@@ -54,7 +54,7 @@ export const contracts: Contract[] = [
   {
     id: "ctr-001-sg", customerCompanyId: "comp-001", ohmyhotelEntityId: "omh-sg",
     billingType: "POSTPAY", contractCurrency: "USD",
-    settlementCycle: "Bi-weekly", paymentDueDays: 14,
+    settlementCycle: "Bi-weekly", paymentDueDays: 5,
     depositType: "Floating Deposit", depositAmount: 50000,
     /* Floating Deposit: 1:1 (no multiplier), credit limit = deposit */
     creditLowThreshold: 10000, creditCriticalThreshold: 5000,
@@ -71,7 +71,7 @@ export const contracts: Contract[] = [
   {
     id: "ctr-003-sg", customerCompanyId: "comp-003", ohmyhotelEntityId: "omh-sg",
     billingType: "POSTPAY", contractCurrency: "JPY",
-    settlementCycle: "Bi-weekly", paymentDueDays: 14,
+    settlementCycle: "Bi-weekly", paymentDueDays: 5,
     depositType: "Bank Guarantee", depositAmount: 10000000,
     /* Bank Guarantee: 2x leverage → 20M JPY credit limit */
     creditMultiplier: 2.0,
@@ -82,7 +82,7 @@ export const contracts: Contract[] = [
   {
     id: "ctr-004-sg", customerCompanyId: "comp-004", ohmyhotelEntityId: "omh-sg",
     billingType: "POSTPAY", contractCurrency: "CNY",
-    settlementCycle: "Bi-weekly", paymentDueDays: 14,
+    settlementCycle: "Bi-weekly", paymentDueDays: 5,
     depositType: "Guarantee Deposit", depositAmount: 80000,
     /* Guarantee Deposit: 2x leverage → CNY 160k credit limit */
     creditMultiplier: 2.0,
@@ -100,7 +100,7 @@ export const contracts: Contract[] = [
   {
     id: "ctr-006-sg", customerCompanyId: "comp-006", ohmyhotelEntityId: "omh-sg",
     billingType: "POSTPAY", contractCurrency: "SGD",
-    settlementCycle: "Bi-weekly", paymentDueDays: 14,
+    settlementCycle: "Bi-weekly", paymentDueDays: 5,
     depositType: "Floating Deposit", depositAmount: 60000,
     creditLowThreshold: 12000, creditCriticalThreshold: 6000,
     scope: { type: "INTERNATIONAL" },
@@ -114,7 +114,7 @@ export const contracts: Contract[] = [
   {
     id: "ctr-010-sg", customerCompanyId: "comp-010", ohmyhotelEntityId: "omh-sg",
     billingType: "POSTPAY", contractCurrency: "USD",
-    settlementCycle: "Bi-weekly", paymentDueDays: 14,
+    settlementCycle: "Bi-weekly", paymentDueDays: 5,
     depositType: "Floating Deposit", depositAmount: 40000,
     creditLowThreshold: 8000, creditCriticalThreshold: 4000,
     scope: { type: "INTERNATIONAL" },
@@ -124,7 +124,7 @@ export const contracts: Contract[] = [
   {
     id: "ctr-010-vn", customerCompanyId: "comp-010", ohmyhotelEntityId: "omh-vn",
     billingType: "POSTPAY", contractCurrency: "VND",
-    settlementCycle: "Bi-weekly", paymentDueDays: 14,
+    settlementCycle: "Bi-weekly", paymentDueDays: 5,
     depositType: "Floating Deposit", depositAmount: 1_000_000_000,  /* 1 billion VND ≈ USD 40k */
     creditLowThreshold: 200_000_000, creditCriticalThreshold: 100_000_000,
     scope: { type: "LOCAL", countries: ["VN"] },

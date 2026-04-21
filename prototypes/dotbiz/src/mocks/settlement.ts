@@ -138,7 +138,7 @@ export const invoices: InvoiceWithMatch[] = [
   {
     invoiceNo: "INV-2026-0089", period: "Mar 2026", status: "Partial",
     supplyAmount: 3800, vat: 380, total: 4180, contractCurrency: "USD",
-    issuedDate: "2026-04-01", dueDate: "2026-04-30",
+    issuedDate: "2026-04-01", dueDate: "2026-04-06",
     bookingIds: ["bk-001", "bk-002", "bk-003", "bk-007", "bk-008"],
     receivedAmount: 2820,
     paymentDate: "2026-04-15",
@@ -154,7 +154,7 @@ export const invoices: InvoiceWithMatch[] = [
   {
     invoiceNo: "INV-2026-0067", period: "Feb 2026", status: "Paid",
     supplyAmount: 3500, vat: 350, total: 3850, contractCurrency: "USD",
-    issuedDate: "2026-03-01", dueDate: "2026-03-31",
+    issuedDate: "2026-03-01", dueDate: "2026-03-06",
     bookingIds: ["bk-004"],
     receivedAmount: 3850, paymentDate: "2026-03-20",
     matchStatus: "Full", disputedBookingIds: [], disputedAmount: 0,
@@ -166,7 +166,7 @@ export const invoices: InvoiceWithMatch[] = [
   {
     invoiceNo: "INV-2026-0130", period: "Apr 2026", status: "Issued",
     supplyAmount: 9664, vat: 966, total: 10630, contractCurrency: "USD",
-    issuedDate: "2026-05-01", dueDate: "2026-05-31",
+    issuedDate: "2026-05-01", dueDate: "2026-05-06",
     bookingIds: ["bk-009", "bk-010", "bk-011", "bk-012", "bk-013", "bk-014", "bk-015"],
     receivedAmount: 0, paymentDate: "",
     matchStatus: "Unpaid", disputedBookingIds: [], disputedAmount: 0,
@@ -180,7 +180,7 @@ export const invoices: InvoiceWithMatch[] = [
   {
     invoiceNo: "INV-2026-JP-0012", period: "Mar 2026", status: "Paid",
     supplyAmount: 495000, vat: 0, total: 495000, contractCurrency: "JPY",
-    issuedDate: "2026-04-03", dueDate: "2026-05-03",
+    issuedDate: "2026-04-03", dueDate: "2026-04-08",
     bookingIds: ["bk-005"],
     receivedAmount: 495000, paymentDate: "2026-04-25",
     matchStatus: "Full", disputedBookingIds: [], disputedAmount: 0,
@@ -194,7 +194,7 @@ export const invoices: InvoiceWithMatch[] = [
   {
     invoiceNo: "INV-2026-CN-0008", period: "Mar 2026 H2", status: "Paid",
     supplyAmount: 56550, vat: 0, total: 56550, contractCurrency: "CNY",
-    issuedDate: "2026-04-05", dueDate: "2026-04-19",
+    issuedDate: "2026-04-05", dueDate: "2026-04-10",
     bookingIds: ["bk-007"],
     receivedAmount: 56550, paymentDate: "2026-04-18",
     matchStatus: "Full", disputedBookingIds: [], disputedAmount: 0,
@@ -275,7 +275,7 @@ export const invoices: InvoiceWithMatch[] = [
   {
     invoiceNo: "INV-SG-2026-1101", period: "Mar 2026", status: "Paid",
     supplyAmount: 5400, vat: 0, total: 5400, contractCurrency: "USD",
-    issuedDate: "2026-04-01", dueDate: "2026-04-30",
+    issuedDate: "2026-04-01", dueDate: "2026-04-06",
     bookingIds: ["bk-001", "bk-004"], receivedAmount: 5400, paymentDate: "2026-04-12",
     matchStatus: "Full", disputedBookingIds: [], disputedAmount: 0,
     remarks: "International hotels (KR, JP) settled via OhMyHotel SG",
@@ -288,7 +288,7 @@ export const invoices: InvoiceWithMatch[] = [
   {
     invoiceNo: "INV-SG-2026-1130", period: "Apr 2026", status: "Issued",
     supplyAmount: 8200, vat: 0, total: 8200, contractCurrency: "USD",
-    issuedDate: "2026-05-01", dueDate: "2026-05-31",
+    issuedDate: "2026-05-01", dueDate: "2026-05-06",
     bookingIds: ["bk-008", "bk-007"], receivedAmount: 0, paymentDate: "",
     matchStatus: "Unpaid", disputedBookingIds: [], disputedAmount: 0,
     billingType: "POSTPAY", customerCompanyId: "comp-010",
@@ -301,7 +301,7 @@ export const invoices: InvoiceWithMatch[] = [
   {
     invoiceNo: "INV-VN-2026-0420", period: "Mar 2026", status: "Paid",
     supplyAmount: 408000000, vat: 40800000, total: 448800000, contractCurrency: "VND",
-    issuedDate: "2026-04-01", dueDate: "2026-04-30",
+    issuedDate: "2026-04-01", dueDate: "2026-04-06",
     bookingIds: ["bk-009", "bk-006"], receivedAmount: 448800000, paymentDate: "2026-04-15",
     matchStatus: "Full", disputedBookingIds: [], disputedAmount: 0,
     remarks: "Vietnam hotels — domestic VAT 10% included · OhMyHotel VN",
@@ -314,7 +314,7 @@ export const invoices: InvoiceWithMatch[] = [
   {
     invoiceNo: "INV-VN-2026-0430", period: "Apr 2026", status: "Issued",
     supplyAmount: 525000000, vat: 52500000, total: 577500000, contractCurrency: "VND",
-    issuedDate: "2026-05-01", dueDate: "2026-05-31",
+    issuedDate: "2026-05-01", dueDate: "2026-05-06",
     bookingIds: ["bk-012", "bk-009"], receivedAmount: 0, paymentDate: "",
     matchStatus: "Unpaid", disputedBookingIds: [], disputedAmount: 0,
     remarks: "Vietnam hotels — domestic VAT 10% included · OhMyHotel VN",

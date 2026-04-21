@@ -242,7 +242,7 @@ export default function BookingFormPage() {
           <div>
             <Badge variant={billingType === "PREPAY" ? "destructive" : "default"} className="text-xs">{billingType}</Badge>
             {billingType === "POSTPAY" && (
-              <p className="text-xs text-muted-foreground mt-1">Settlement: {currentCompany.settlementCycle || "Bi-weekly"} · Net-{currentCompany.paymentDueDays || 14}</p>
+              <p className="text-xs text-muted-foreground mt-1">Settlement: {currentCompany.settlementCycle || "Bi-weekly"} · Net-{currentCompany.paymentDueDays ?? 5}</p>
             )}
             {billingType === "PREPAY" && !isFreeCancel && (
               <p className="text-xs text-red-500 mt-1 flex items-center gap-1"><AlertTriangle className="h-3 w-3" />Non-refundable: Payment required before booking</p>

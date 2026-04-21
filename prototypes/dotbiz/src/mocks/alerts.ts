@@ -32,6 +32,7 @@ export type AlertType =
   | "booking_cancelled_by_hotel"
   | "partial_payment_detected"
   /* P1 — Important */
+  | "invoice_due_soon"       /* D-2 soft reminder before POSTPAY invoice dueDate */
   | "invoice_issued"
   | "payment_received"
   | "dispute_opened"
@@ -254,7 +255,7 @@ export const alerts: Alert[] = [
     category: "Account", priority: "P2",
     customerCompanyId: "comp-001", contractId: "ctr-001-sg",
     title: "Settlement cycle changed: Monthly → Bi-weekly",
-    body: "Effective from 2026-04-01, your settlement cycle is shortened to Bi-weekly (Net-14). Contact your account manager with questions.",
+    body: "Effective from 2026-04-01, payment due days shortened from Net-14 to Net-5 (issued Bi-weekly). Contact your account manager with questions.",
     sentVia: ["In-app", "Email"],
     createdAt: "2026-03-25 09:00:00",
     readAt: "2026-03-25 11:00:00",
@@ -298,6 +299,7 @@ export const defaultAlertPreferences: AlertPreference[] = [
   { type: "prepay_deadline_dday",       enabled: true,  channels: ["In-app", "Email", "SMS"] },
   { type: "booking_cancelled_by_hotel", enabled: true,  channels: ["In-app", "Email", "SMS"] },
   { type: "partial_payment_detected",   enabled: true,  channels: ["In-app", "Email"] },
+  { type: "invoice_due_soon",           enabled: true,  channels: ["In-app", "Email"] },
   { type: "invoice_issued",             enabled: true,  channels: ["In-app", "Email"] },
   { type: "payment_received",           enabled: true,  channels: ["In-app"] },
   { type: "dispute_opened",             enabled: true,  channels: ["In-app", "Email"] },
@@ -334,6 +336,7 @@ export const alertTypeMeta: Record<AlertType, { label: string; category: AlertCa
   prepay_deadline_dday:       { label: "Payment Deadline Today",       category: "Booking",    priority: "P0" },
   booking_cancelled_by_hotel: { label: "Booking Cancelled by Hotel",   category: "Booking",    priority: "P0" },
   partial_payment_detected:   { label: "Partial Payment Detected",     category: "Settlement", priority: "P0" },
+  invoice_due_soon:           { label: "Invoice Due Soon (D-2)",       category: "Settlement", priority: "P1" },
   invoice_issued:             { label: "Invoice Issued",               category: "Settlement", priority: "P1" },
   payment_received:           { label: "Payment Received",             category: "Settlement", priority: "P1" },
   dispute_opened:             { label: "Dispute Opened",               category: "Dispute",    priority: "P1" },

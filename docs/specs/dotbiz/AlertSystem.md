@@ -27,8 +27,8 @@ Alerts appear in the bell-icon popover (unread count badge) and on the dedicated
 | Type | Category | Trigger | Default channels | Undisableable |
 |---|---|---|---|---|
 | `credit_low` | Settlement | `creditAvailable ≤ creditLowThreshold` | In-app, Email | No |
-| `credit_critical` | Settlement | `creditAvailable ≤ creditCriticalThreshold` | In-app, Email, SMS | **Yes** |
-| `invoice_overdue` | Settlement | Invoice past `dueDate` | In-app, Email | No |
+| `credit_critical` | Settlement | `creditAvailable ≤ creditCriticalThreshold` | In-app, Email, SMS | **Yes** (Email minimum — SMS & in-app optional) |
+| `invoice_overdue` | Settlement | Invoice past `dueDate` (escalating ladder) | In-app, Email (SMS from D+7) | No |
 | `topup_expired` | Settlement | 7 days with no matching wire | In-app, Email | **Yes** |
 | `topup_manual_review` | Settlement | Wire received, ref code missing/unclear | In-app, Email | No |
 | `prepay_deadline_d7` | Booking | 7 days before PREPAY deadline | In-app, Email | No |
@@ -44,6 +44,7 @@ Alerts appear in the bell-icon popover (unread count badge) and on the dedicated
 |---|---|---|---|
 | `topup_confirmed` | Settlement | Wire matched to ref code | In-app, Email |
 | `invoice_issued` | Settlement | New invoice created | In-app, Email |
+| `invoice_due_soon` | Settlement | D-2 before `dueDate` — soft reminder | In-app, Email |
 | `payment_received` | Settlement | Payment reconciled | In-app |
 | `dispute_opened` | Dispute | Customer dispute raised (via OP) | In-app, Email |
 | `dispute_resolved` | Dispute | Dispute closed | In-app, Email |
@@ -88,7 +89,108 @@ Alerts appear in the bell-icon popover (unread count badge) and on the dedicated
 1. Alert is always written to DB and in-app feed — external channels are additive.
 2. **Quiet hours** (user-configurable window, e.g. 22:00–08:00 KST) suppress email/SMS for P1/P2; **P0 always delivers**.
 3. Duplicate suppression: same `type + refType + refId` within 15 min → skip.
-4. Critical rearming: `credit_low` re-fires only after `available > creditLowThreshold + 10%` (hysteresis).
+4. **Hysteresis** for threshold-based alerts (`credit_low`, `credit_critical`) — configured per alert-type in ELLIS (`alert_rules.hysteresis_pct`). Default 10%. Alert re-fires only after the metric recovers past `threshold × (1 + hysteresis_pct)`.
+
+### Recipient resolution
+
+- **Master role only** — sub-accounts (OP) do NOT receive alerts by default.
+- If a customer company has **multiple Master users**, the alert is broadcast to **all Masters**.
+- Recipients are resolved at fire-time (`users WHERE company_id = X AND role = 'Master'`) — not stored on the alert itself.
+- (Future) per-Master opt-in to forward to specific OPs may be added — not in scope now.
+
+### Threshold policy (internal)
+
+Thresholds for `credit_low` / `credit_critical` are **internal OhMyHotel policy**, not customer-contract terms.
+
+- Set by the **Sales team** in ELLIS admin as **explicit amounts** (not formulas / not % of limit).
+  - Example: deposit 30,000 USD → sales sets low=10,000, critical=3,000 at their discretion
+- Do **not** appear on the signed customer contract
+- Customers cannot see or self-edit thresholds
+- **No recovery notification** — when credit returns to healthy (above `threshold × (1+hysteresis)`), state is silently reset; the customer can verify live on the DOTBIZ Settlement page
+
+### Deposit-level vs Contract-level scoping
+
+A customer typically posts **one deposit in one convenient currency** (e.g. USD) even if they hold multiple contracts (SG USD + VN VND). The deposit is **shared** across the customer's contracts.
+
+Therefore:
+- `credit_low` / `credit_critical` alerts fire **once per deposit**, not per contract
+- Alert body references the deposit (and its currency), not an individual contract
+- Booking-time block (see below) applies across all contracts drawing on the shared deposit
+
+(Edge case: if a customer exceptionally holds separate deposits per contract, each deposit generates its own alert chain. The default is shared.)
+
+### Booking-time block rule
+
+Independent from the low/critical thresholds, a booking is **hard-blocked** at creation time when:
+
+```
+deposit.available < booking.amount   (after FX conversion to deposit currency)
+```
+
+Example: 300 USD available, 350 USD booking → blocked. The thresholds warn the customer ahead of time; this rule is the final hard gate regardless of threshold state.
+
+---
+
+## 4b. Payment Terms (POSTPAY) — ELLIS-configurable
+
+POSTPAY invoices are issued on a `settlementCycle` (Monthly / Bi-weekly / Weekly) and are due `paymentDueDays` later.
+
+| Field | Range | Default | Configured by |
+|---|---|---|---|
+| `settlementCycle` | Monthly / Bi-weekly / Weekly | Bi-weekly | Sales (ELLIS admin, per contract) |
+| `paymentDueDays` | **0 – 31** | **5** | Sales (ELLIS admin, per contract) |
+
+`paymentDueDays = 5` means the customer must remit within 5 days of the invoice `issuedDate`. Historically Net-14/Net-30 were used, but the current default policy is **Net-5** (tight cycle → better cashflow, smaller exposure window).
+
+Contracts negotiated with longer terms (e.g. Net-14 or Net-30) simply override `paymentDueDays` at the contract record. Invoice `dueDate` is computed as `issuedDate + paymentDueDays`.
+
+### Invoice-overdue escalation (Net-5 baseline)
+
+Reminder schedule fires off `dueDate`, not `issuedDate`. Each row is a separate alert record with `reminder_step`:
+
+| Step (D+) | Alert | Channels | Action | Recipient |
+|---|---|---|---|---|
+| **D-2** | `invoice_due_soon` (NEW, P1) | In-app, Email | Soft reminder | Masters |
+| **D+0** | `invoice_overdue` step=0 | In-app, Email | "Overdue — please remit" | Masters |
+| **D+3** | `invoice_overdue` step=1 | In-app, Email | Strongly worded | Masters |
+| **D+7** | `invoice_overdue` step=2 | In-app, Email, **SMS** | Warns of booking block at D+10 | Masters + AM cc |
+| **D+10** | `invoice_overdue` step=3 | In-app, Email, SMS | **Auto-triggers new-booking block** | Masters + AM cc |
+| **D+15** | `invoice_overdue` step=4 | Email | Final notice | Masters + AM + Finance |
+| **D+30+** | Manual Sales/AM review | — | Ticket queue | Admin only |
+
+Schedule is stored in `alert_rules.reminder_schedule_days = [0,3,7,10,15]` (per-type array, ELLIS-editable).
+
+### Wording (non-legal, ticket-routing)
+
+Overdue alert body follows 3 tones by step:
+
+- **Soft (D+0, D+3)**: *"Invoice INV-xxx is past due. Please remit at your earliest convenience to keep your account in good standing."*
+- **Warn (D+7)**: *"Your account is approaching restricted status. New bookings may be paused from D+10."*
+- **Hard (D+10, D+15)**: *"Your account has been placed on credit hold. Please contact your account manager to resolve."*
+
+All bodies include a **"Dispute this line? Open a support ticket"** link to protect the customer's right to contest.
+
+### Disputed-amount handling
+
+Overdue is calculated on **undisputed balance**:
+
+```
+undisputed = invoice.total - invoice.disputedAmount
+net_overdue = MAX(0, undisputed - invoice.receivedAmount)
+
+IF net_overdue > 0 AND NOW() > dueDate → fire
+```
+
+Alert body shows all 3 figures (total / undisputed overdue / disputed under review).
+
+### Admin-side routing
+
+At D+7 and beyond, a separate admin-side record is emitted via:
+
+- `account_manager_id` on the contract → AM receives an internal notification (not in customer's in-app feed)
+- D+15 also notifies Finance Director role
+
+This admin flow is implemented by the same `alerts` table with `user_id = admin_user_id` and a flag `is_internal = true` that hides it from customer views.
 
 ---
 
@@ -132,6 +234,33 @@ CREATE TABLE alert_quiet_hours (
   from_hm   VARCHAR(5)  NOT NULL DEFAULT '22:00',         -- HH:MM
   to_hm     VARCHAR(5)  NOT NULL DEFAULT '08:00',
   timezone  VARCHAR(40) NOT NULL DEFAULT 'Asia/Seoul'
+);
+
+-- Global per-type rules (editable in ELLIS admin, not by customers)
+CREATE TABLE alert_rules (
+  alert_type      VARCHAR(64) PRIMARY KEY,
+  hysteresis_pct  NUMERIC(5,2) NOT NULL DEFAULT 10.00,   -- re-fire after recovery past threshold×(1+pct/100)
+  dedupe_window_min INTEGER    NOT NULL DEFAULT 15,      -- suppress duplicate type+ref within window
+  enabled         BOOLEAN      NOT NULL DEFAULT TRUE
+);
+
+-- Per-contract threshold overrides (internal policy; set by Finance/Risk)
+CREATE TABLE contract_alert_thresholds (
+  contract_id     VARCHAR(32) NOT NULL,
+  alert_type      VARCHAR(64) NOT NULL,
+  threshold_value NUMERIC(14,2) NOT NULL,
+  set_by          VARCHAR(64) NOT NULL,
+  set_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (contract_id, alert_type)
+);
+
+-- State tracker for hysteresis (one row per contract × metric)
+CREATE TABLE alert_state (
+  contract_id    VARCHAR(32) NOT NULL,
+  alert_type     VARCHAR(64) NOT NULL,
+  last_fired_at  TIMESTAMPTZ,
+  last_state     VARCHAR(16),          -- 'healthy' | 'low' | 'critical'
+  PRIMARY KEY (contract_id, alert_type)
 );
 ```
 
@@ -178,7 +307,10 @@ Implemented at **My Account → Notifications** (`AlertPreferencesPanel` compone
 
 - Grouped by category (Settlement / Booking / Dispute / Account / System)
 - Per-row: priority badge, channel chips (In-app / Email / SMS / Slack), on/off switch
-- **Locked** badge with 🔒 icon for undisableable alerts (switch hidden; channels still editable; cannot remove last channel)
+- **Locked** badge with 🔒 icon for undisableable alerts (switch hidden; channels still editable)
+- For locked alerts, the **mandatory minimum channel** is alert-specific:
+  - `credit_critical`: Email mandatory (SMS/In-app optional)
+  - Other locked types: at least one channel must remain enabled
 - Quiet hours toggle with from/to time pickers + timezone
 - Save action (idempotent `PUT`)
 - Reset defaults action

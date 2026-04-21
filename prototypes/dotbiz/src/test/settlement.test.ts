@@ -173,12 +173,15 @@ describe("Settlement: Demo company current state", () => {
     expect(currentCompany.billingType).toBe("POSTPAY");
   });
 
-  it("all POSTPAY companies default to Bi-weekly Net-14", () => {
+  it("all POSTPAY companies default to Bi-weekly Net-5 (configurable 0–31 per contract in ELLIS)", () => {
     const postpayCompanies = companies.filter(c => c.billingType === "POSTPAY");
     expect(postpayCompanies.length).toBeGreaterThan(0);
     postpayCompanies.forEach(c => {
       expect(c.settlementCycle).toBe("Bi-weekly");
-      expect(c.paymentDueDays).toBe(14);
+      expect(c.paymentDueDays).toBe(5);
+      /* policy: ELLIS allows 0-31, default 5 */
+      expect(c.paymentDueDays).toBeGreaterThanOrEqual(0);
+      expect(c.paymentDueDays).toBeLessThanOrEqual(31);
     });
   });
 
