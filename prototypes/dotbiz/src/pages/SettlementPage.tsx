@@ -175,19 +175,33 @@ export default function SettlementPage() {
     <div className="p-6 space-y-4">
       {/* Header */}
       <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <div className="flex items-center gap-2">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2 flex-wrap">
             <h1 className="text-2xl font-bold">{t("page.settlement")}</h1>
-            <Badge
-              variant="outline"
-              className="bg-orange-50 dark:bg-orange-900/20 text-orange-700 dark:text-orange-300 border-orange-300"
-              title="Settlement cycle is fixed by contract (Weekly / Bi-weekly / Monthly). Changes require contract amendment."
-            >
+            <Badge variant="outline" className="bg-orange-50 dark:bg-orange-900/20 text-orange-700 dark:text-orange-300 border-orange-300">
               {activeCompany.billingType}
               {activeCompany.billingType === "POSTPAY" && activeCompany.settlementCycle && ` · ${activeCompany.settlementCycle}`}
             </Badge>
+            {activeCompany.billingType === "POSTPAY" && (
+              <Button
+                variant="link"
+                size="sm"
+                className="h-auto p-0 text-xs text-muted-foreground"
+                onClick={() => toast.info(`Current settlement cycle: ${activeCompany.settlementCycle} (Net-${activeCompany.paymentDueDays})`, {
+                  description: "Available options: Weekly · Bi-weekly · Monthly. Cycle changes require a contract amendment — request via your OhMyHotel account manager.",
+                  action: { label: "Request change", onClick: () => toast.success("Cycle-change request noted", { description: "Your account manager will reach out within 2 business days." }) },
+                })}
+              >
+                Change cycle ↗
+              </Button>
+            )}
           </div>
-          <p className="text-sm text-muted-foreground mt-0.5">{activeCompany.name}</p>
+          <p className="text-sm text-muted-foreground">
+            {activeCompany.name}
+            {activeCompany.billingType === "POSTPAY" && (
+              <span className="ml-1">· Settles <strong>{activeCompany.settlementCycle?.toLowerCase()}</strong>, payment due <strong>Net-{activeCompany.paymentDueDays}</strong> after invoice issue</span>
+            )}
+          </p>
         </div>
 
         {/* Quick KPI */}
@@ -200,9 +214,90 @@ export default function SettlementPage() {
         </div>
       </div>
 
-      {/* Deposit Utilization Card (POSTPAY only) — large, prominent */}
-      {activeCompany.billingType === "POSTPAY" && activeCompany.depositAmount && (() => {
-        const deposit = activeCompany.depositAmount;
+      {/* Deposit Utilization Card (POSTPAY only) — type-aware CTA */}
+      {activeCompany.billingType === "POSTPAY" && activeCompany.depositType && (() => {
+        const depositType = activeCompany.depositType;
+        const deposit = activeCompany.depositAmount || 0;
+
+        /* Per-type behavior */
+        const config: Record<string, { subtitle: string; ctaLabel: string; ctaToast: { title: string; description: string }; ctaColor: string; lowMsg: string; midMsg: string }> = {
+          "Floating Deposit": {
+            subtitle: "Pre-funded credit · drawn down per transaction",
+            ctaLabel: "Top Up Deposit",
+            ctaToast: { title: "Top-up request sent", description: "Our finance team will share wire instructions within 1 business day." },
+            ctaColor: "#DC2626",
+            lowMsg: "Top up your deposit to keep booking smoothly. Once available reaches $0, new bookings will be blocked until existing invoices are settled or the deposit is topped up.",
+            midMsg: "Consider topping up before the deposit is fully drawn down.",
+          },
+          "Credit by Company": {
+            subtitle: "OhMyHotel-issued credit line",
+            ctaLabel: "Request Credit Increase",
+            ctaToast: { title: "Credit increase request sent", description: "Your OhMyHotel account manager will review and respond within 2 business days." },
+            ctaColor: "#FF6000",
+            lowMsg: "Your credit line is nearly fully utilised. Request a credit limit increase to avoid new bookings being blocked.",
+            midMsg: "Heads up: half of your credit line is used. Plan ahead if a higher limit is needed.",
+          },
+          "Guarantee Deposit": {
+            subtitle: "Contractual guarantee deposit · changes require amendment",
+            ctaLabel: "Request Limit Increase",
+            ctaToast: { title: "Guarantee increase request sent", description: "Our team will draft the contract amendment for your review." },
+            ctaColor: "#FF6000",
+            lowMsg: "You are close to your guaranteed booking limit. Request an increase via contract amendment to avoid disruption.",
+            midMsg: "Heads up: half of your guarantee is used. A contract amendment can raise the ceiling.",
+          },
+          "Guarantee Insurance": {
+            subtitle: "Insurer-backed booking guarantee",
+            ctaLabel: "Request Insurance Increase",
+            ctaToast: { title: "Insurance increase noted", description: "Please contact your insurer to raise the policy limit and share the new certificate with us." },
+            ctaColor: "#FF6000",
+            lowMsg: "You are nearing your insurance-backed limit. Coordinate with your insurer to raise the cover; new bookings will be blocked once it is exhausted.",
+            midMsg: "Heads up: half of your insurance limit is used. Plan ahead with your insurer if a larger cover is needed.",
+          },
+          "Bank Guarantee": {
+            subtitle: "Bank-issued letter of guarantee",
+            ctaLabel: "Request Bank Guarantee Increase",
+            ctaToast: { title: "Bank guarantee increase noted", description: "Please contact your bank to amend the guarantee; share the updated letter once issued." },
+            ctaColor: "#FF6000",
+            lowMsg: "You are nearing your bank guarantee limit. Coordinate with your bank to amend the guarantee letter; new bookings will be blocked once it is exhausted.",
+            midMsg: "Heads up: half of your bank guarantee is used. Engage your bank if a higher amount is needed.",
+          },
+          "No Deposit": {
+            subtitle: "Operating without a deposit",
+            ctaLabel: "Set Up Deposit",
+            ctaToast: { title: "Deposit setup request sent", description: "Our team will guide you through deposit options to enable higher booking volumes." },
+            ctaColor: "#FF6000",
+            lowMsg: "",
+            midMsg: "",
+          },
+        };
+        const cfg = config[depositType] || config["Floating Deposit"];
+
+        /* No-deposit special case — no bar, just info */
+        if (depositType === "No Deposit" || deposit === 0) {
+          return (
+            <Card className="p-6 border-2 border-amber-300 bg-amber-50/40 dark:bg-amber-950/10">
+              <div className="flex items-start justify-between gap-4 flex-wrap">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-full flex items-center justify-center bg-amber-100 dark:bg-amber-900/40">
+                    <AlertTriangle className="h-5 w-5 text-amber-600" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-bold">{depositType}</h2>
+                    <p className="text-xs text-muted-foreground">{cfg.subtitle} · No collateral on file with OhMyHotel</p>
+                  </div>
+                </div>
+                <Button size="sm" className="text-white" style={{ background: cfg.ctaColor }} onClick={() => toast.success(cfg.ctaToast.title, { description: cfg.ctaToast.description })}>
+                  <CreditCard className="h-3 w-3 mr-1" />{cfg.ctaLabel}
+                </Button>
+              </div>
+              <p className="text-xs text-amber-800 dark:text-amber-200 mt-3">
+                Without a deposit, OhMyHotel reserves the right to block new bookings at any time based on outstanding balance and risk. Setting up a Floating Deposit, Bank Guarantee, or Insurance unlocks higher booking volumes.
+              </p>
+            </Card>
+          );
+        }
+
+        /* Standard utilization view */
         const used = myInvoices
           .filter(i => i.matchStatus !== "Full" && i.matchStatus !== "Reconciled")
           .reduce((s, i) => s + (i.total - i.receivedAmount), 0);
@@ -211,6 +306,7 @@ export default function SettlementPage() {
         const availPct = 100 - usedPct;
         const barColor = usedPct >= 80 ? "#DC2626" : usedPct >= 70 ? "#FF6000" : usedPct >= 50 ? "#FF8C00" : "#009505";
         const lowDeposit = availPct <= 30;
+
         return (
           <Card className={`p-6 ${lowDeposit ? "border-2 border-red-500 bg-red-50/40 dark:bg-red-950/10" : "border-2 border-slate-200 dark:border-slate-800"}`}>
             <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -220,8 +316,8 @@ export default function SettlementPage() {
                     <CreditCard className="h-5 w-5" style={{ color: barColor }} />
                   </div>
                   <div>
-                    <h2 className="text-lg font-bold">{activeCompany.depositType}</h2>
-                    <p className="text-xs text-muted-foreground">Your credit collateral with OhMyHotel</p>
+                    <h2 className="text-lg font-bold">{depositType}</h2>
+                    <p className="text-xs text-muted-foreground">{cfg.subtitle}</p>
                   </div>
                   <div className="ml-auto text-right">
                     <p className="text-3xl font-bold" style={{ color: barColor }}>{usedPct}%</p>
@@ -239,7 +335,7 @@ export default function SettlementPage() {
                 {/* 3 big stat blocks */}
                 <div className="grid grid-cols-3 gap-3 mt-4">
                   <div className="text-center">
-                    <p className="text-[10px] text-muted-foreground uppercase">Total Deposit</p>
+                    <p className="text-[10px] text-muted-foreground uppercase">Total Limit</p>
                     <p className="text-xl font-bold font-mono">${deposit.toLocaleString()}</p>
                   </div>
                   <div className="text-center">
@@ -254,27 +350,29 @@ export default function SettlementPage() {
               </div>
             </div>
 
-            {/* Top-up CTA when low */}
+            {/* Type-specific CTA when low */}
             {lowDeposit && (
               <Alert className="mt-4 border-red-300 bg-red-50 dark:bg-red-950/30">
                 <AlertTriangle className="h-4 w-4 text-red-600" />
-                <AlertTitle className="text-red-900 dark:text-red-100">Deposit running low — only {availPct}% available</AlertTitle>
+                <AlertTitle className="text-red-900 dark:text-red-100">Limit running low — only {availPct}% available</AlertTitle>
                 <AlertDescription className="text-xs text-red-800 dark:text-red-200 flex items-center justify-between gap-3 flex-wrap mt-1">
-                  <span>
-                    Top up your deposit to keep booking smoothly. Once available reaches $0, new bookings will be blocked
-                    until existing invoices are settled or the deposit is increased.
-                  </span>
-                  <Button size="sm" className="text-white shrink-0" style={{ background: "#DC2626" }} onClick={() => toast.success("Top-up request sent to OhMyHotel finance team", { description: "Our team will contact you within 1 business day." })}>
-                    <CreditCard className="h-3 w-3 mr-1" />Top Up Deposit
+                  <span>{cfg.lowMsg}</span>
+                  <Button size="sm" className="text-white shrink-0" style={{ background: cfg.ctaColor }} onClick={() => toast.success(cfg.ctaToast.title, { description: cfg.ctaToast.description })}>
+                    <CreditCard className="h-3 w-3 mr-1" />{cfg.ctaLabel}
                   </Button>
                 </AlertDescription>
               </Alert>
             )}
             {!lowDeposit && availPct <= 50 && (
-              <p className="text-xs text-amber-700 dark:text-amber-400 mt-3 flex items-center gap-1.5">
-                <AlertTriangle className="h-3 w-3" />
-                Heads up: deposit is <strong>{availPct}%</strong> available. Consider topping up before bookings reach the limit.
-              </p>
+              <div className="mt-3 flex items-center justify-between gap-3 flex-wrap">
+                <p className="text-xs text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
+                  <AlertTriangle className="h-3 w-3" />
+                  {cfg.midMsg} (<strong>{availPct}%</strong> available)
+                </p>
+                <Button size="sm" variant="outline" onClick={() => toast.success(cfg.ctaToast.title, { description: cfg.ctaToast.description })}>
+                  <CreditCard className="h-3 w-3 mr-1" />{cfg.ctaLabel}
+                </Button>
+              </div>
             )}
           </Card>
         );
