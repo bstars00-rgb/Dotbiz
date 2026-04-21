@@ -16,7 +16,7 @@ import { useScreenState } from "@/hooks/useScreenState";
 import { StateToolbar } from "@/components/StateToolbar";
 import { useAuth } from "@/contexts/AuthContext";
 import { useI18n } from "@/contexts/I18nContext";
-import { billingDetails, invoices, accountsReceivable, disputeSummary, paymentReminders, reminderSummary, paymentMatchLog } from "@/mocks/settlement";
+import { billingDetails, invoices, accountsReceivable, disputeSummary, paymentReminders, reminderSummary } from "@/mocks/settlement";
 import { Lock } from "lucide-react";
 import MonthEndClose from "@/components/MonthEndClose";
 import { companies, currentCompany } from "@/mocks/companies";
@@ -207,35 +207,6 @@ export default function SettlementPage() {
         </div>
       </div>
 
-      {/* Master Approval Queue banner */}
-      {hasRole(["Master"]) && paymentMatchLog.filter(l => l.approvalStatus === "Pending Master").length > 0 && (
-        <Alert className="border-blue-300 bg-blue-50 dark:bg-blue-950/20">
-          <AlertTriangle className="h-4 w-4 text-blue-600" />
-          <AlertTitle className="text-blue-900 dark:text-blue-100">Master Approval Pending</AlertTitle>
-          <AlertDescription className="text-xs text-blue-800 dark:text-blue-200">
-            <strong>{paymentMatchLog.filter(l => l.approvalStatus === "Pending Master").length}</strong> Payment Match records awaiting Master approval. Please review each invoice detail.
-            {" "}
-            {paymentMatchLog.filter(l => l.approvalStatus === "Pending Master").map(l => (
-              <Button key={l.id} variant="link" size="sm" className="h-auto p-0 mx-1 text-blue-600 underline" onClick={() => navigate(`/app/settlement/invoice/${l.invoiceNo}`)}>
-                {l.invoiceNo}
-              </Button>
-            ))}
-          </AlertDescription>
-        </Alert>
-      )}
-
-      {/* PREPAY deadline-alert banner */}
-      {isPrepay && (todayCount > 0 || d7Count > 0) && (
-        <Alert className="border-amber-300 bg-amber-50 dark:bg-amber-950/20">
-          <AlertTriangle className="h-4 w-4 text-amber-600" />
-          <AlertTitle className="text-amber-900 dark:text-amber-100">Payment Deadline Alert</AlertTitle>
-          <AlertDescription className="text-xs text-amber-800 dark:text-amber-200">
-            {todayCount > 0 && <span className="font-bold">Due today: {todayCount}. </span>}
-            {d7Count > 0 && <span>Due within 7 days: {d7Count}. </span>}
-            Bookings past their deadline are auto-cancelled. <Button variant="link" size="sm" className="h-auto p-0 text-amber-700 underline" onClick={() => toast.info("Scroll to Pending Payment tab")}>View all →</Button>
-          </AlertDescription>
-        </Alert>
-      )}
 
       <Tabs defaultValue={isPrepay ? "pending" : "invoices"}>
         <TabsList className="!h-auto flex-wrap justify-start gap-1">

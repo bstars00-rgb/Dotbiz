@@ -107,11 +107,6 @@ export default function SettlementDetailPage() {
             {invoice.remarks && (
               <p className="text-xs text-amber-700 dark:text-amber-300">⚠️ {invoice.remarks}</p>
             )}
-            {invoice.carriedOverBookingIds && invoice.carriedOverBookingIds.length > 0 && (
-              <p className="text-xs text-blue-700 dark:text-blue-300">
-                🔄 Carried over from <span className="font-mono">{invoice.carriedOverFrom}</span>: {invoice.carriedOverBookingIds.length} booking(s) · {fmt(invoice.carriedOverAmount || 0)}
-              </p>
-            )}
           </div>
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={() => toast.success("Invoice PDF exported")}>
@@ -203,8 +198,7 @@ export default function SettlementDetailPage() {
             {linkedBookings.map(b => {
               const isDisputed = b.disputed && b.disputeStatus === "Open";
               const isResolved = b.disputeStatus === "Resolved";
-              const isCarriedOver = invoice.carriedOverBookingIds?.includes(b.id);
-              const rowClass = isDisputed ? "bg-amber-50 dark:bg-amber-950/10" : isCarriedOver ? "bg-blue-50 dark:bg-blue-950/10" : isResolved ? "bg-slate-50 dark:bg-slate-900/20 opacity-70" : "";
+              const rowClass = isDisputed ? "bg-amber-50 dark:bg-amber-950/10" : isResolved ? "bg-slate-50 dark:bg-slate-900/20 opacity-70" : "";
               const checkOut = (() => { const d = new Date(b.checkIn); d.setDate(d.getDate() + b.nights); return d.toISOString().split("T")[0]; })();
               const paid = b.paymentStatus === "Fully Paid" ? b.sumAmount : b.paymentStatus === "Partially Paid" ? Math.round(b.sumAmount * 0.5) : 0;
               const balance = b.sumAmount - paid;
@@ -212,7 +206,6 @@ export default function SettlementDetailPage() {
                 <TableRow key={b.id} className={rowClass}>
                   <TableCell className="font-mono text-xs text-[#0066cc]">
                     <button className="hover:underline" onClick={() => navigate(`/app/bookings/${b.id}`)}>{b.ellisCode}</button>
-                    {isCarriedOver && <Badge variant="outline" className="ml-1 text-[9px] bg-blue-50 text-blue-700 border-blue-300">🔄</Badge>}
                   </TableCell>
                   <TableCell className="text-xs">
                     <Badge variant={b.bookingStatus === "Confirmed" ? "default" : "destructive"} className="text-[10px]">{b.bookingStatus}</Badge>

@@ -65,10 +65,6 @@ export interface InvoiceWithMatch {
   disputedBookingIds: string[];
   disputedAmount: number;
   remarks?: string;
-  /* Carry-over from previous cycle */
-  carriedOverBookingIds?: string[];
-  carriedOverFrom?: string;
-  carriedOverAmount?: number;
   /* Billing type tag — POSTPAY = monthly aggregate, PREPAY = 1 per booking */
   billingType: "POSTPAY" | "PREPAY";
   customerCompanyId?: string;
@@ -124,7 +120,6 @@ export const invoices: InvoiceWithMatch[] = [
     bookingIds: ["bk-009", "bk-010", "bk-011", "bk-012", "bk-013", "bk-014", "bk-015"],
     receivedAmount: 0, paymentDate: "",
     matchStatus: "Unpaid", disputedBookingIds: [], disputedAmount: 0,
-    carriedOverBookingIds: [], carriedOverFrom: "INV-2026-0089", carriedOverAmount: 0,
     billingType: "POSTPAY", customerCompanyId: "comp-001",
     firstInsertUser: "BATCH_USER", firstInsertTime: "2026-05-01 01:00:41",
     lastUpdateUser: "BATCH_USER", lastUpdateTime: "2026-05-01 02:02:03",
