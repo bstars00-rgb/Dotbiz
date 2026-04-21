@@ -253,6 +253,37 @@ There is no `topup_manual_review` customer alert. The admin-side review queue is
 
 ---
 
+## 4d. Partial Payment Detection (`partial_payment_detected`)
+
+When a POSTPAY remittance arrives with `received_amount < invoice.total`, ELLIS fires one alert per invoice (first detection only).
+
+### Detection
+
+- Subset-sum analysis on invoice line items (booking-level) — deduce which booking(s) were excluded.
+- Example: total 4,180 · received 2,820 · variance 1,360 → matches `{bk-002 580 + bk-003 780}` → body cites those two bookings as "appear excluded."
+
+### Behavior
+
+| Item | Rule |
+|---|---|
+| Fires | First detection per invoice · no re-fire on later top-ups to the same invoice |
+| Auto-dispute | No — customer must file a ticket to formally disputes a line |
+| Locked | No · default ON · default channels In-app + Email |
+| Recipients | Masters + AM (admin is_internal alert) |
+| Succession | Full payment → `payment_received` · Ticket filed → `dispute_opened` · Past dueDate unresolved → `invoice_overdue` |
+
+### Body example
+
+> "Partial payment detected on INV-2026-0089. Received USD 2,820 against USD 4,180. 2 bookings appear to have been excluded — please confirm via support if any of them are disputed: Shilla Stay Mapo (USD 580), Hotel Nikko Bangkok (USD 780)."
+
+**Action**: "Open support ticket" → `/app/tickets/new?invoice=INV-xxx` (pre-fills ticket form).
+
+### Rationale
+
+Customers often intend to withhold payment for disputed bookings; this alert both (a) confirms the variance was observed correctly and (b) routes them to the proper ticket channel instead of letting the variance sit undeclared.
+
+---
+
 ## 5. Data Model (ELLIS)
 
 ```sql
