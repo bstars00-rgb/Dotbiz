@@ -464,6 +464,70 @@ Implemented at **My Account → Notifications** (`AlertPreferencesPanel` compone
 
 ---
 
+## 8b. Per-Alert Review Outcomes (live spec)
+
+Consolidated decisions from the one-by-one review of each alert type. Where the earlier sections (§2–§4d) describe the taxonomy abstractly, this section records the finalised product decisions for each type.
+
+### P0 Settlement
+
+**`credit_low`** — Threshold is internal policy (Sales sets explicit amount in ELLIS, not in contract). Hysteresis configurable per-type in `alert_rules` (default 10%). Recipients: all Masters; no recovery notification (self-verify on DOTBIZ). Top-up CTA label varies by deposit type.
+
+**`credit_critical`** — 🔒 Email mandatory (SMS/In-app optional). Booking-time hard block when `deposit.available < booking.amount` (FX converted). Deposit is shared across contracts for multi-contract customers → one alert chain. No recovery notification.
+
+**`invoice_overdue`** — See §4b. Escalation ladder D+0 / D+3 / D+7 / D+10 / D+15. SMS from D+7. Auto new-booking block at D+10. Finance cc at D+15. Wording: soft → warn → hard (no "collections" phrasing). Disputed amount excluded from net-overdue calc.
+
+**`topup_expired`** — 🔒 Email mandatory. D+5 `topup_pending_reminder` precedes. Auto-expire at D+7 with ref code blacklisted. Recipients: Masters ∪ requester.
+
+**`partial_payment_detected`** — Subset-sum analysis cites excluded bookings by name. No auto-dispute (customer must file ticket). Not Locked; default ON; In-app + Email. Admin-side cc to AM via `is_internal`.
+
+**`prepay_deadline_d7`** — PREPAY + free_cancel + TL-pending only. Body: card/wire options + free_cancel window notice. Not Locked. Masters + booking creator.
+
+**`prepay_deadline_d3`** — Tone elevated to "caution." Shows **financial consequences** of cancel-vs-pay explicitly. Two CTAs: Pay now + Cancel booking. Orange left border.
+
+**`prepay_deadline_d1`** — "Final reminder." Assumes free_cancel already passed (non-refundable). Single CTA "Pay now." "No refund" wording + forfeiture amount. Red border.
+
+**`prepay_deadline_dday`** — 🔒 In-app + Email (SMS optional). Fires 08:00 contract-TZ + additional reminder 2h before deadline (same type, reminder_step). Post-deadline auto-cancel emits `booking_auto_cancelled` (NEW P0 type).
+
+**`booking_cancelled_by_hotel`** — 🔒 In-app + Email + SMS all mandatory. **Booking records never deleted** — status transition only (see §4c-3). No auto-refund / auto-CN / auto-compensation — case-by-case via offline SLA (see §4c-4). Alert body never promises refund amount or timeline. Recipients: Masters + booking creator + guest email direct.
+
+### P0 removed
+
+**`topup_manual_review`** — Removed from customer taxonomy. Wire-matching failures are handled by Finance internally; no customer alert. Customers wire carefully; top-up is advance-planned so a day or two of recon delay is acceptable.
+
+### P1 Settlement
+
+**`topup_confirmed`** — Positive-info. In-app + Email. Masters + requester. Body = amount + ref code + post-recovery credit balance. Silently clears `credit_low/critical` hysteresis state. Tolerance-matched wires display received amount as primary.
+
+**`topup_pending_reminder`** — D+5 pre-expiry. In-app + Email. Masters + requester.
+
+**`invoice_due_soon`** — D-2 before POSTPAY invoice `dueDate`. In-app + Email. Soft tone.
+
+**`invoice_issued`** — POSTPAY periodic issuance. In-app + Email (PDF attached). Masters only. Per-entity separate alerts for multi-contract customers (different legal entity / currency / bank account). Body footer routes disputes to ticket before due date.
+
+**`payment_received`** — **In-app only by default** (Email/SMS opt-in). Masters + (PREPAY) booking creator. Silently clears overdue / partial / prepay_deadline alert chains. Per-entity for multi-contract. 15-min dedupe window.
+
+**`credit_note_issued`** — In-app + Email (CN PDF attached). Masters + related ticket participants. Single Action → related invoice (no dedicated CN route — simplicity). Reason-code enum (dispute_resolved, hotel_cancellation, pricing_adjustment, goodwill_credit, other). Application mode stated: next invoice / current invoice / cash refund. Amount format: **explicit negative** ("USD -780").
+
+### P1 Dispute
+
+**`dispute_opened`** — Customer cannot self-dispute; OP flags after ticket review. Body: booking + reason + ticket. Action → ticket (not booking). Invoice `disputedAmount` auto-updates; cross-checked with `partial_payment_detected`. Re-fires only on Open→Resolved→Open re-transition.
+
+**`dispute_resolved`** — Three body templates (Approved / Rejected / Partial). Approved/Partial auto-emits follow-up `credit_note_issued`. Rejected = re-dispute via **new ticket** (no reopen). Rejected + customer had withheld under partial_payment → net variance auto-converts to overdue. No SLA/timing in body.
+
+**`ticket_reply`** — **In-app only by default** (Email/SMS opt-in). Recipients = ticket subscribers (not all Masters). 15-min dedupe for rapid back-and-forth. No separate `ticket_closed` type — last reply tagged "closed." Attachments surfaced as count only.
+
+### P1 Booking
+
+**`checkin_tomorrow`** — Default OFF. Digest format (one 08:00 alert per day summarising all next-day check-ins). In-app only. Recipients = booking creators / group coordinators (Masters not auto-subscribed). Surfaces "hotel confirmation code missing" warnings in body.
+
+**`booking_confirmed`** — Default OFF. Individual (no digest). In-app only. Booking creator only. Valuable mainly for on-request hotels (slow confirmation). Supersedes to `booking_cancelled_by_hotel` on cancel → auto-dismiss.
+
+### NEW types referenced above (pending formal addition)
+
+- `booking_auto_cancelled` (P0 Booking) — emitted when PREPAY deadline passes with no payment and auto-cancel runs.
+
+---
+
 ## 9. Out of Scope
 
 - Per-sub-account alert routing (org-wide for now)
