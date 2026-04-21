@@ -6,6 +6,7 @@ import { Printer, Download } from "lucide-react";
 import { toast } from "sonner";
 import { bookings } from "@/mocks/bookings";
 import { currentCompany, type Company } from "@/mocks/companies";
+import { getEntity, type EntityId } from "@/mocks/ohMyHotelEntities";
 
 export interface InvoiceData {
   invoiceNo: string;
@@ -16,6 +17,12 @@ export interface InvoiceData {
   total: number;
   issuedDate: string;
   dueDate: string;
+  /* Extended fields from InvoiceWithMatch — used for multi-entity routing */
+  contractCurrency?: string;
+  ohmyhotelEntityId?: EntityId;
+  bookingIds?: string[];
+  receivedAmount?: number;
+  customerCompanyId?: string;
 }
 
 interface Props {
@@ -90,6 +97,15 @@ export default function InvoicePreviewDialog({ open, onOpenChange, invoice, cust
   const activeCustomer: Company = customer || currentCompany;
 
   if (!invoice) return null;
+
+  /* Resolve the OhMyHotel entity that issues this invoice.
+   * Falls back to SG for legacy invoices without entity tagging. */
+  const entity = getEntity((invoice.ohmyhotelEntityId as EntityId) || "omh-sg");
+  /* Currency: invoice-level takes precedence over customer default */
+  const displayCurrency = invoice.contractCurrency || activeCustomer.contractCurrency || entity.currency;
+  /* VND has no subunit → 0 fraction digits; others → 2 */
+  const fractionDigits = displayCurrency === "VND" || displayCurrency === "JPY" ? 0 : 2;
+  const fmt = (n: number) => `${displayCurrency} ${n.toLocaleString(undefined, { minimumFractionDigits: fractionDigits, maximumFractionDigits: fractionDigits })}`;
 
   /* Policy: booking price is the all-in final (VAT internally included).
    *         Invoice total = sum of booking amounts — customer wires the exact amount.
@@ -173,9 +189,10 @@ export default function InvoicePreviewDialog({ open, onOpenChange, invoice, cust
             </div>
             <div>
               <h3 className="text-xs font-bold text-slate-500 uppercase mb-2">From</h3>
-              <p className="font-semibold text-sm">Ohmyhotel SG</p>
-              <p className="text-xs text-slate-600 mt-0.5">OhMyHotel Global Pte. Ltd.</p>
-              <p className="text-xs text-slate-600">Reg. 202543984E</p>
+              <p className="font-semibold text-sm">{entity.countryFlag} {entity.shortName}</p>
+              <p className="text-xs text-slate-600 mt-0.5">{entity.legalName}</p>
+              <p className="text-xs text-slate-600">{entity.taxIdLabel}: {entity.taxId}</p>
+              <p className="text-xs text-slate-600 mt-0.5">{entity.address}</p>
             </div>
           </div>
 
@@ -184,11 +201,11 @@ export default function InvoicePreviewDialog({ open, onOpenChange, invoice, cust
             <div className="grid grid-cols-2 gap-6">
               <div>
                 <p className="text-xs text-slate-500 uppercase">Currency</p>
-                <p className="font-semibold text-sm mt-1">{activeCustomer.contractCurrency}</p>
+                <p className="font-semibold text-sm mt-1">{displayCurrency}</p>
               </div>
               <div>
                 <p className="text-xs text-slate-500 uppercase">Total Amount</p>
-                <p className="font-semibold text-sm mt-1">{activeCustomer.contractCurrency} {invoice.total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                <p className="font-semibold text-sm mt-1">{fmt(invoice.total)}</p>
               </div>
               <div className="col-span-2">
                 <p className="text-xs text-slate-500 uppercase">Check Out (Period)</p>
@@ -201,7 +218,7 @@ export default function InvoicePreviewDialog({ open, onOpenChange, invoice, cust
                 {/* Seal circle */}
                 <div className="absolute right-0 top-0 w-24 h-24 rounded-full border-[3px] flex items-center justify-center" style={{ borderColor: "#1e3a8a", opacity: 0.8 }}>
                   <div className="absolute inset-2 rounded-full border border-blue-900 opacity-60" />
-                  <span className="text-[8px] font-bold text-blue-900 text-center leading-tight">OHMYHOTEL<br/>GLOBAL<br/>PTE. LTD.<br/><span className="text-[7px]">202543984E</span></span>
+                  <span className="text-[8px] font-bold text-blue-900 text-center leading-tight">{entity.legalName.split(" ").slice(0, 3).join(" ")}<br/><span className="text-[7px]">{entity.taxId}</span></span>
                   <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-blue-900 text-xl">★</div>
                 </div>
                 {/* Signature scribble */}
@@ -228,14 +245,14 @@ export default function InvoicePreviewDialog({ open, onOpenChange, invoice, cust
               <tr className="border-b border-slate-200">
                 <td className="py-3">1</td>
                 <td className="py-3">Reservation</td>
-                <td className="py-3 text-right">{invoice.bookingIds.length || sampleBookings.length}</td>
-                <td className="py-3 text-right">{activeCustomer.contractCurrency} {invoice.total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                <td className="py-3 text-right">{(invoice.bookingIds?.length) || sampleBookings.length}</td>
+                <td className="py-3 text-right">{fmt(invoice.total)}</td>
               </tr>
               <tr className="border-b border-slate-200">
                 <td className="py-3">2</td>
                 <td className="py-3">Cancellation Fee</td>
                 <td className="py-3 text-right">0</td>
-                <td className="py-3 text-right">{activeCustomer.contractCurrency} 0.00</td>
+                <td className="py-3 text-right">{fmt(0)}</td>
               </tr>
             </tbody>
           </table>
@@ -244,16 +261,16 @@ export default function InvoicePreviewDialog({ open, onOpenChange, invoice, cust
           <div className="bg-slate-100 rounded p-4 mb-6">
             <div className="flex justify-between items-center mb-1">
               <span className="text-sm text-slate-700">Total Amount</span>
-              <span className="font-bold text-base">{activeCustomer.contractCurrency} {invoice.total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+              <span className="font-bold text-base">{fmt(invoice.total)}</span>
             </div>
             <div className="flex justify-between items-center mb-1">
               <span className="text-sm text-slate-700">Total Paid</span>
-              <span className="text-base text-slate-700">-{activeCustomer.contractCurrency} {(invoice.receivedAmount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+              <span className="text-base text-slate-700">-{fmt(invoice.receivedAmount || 0)}</span>
             </div>
             <div className="h-px bg-slate-300 my-2" />
             <div className="flex justify-between items-center">
               <span className="font-bold text-red-600">Balance</span>
-              <span className="font-bold text-red-600 text-lg">{activeCustomer.contractCurrency} {(invoice.total - (invoice.receivedAmount || 0)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+              <span className="font-bold text-red-600 text-lg">{fmt(invoice.total - (invoice.receivedAmount || 0))}</span>
             </div>
           </div>
 
@@ -261,8 +278,15 @@ export default function InvoicePreviewDialog({ open, onOpenChange, invoice, cust
 
           {/* Bank Info + Thank You */}
           {showBankInfo && (
-            <div className="mb-6">
-              <p className="text-sm"><span className="font-bold">Bank Account:</span> Citi Bank / OHMYHOTEL GLOBAL PTE. LTD. / 143746003</p>
+            <div className="mb-6 p-3 rounded bg-slate-50 border border-slate-200">
+              <p className="text-xs font-bold text-slate-600 mb-1">PAYMENT INFORMATION</p>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-xs">
+                <p><span className="text-slate-500">Bank:</span> <span className="font-medium">{entity.bankInfo.bankName}</span></p>
+                <p><span className="text-slate-500">SWIFT:</span> <span className="font-mono">{entity.bankInfo.swift}</span></p>
+                <p><span className="text-slate-500">Account Holder:</span> <span className="font-medium">{entity.bankInfo.accountHolder}</span></p>
+                <p><span className="text-slate-500">Account No.:</span> <span className="font-mono">{entity.bankInfo.accountNumber}</span></p>
+                <p className="col-span-2"><span className="text-slate-500">Bank Address:</span> {entity.bankInfo.bankAddress}</p>
+              </div>
             </div>
           )}
 
@@ -270,9 +294,9 @@ export default function InvoicePreviewDialog({ open, onOpenChange, invoice, cust
 
           {/* Footer */}
           <div className="pt-4 border-t text-center">
-            <p className="text-xs text-slate-600">111 Somerset Road, #06-01H, 111 Somerset, Singapore 238164</p>
-            <p className="text-xs text-slate-500 mt-0.5">Tel: / Fax:</p>
-            <p className="text-[10px] text-slate-400 mt-2">© 2026 OHMYHOTEL GLOBAL PTE. LTD. All rights reserved.</p>
+            <p className="text-xs text-slate-600">{entity.address}</p>
+            <p className="text-xs text-slate-500 mt-0.5">Tel: {entity.phone}</p>
+            <p className="text-[10px] text-slate-400 mt-2">© 2026 {entity.legalName}. All rights reserved.</p>
           </div>
         </div>
 
