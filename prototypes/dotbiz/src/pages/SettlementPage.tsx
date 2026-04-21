@@ -17,8 +17,6 @@ import { StateToolbar } from "@/components/StateToolbar";
 import { useAuth } from "@/contexts/AuthContext";
 import { useI18n } from "@/contexts/I18nContext";
 import { billingDetails, invoices, accountsReceivable, disputeSummary } from "@/mocks/settlement";
-import { Lock } from "lucide-react";
-import MonthEndClose from "@/components/MonthEndClose";
 import { companies, currentCompany } from "@/mocks/companies";
 import { bookings as allBookings, type Booking } from "@/mocks/bookings";
 import PaymentDialog from "@/components/PaymentDialog";
@@ -175,7 +173,7 @@ export default function SettlementPage() {
 
   return (
     <div className="p-6 space-y-4">
-      {/* Header with billing type + deposit utilization + KPI */}
+      {/* Header */}
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <div className="flex items-center gap-2">
@@ -192,34 +190,6 @@ export default function SettlementPage() {
           <p className="text-sm text-muted-foreground mt-0.5">{activeCompany.name}</p>
         </div>
 
-        {/* Deposit utilization (POSTPAY only) */}
-        {activeCompany.billingType === "POSTPAY" && activeCompany.depositAmount && (() => {
-          const deposit = activeCompany.depositAmount;
-          /* Used = sum of outstanding (total - received) for this customer's unpaid invoices */
-          const used = myInvoices
-            .filter(i => i.matchStatus !== "Full" && i.matchStatus !== "Reconciled")
-            .reduce((s, i) => s + (i.total - i.receivedAmount), 0);
-          const available = Math.max(0, deposit - used);
-          const usedPct = Math.min(100, Math.round((used / deposit) * 100));
-          const barColor = usedPct >= 80 ? "#DC2626" : usedPct >= 50 ? "#FF8C00" : "#009505";
-          return (
-            <div className="border rounded-md px-3 py-2 min-w-[280px]">
-              <div className="flex items-center justify-between text-xs mb-1">
-                <span className="font-medium">{activeCompany.depositType}</span>
-                <span className="text-muted-foreground">{usedPct}% used</span>
-              </div>
-              <div className="h-2 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
-                <div className="h-full rounded-full transition-all" style={{ width: `${usedPct}%`, background: barColor }} />
-              </div>
-              <div className="flex items-center justify-between text-[10px] mt-1.5 font-mono">
-                <span><span className="text-muted-foreground">Total:</span> <strong>${deposit.toLocaleString()}</strong></span>
-                <span><span className="text-muted-foreground">Used:</span> <strong style={{ color: barColor }}>${used.toLocaleString()}</strong></span>
-                <span><span className="text-muted-foreground">Available:</span> <strong className="text-green-600">${available.toLocaleString()}</strong></span>
-              </div>
-            </div>
-          );
-        })()}
-
         {/* Quick KPI */}
         <div className="flex items-center gap-2 text-xs">
           <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border">
@@ -230,6 +200,86 @@ export default function SettlementPage() {
         </div>
       </div>
 
+      {/* Deposit Utilization Card (POSTPAY only) — large, prominent */}
+      {activeCompany.billingType === "POSTPAY" && activeCompany.depositAmount && (() => {
+        const deposit = activeCompany.depositAmount;
+        const used = myInvoices
+          .filter(i => i.matchStatus !== "Full" && i.matchStatus !== "Reconciled")
+          .reduce((s, i) => s + (i.total - i.receivedAmount), 0);
+        const available = Math.max(0, deposit - used);
+        const usedPct = Math.min(100, Math.round((used / deposit) * 100));
+        const availPct = 100 - usedPct;
+        const barColor = usedPct >= 80 ? "#DC2626" : usedPct >= 70 ? "#FF6000" : usedPct >= 50 ? "#FF8C00" : "#009505";
+        const lowDeposit = availPct <= 30;
+        return (
+          <Card className={`p-6 ${lowDeposit ? "border-2 border-red-500 bg-red-50/40 dark:bg-red-950/10" : "border-2 border-slate-200 dark:border-slate-800"}`}>
+            <div className="flex items-start justify-between gap-4 flex-wrap">
+              <div className="flex-1 min-w-[400px]">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="h-10 w-10 rounded-full flex items-center justify-center" style={{ background: barColor + "20" }}>
+                    <CreditCard className="h-5 w-5" style={{ color: barColor }} />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-bold">{activeCompany.depositType}</h2>
+                    <p className="text-xs text-muted-foreground">Your credit collateral with OhMyHotel</p>
+                  </div>
+                  <div className="ml-auto text-right">
+                    <p className="text-3xl font-bold" style={{ color: barColor }}>{usedPct}%</p>
+                    <p className="text-[10px] text-muted-foreground uppercase">used</p>
+                  </div>
+                </div>
+
+                {/* Big progress bar */}
+                <div className="h-6 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden relative">
+                  <div className="h-full rounded-full transition-all flex items-center justify-end pr-2" style={{ width: `${usedPct}%`, background: barColor }}>
+                    {usedPct > 15 && <span className="text-[10px] font-bold text-white">${used.toLocaleString()}</span>}
+                  </div>
+                </div>
+
+                {/* 3 big stat blocks */}
+                <div className="grid grid-cols-3 gap-3 mt-4">
+                  <div className="text-center">
+                    <p className="text-[10px] text-muted-foreground uppercase">Total Deposit</p>
+                    <p className="text-xl font-bold font-mono">${deposit.toLocaleString()}</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-[10px] text-muted-foreground uppercase">Used (Outstanding)</p>
+                    <p className="text-xl font-bold font-mono" style={{ color: barColor }}>${used.toLocaleString()}</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-[10px] text-muted-foreground uppercase">Available</p>
+                    <p className={`text-xl font-bold font-mono ${lowDeposit ? "text-red-600" : "text-green-600"}`}>${available.toLocaleString()}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Top-up CTA when low */}
+            {lowDeposit && (
+              <Alert className="mt-4 border-red-300 bg-red-50 dark:bg-red-950/30">
+                <AlertTriangle className="h-4 w-4 text-red-600" />
+                <AlertTitle className="text-red-900 dark:text-red-100">Deposit running low — only {availPct}% available</AlertTitle>
+                <AlertDescription className="text-xs text-red-800 dark:text-red-200 flex items-center justify-between gap-3 flex-wrap mt-1">
+                  <span>
+                    Top up your deposit to keep booking smoothly. Once available reaches $0, new bookings will be blocked
+                    until existing invoices are settled or the deposit is increased.
+                  </span>
+                  <Button size="sm" className="text-white shrink-0" style={{ background: "#DC2626" }} onClick={() => toast.success("Top-up request sent to OhMyHotel finance team", { description: "Our team will contact you within 1 business day." })}>
+                    <CreditCard className="h-3 w-3 mr-1" />Top Up Deposit
+                  </Button>
+                </AlertDescription>
+              </Alert>
+            )}
+            {!lowDeposit && availPct <= 50 && (
+              <p className="text-xs text-amber-700 dark:text-amber-400 mt-3 flex items-center gap-1.5">
+                <AlertTriangle className="h-3 w-3" />
+                Heads up: deposit is <strong>{availPct}%</strong> available. Consider topping up before bookings reach the limit.
+              </p>
+            )}
+          </Card>
+        );
+      })()}
+
 
       <Tabs defaultValue={isPrepay ? "pending" : "invoices"}>
         <TabsList className="!h-auto flex-wrap justify-start gap-1">
@@ -237,10 +287,6 @@ export default function SettlementPage() {
           <TabsTrigger value="invoices">Invoices</TabsTrigger>
           <TabsTrigger value="billing">Billing Details</TabsTrigger>
           {!isPrepay && <TabsTrigger value="ar">Accounts Receivable</TabsTrigger>}
-          <TabsTrigger value="closing">
-            <Lock className="h-3 w-3 mr-1" />
-            Month-End Close
-          </TabsTrigger>
         </TabsList>
 
         {/* ══════ PREPAY Pending Payment Tab ══════ */}
@@ -594,10 +640,6 @@ export default function SettlementPage() {
           </Table>
         </TabsContent>}
 
-        {/* ══════ Month-End Close Tab ══════ */}
-        <TabsContent value="closing" className="space-y-4 mt-4">
-          <MonthEndClose />
-        </TabsContent>
       </Tabs>
 
       {/* Pay Confirmation Dialog */}
