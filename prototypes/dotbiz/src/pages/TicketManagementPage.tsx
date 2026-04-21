@@ -63,6 +63,15 @@ export default function TicketManagementPage() {
     if (booking) setSearchQuery(booking);
   }, [searchParams]);
 
+  /* Auto-open ticket detail when ?highlight=TK-... is in URL */
+  useEffect(() => {
+    if (highlightId) {
+      const t = tickets.find(x => x.id === highlightId);
+      if (t) setSelectedTicket(t);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [highlightId]);
+
   /* Keep selected ticket in sync with context updates */
   useEffect(() => {
     if (selectedTicket) {

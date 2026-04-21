@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router";
-import { ArrowLeft, Download, AlertTriangle, Ticket as TicketIcon, FileText } from "lucide-react";
+import { ArrowLeft, Download, AlertTriangle, Ticket as TicketIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -111,9 +111,6 @@ export default function SettlementDetailPage() {
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={() => toast.success("Invoice PDF exported")}>
               <Download className="h-3.5 w-3.5 mr-1" />Export PDF
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => toast.success("Email sent to " + invoiceCustomer.email)}>
-              <FileText className="h-3.5 w-3.5 mr-1" />Send to Client
             </Button>
           </div>
         </div>

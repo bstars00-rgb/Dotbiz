@@ -175,21 +175,50 @@ export default function SettlementPage() {
 
   return (
     <div className="p-6 space-y-4">
-      {/* Header with billing type + KPI summary */}
+      {/* Header with billing type + deposit utilization + KPI */}
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-2xl font-bold">{t("page.settlement")}</h1>
-            <Badge variant="outline" className="bg-orange-50 dark:bg-orange-900/20 text-orange-700 dark:text-orange-300 border-orange-300">
+            <Badge
+              variant="outline"
+              className="bg-orange-50 dark:bg-orange-900/20 text-orange-700 dark:text-orange-300 border-orange-300"
+              title="Settlement cycle is fixed by contract (Weekly / Bi-weekly / Monthly). Changes require contract amendment."
+            >
               {activeCompany.billingType}
               {activeCompany.billingType === "POSTPAY" && activeCompany.settlementCycle && ` · ${activeCompany.settlementCycle}`}
             </Badge>
           </div>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            {activeCompany.name}
-            {activeCompany.billingType === "POSTPAY" && activeCompany.depositType && ` · ${activeCompany.depositType} $${(activeCompany.depositAmount || 0).toLocaleString()}`}
-          </p>
+          <p className="text-sm text-muted-foreground mt-0.5">{activeCompany.name}</p>
         </div>
+
+        {/* Deposit utilization (POSTPAY only) */}
+        {activeCompany.billingType === "POSTPAY" && activeCompany.depositAmount && (() => {
+          const deposit = activeCompany.depositAmount;
+          /* Used = sum of outstanding (total - received) for this customer's unpaid invoices */
+          const used = myInvoices
+            .filter(i => i.matchStatus !== "Full" && i.matchStatus !== "Reconciled")
+            .reduce((s, i) => s + (i.total - i.receivedAmount), 0);
+          const available = Math.max(0, deposit - used);
+          const usedPct = Math.min(100, Math.round((used / deposit) * 100));
+          const barColor = usedPct >= 80 ? "#DC2626" : usedPct >= 50 ? "#FF8C00" : "#009505";
+          return (
+            <div className="border rounded-md px-3 py-2 min-w-[280px]">
+              <div className="flex items-center justify-between text-xs mb-1">
+                <span className="font-medium">{activeCompany.depositType}</span>
+                <span className="text-muted-foreground">{usedPct}% used</span>
+              </div>
+              <div className="h-2 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
+                <div className="h-full rounded-full transition-all" style={{ width: `${usedPct}%`, background: barColor }} />
+              </div>
+              <div className="flex items-center justify-between text-[10px] mt-1.5 font-mono">
+                <span><span className="text-muted-foreground">Total:</span> <strong>${deposit.toLocaleString()}</strong></span>
+                <span><span className="text-muted-foreground">Used:</span> <strong style={{ color: barColor }}>${used.toLocaleString()}</strong></span>
+                <span><span className="text-muted-foreground">Available:</span> <strong className="text-green-600">${available.toLocaleString()}</strong></span>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Quick KPI */}
         <div className="flex items-center gap-2 text-xs">
@@ -444,7 +473,6 @@ export default function SettlementPage() {
                 <TableHead className="text-right">Total</TableHead>
                 <TableHead className="text-right">Paid</TableHead>
                 <TableHead className="text-right">Balance</TableHead>
-                <TableHead className="text-right">Revenue</TableHead>
                 <TableHead title="User/time of invoice creation">First Insert</TableHead>
                 <TableHead title="User/time of most recent update">Last Update</TableHead>
                 <TableHead></TableHead>
@@ -478,9 +506,6 @@ export default function SettlementPage() {
                     <TableCell className="text-right font-mono text-sm">{fmt(inv.paidAmount ?? inv.receivedAmount)}</TableCell>
                     <TableCell className={`text-right font-mono text-sm font-medium ${variance > 0 ? "text-amber-600" : variance < 0 ? "text-blue-600" : "text-green-600"}`}>
                       {variance === 0 ? "—" : `${curr} ${Math.abs(variance).toLocaleString()}`}
-                    </TableCell>
-                    <TableCell className="text-right font-mono text-xs text-green-700 dark:text-green-400">
-                      {inv.revenue !== undefined ? `${curr} ${inv.revenue.toLocaleString()}` : "—"}
                     </TableCell>
                     <TableCell className="text-[10px] text-muted-foreground">
                       <p className="font-mono">{inv.firstInsertUser}</p>

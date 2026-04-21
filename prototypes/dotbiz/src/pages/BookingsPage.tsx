@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { useNavigate, useSearchParams } from "react-router";
+import { useNavigate, useSearchParams, useParams } from "react-router";
 import { Search, X, Download, ChevronLeft, ChevronRight, RefreshCw, MapPin, Calendar, Clock, FileText, Printer, Ticket, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -235,8 +235,17 @@ export default function BookingsPage() {
   const billingType = user?.billingType || "POSTPAY";
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { bookingId: routeBookingId } = useParams<{ bookingId: string }>();
   const [localBookings, setLocalBookings] = useState([...bookings]);
   const [selectedBooking, setSelectedBooking] = useState<typeof bookings[0] | null>(null);
+
+  /* When URL is /app/bookings/:bookingId — auto-open the detail dialog */
+  useEffect(() => {
+    if (routeBookingId) {
+      const b = bookings.find(x => x.id === routeBookingId || x.ellisCode === routeBookingId);
+      if (b) setSelectedBooking(b);
+    }
+  }, [routeBookingId]);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [exportHistoryOpen, setExportHistoryOpen] = useState(false);
   const [viewMode, setViewMode] = useState<"list" | "card">("list");
