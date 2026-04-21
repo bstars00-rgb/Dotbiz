@@ -182,19 +182,6 @@ export default function SettlementPage() {
               {activeCompany.billingType}
               {activeCompany.billingType === "POSTPAY" && activeCompany.settlementCycle && ` · ${activeCompany.settlementCycle}`}
             </Badge>
-            {activeCompany.billingType === "POSTPAY" && (
-              <Button
-                variant="link"
-                size="sm"
-                className="h-auto p-0 text-xs text-muted-foreground"
-                onClick={() => toast.info(`Current settlement cycle: ${activeCompany.settlementCycle} (Net-${activeCompany.paymentDueDays})`, {
-                  description: "Available options: Weekly · Bi-weekly · Monthly. Cycle changes require a contract amendment — request via your OhMyHotel account manager.",
-                  action: { label: "Request change", onClick: () => toast.success("Cycle-change request noted", { description: "Your account manager will reach out within 2 business days." }) },
-                })}
-              >
-                Change cycle ↗
-              </Button>
-            )}
           </div>
           <p className="text-sm text-muted-foreground">
             {activeCompany.name}

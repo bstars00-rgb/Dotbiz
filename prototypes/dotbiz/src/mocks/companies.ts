@@ -30,7 +30,7 @@ export const companies: Company[] = [
     businessType: "Postpaid", billingType: "POSTPAY",
     address: "123 Gangnam-daero, Seoul", phone: "02-1234-5678", email: "info@travelco.com",
     contractDate: "2024-03-15", ellisSyncDate: "2026-04-15",
-    depositType: "Floating Deposit", depositAmount: 50000, settlementCycle: "Monthly", paymentDueDays: 30,
+    depositType: "Floating Deposit", depositAmount: 50000, settlementCycle: "Bi-weekly", paymentDueDays: 14,
     contractCurrency: "USD", country: "South Korea",
   },
   {
@@ -45,7 +45,7 @@ export const companies: Company[] = [
     businessType: "Postpaid", billingType: "POSTPAY",
     address: "2-1-1 Nihonbashi, Chuo-ku, Tokyo", phone: "+81-3-1234-5678", email: "info@sakura-travel.co.jp",
     contractDate: "2024-09-01", ellisSyncDate: "2026-04-15",
-    depositType: "Bank Guarantee", depositAmount: 100000, settlementCycle: "Monthly", paymentDueDays: 30,
+    depositType: "Bank Guarantee", depositAmount: 100000, settlementCycle: "Bi-weekly", paymentDueDays: 14,
     contractCurrency: "JPY", country: "Japan",
   },
   {
@@ -68,7 +68,7 @@ export const companies: Company[] = [
     businessType: "Postpaid", billingType: "POSTPAY",
     address: "80 Robinson Road, #10-01, Singapore", phone: "+65-6888-1234", email: "sales@lioncitytravel.sg",
     contractDate: "2024-07-20", ellisSyncDate: "2026-04-15",
-    depositType: "Floating Deposit", depositAmount: 60000, settlementCycle: "Monthly", paymentDueDays: 30,
+    depositType: "Floating Deposit", depositAmount: 60000, settlementCycle: "Bi-weekly", paymentDueDays: 14,
     contractCurrency: "SGD", country: "Singapore",
   },
 ];
