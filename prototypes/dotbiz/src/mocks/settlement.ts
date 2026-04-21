@@ -479,14 +479,39 @@ export const disputeSummary = {
   autoMatchAccuracy: 98.5,  /* % */
 };
 
-/* ── Accounts Receivable (확장) ── */
-export const accountsReceivable = [
-  { id: "ar-001", ellisCode: "ELS-2026-00155", hotelName: "Shilla Stay Mapo", amount: 580, cancelDeadline: "2026-04-13", paymentStatus: "Not Paid" as const, agingDays: 5 },
-  { id: "ar-002", ellisCode: "ELS-2026-00168", hotelName: "Mandarin Oriental Tokyo", amount: 2250, cancelDeadline: "2026-04-19", paymentStatus: "Not Paid" as const, agingDays: 0 },
-  { id: "ar-003", ellisCode: "ELS-2026-00175", hotelName: "Lotte Hotel Hanoi", amount: 360, cancelDeadline: "2026-04-04", paymentStatus: "Not Paid" as const, agingDays: 15 },
-  { id: "ar-004", ellisCode: "ELS-2026-00240", hotelName: "Raffles Singapore", amount: 1650, cancelDeadline: "2026-04-25", paymentStatus: "Not Paid" as const, agingDays: 0 },
-  { id: "ar-005", ellisCode: "ELS-2026-00205", hotelName: "Park Hyatt Saigon", amount: 920, cancelDeadline: "2026-04-20", paymentStatus: "Partially Paid" as const, agingDays: 35 },
-  { id: "ar-006", ellisCode: "ELS-2026-00225", hotelName: "InterContinental Da Nang", amount: 870, cancelDeadline: "2026-04-08", paymentStatus: "Not Paid" as const, agingDays: 62 },
+/* ── Accounts Receivable (확장) ──
+ * AR = per-booking outstanding balances for POSTPAY customers.
+ * Contract-scoped: each row has customerCompanyId + contractId + currency so the
+ * Settlement page can filter/display per selected contract (SG USD / VN VND / etc).
+ */
+export interface ARItem {
+  id: string;
+  ellisCode: string;
+  hotelName: string;
+  amount: number;
+  currency: string;
+  cancelDeadline: string;
+  paymentStatus: "Not Paid" | "Partially Paid";
+  agingDays: number;
+  customerCompanyId: string;
+  contractId: string;
+}
+export const accountsReceivable: ARItem[] = [
+  /* TravelCo (comp-001) — single SG USD contract */
+  { id: "ar-001", ellisCode: "ELS-2026-00155", hotelName: "Shilla Stay Mapo",          amount: 580,  currency: "USD", cancelDeadline: "2026-04-13", paymentStatus: "Not Paid", agingDays: 5,  customerCompanyId: "comp-001", contractId: "ctr-001-sg" },
+  { id: "ar-002", ellisCode: "ELS-2026-00168", hotelName: "Mandarin Oriental Tokyo",   amount: 2250, currency: "USD", cancelDeadline: "2026-04-19", paymentStatus: "Not Paid", agingDays: 0,  customerCompanyId: "comp-001", contractId: "ctr-001-sg" },
+  { id: "ar-003", ellisCode: "ELS-2026-00175", hotelName: "Lotte Hotel Hanoi",         amount: 360,  currency: "USD", cancelDeadline: "2026-04-04", paymentStatus: "Not Paid", agingDays: 15, customerCompanyId: "comp-001", contractId: "ctr-001-sg" },
+  { id: "ar-004", ellisCode: "ELS-2026-00240", hotelName: "Raffles Singapore",         amount: 1650, currency: "USD", cancelDeadline: "2026-04-25", paymentStatus: "Not Paid", agingDays: 0,  customerCompanyId: "comp-001", contractId: "ctr-001-sg" },
+  { id: "ar-005", ellisCode: "ELS-2026-00205", hotelName: "Park Hyatt Saigon",         amount: 920,  currency: "USD", cancelDeadline: "2026-04-20", paymentStatus: "Not Paid", agingDays: 35, customerCompanyId: "comp-001", contractId: "ctr-001-sg" },
+  { id: "ar-006", ellisCode: "ELS-2026-00225", hotelName: "InterContinental Da Nang",  amount: 870,  currency: "USD", cancelDeadline: "2026-04-08", paymentStatus: "Not Paid", agingDays: 62, customerCompanyId: "comp-001", contractId: "ctr-001-sg" },
+
+  /* GOTADI (comp-010) — SG contract (USD, international hotels) */
+  { id: "ar-010-sg-1", ellisCode: "ELS-2026-SG-1201", hotelName: "Marina Bay Sands",     amount: 4200, currency: "USD", cancelDeadline: "2026-05-14", paymentStatus: "Not Paid", agingDays: 0,  customerCompanyId: "comp-010", contractId: "ctr-010-sg" },
+  { id: "ar-010-sg-2", ellisCode: "ELS-2026-SG-1215", hotelName: "The Peninsula Shanghai", amount: 4000, currency: "USD", cancelDeadline: "2026-05-18", paymentStatus: "Not Paid", agingDays: 0,  customerCompanyId: "comp-010", contractId: "ctr-010-sg" },
+
+  /* GOTADI (comp-010) — VN contract (VND, Vietnam-local hotels, VAT included) */
+  { id: "ar-010-vn-1", ellisCode: "ELS-2026-VN-0511", hotelName: "InterContinental Da Nang", amount: 305000000, currency: "VND", cancelDeadline: "2026-05-08", paymentStatus: "Not Paid", agingDays: 0,  customerCompanyId: "comp-010", contractId: "ctr-010-vn" },
+  { id: "ar-010-vn-2", ellisCode: "ELS-2026-VN-0523", hotelName: "Park Hyatt Saigon",         amount: 220000000, currency: "VND", cancelDeadline: "2026-05-12", paymentStatus: "Not Paid", agingDays: 0,  customerCompanyId: "comp-010", contractId: "ctr-010-vn" },
 ];
 
 export const pointsHistory = [

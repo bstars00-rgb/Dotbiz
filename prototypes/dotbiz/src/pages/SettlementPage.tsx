@@ -216,13 +216,26 @@ export default function SettlementPage() {
   const [arSelected, setArSelected] = useState<Set<string>>(new Set());
   const toggleAr = (id: string) => setArSelected(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
   const [payDialogOpen, setPayDialogOpen] = useState(false);
-  const arSelectedTotal = accountsReceivable.filter(a => arSelected.has(a.id)).reduce((s, a) => s + a.amount, 0);
 
-  /* AR Aging */
-  const arCurrent = accountsReceivable.filter(a => a.agingDays <= 0).reduce((s, a) => s + a.amount, 0);
-  const ar30 = accountsReceivable.filter(a => a.agingDays > 0 && a.agingDays <= 30).reduce((s, a) => s + a.amount, 0);
-  const ar60 = accountsReceivable.filter(a => a.agingDays > 30 && a.agingDays <= 60).reduce((s, a) => s + a.amount, 0);
-  const ar90 = accountsReceivable.filter(a => a.agingDays > 60).reduce((s, a) => s + a.amount, 0);
+  /* AR — filtered by current customer + selected contract (unified structure regardless of contract count) */
+  const myAR = useMemo(() => accountsReceivable.filter(a => {
+    if (a.customerCompanyId !== activeCompany.id) return false;
+    if (selectedContractId !== "all" && a.contractId !== selectedContractId) return false;
+    return true;
+  }), [activeCompany.id, selectedContractId]);
+
+  const arSelectedTotal = myAR.filter(a => arSelected.has(a.id)).reduce((s, a) => s + a.amount, 0);
+
+  /* AR Aging — scoped to filtered AR only */
+  const arCurrent = myAR.filter(a => a.agingDays <= 0).reduce((s, a) => s + a.amount, 0);
+  const ar30 = myAR.filter(a => a.agingDays > 0 && a.agingDays <= 30).reduce((s, a) => s + a.amount, 0);
+  const ar60 = myAR.filter(a => a.agingDays > 30 && a.agingDays <= 60).reduce((s, a) => s + a.amount, 0);
+  const ar90 = myAR.filter(a => a.agingDays > 60).reduce((s, a) => s + a.amount, 0);
+
+  /* AR currency — derive from selected contract (single-contract uses its currency; "all" falls back to company default) */
+  const arCurrency = selectedContract?.contractCurrency || effectiveCurrency || "USD";
+  const arFracDigits = arCurrency === "VND" || arCurrency === "JPY" ? 0 : 2;
+  const arFmt = (n: number) => `${arCurrency} ${n.toLocaleString(undefined, { minimumFractionDigits: arFracDigits, maximumFractionDigits: arFracDigits })}`;
 
   if (!hasRole(["Master"])) return (<div className="p-6"><Alert><AlertTitle>Access Restricted</AlertTitle><AlertDescription>Settlement page is only accessible to Master accounts.</AlertDescription></Alert></div>);
   if (state === "loading") return (<div className="p-6 space-y-4"><Skeleton className="h-10 w-full" /><div className="grid grid-cols-1 md:grid-cols-3 gap-4">{[1, 2, 3].map(i => <Skeleton key={i} className="h-24" />)}</div><Skeleton className="h-64 w-full" /><StateToolbar state={state} setState={setState} /></div>);
@@ -990,51 +1003,67 @@ export default function SettlementPage() {
                   <a.icon className="h-4 w-4" style={{ color: a.color }} />
                   <p className="text-xs text-muted-foreground">{a.label}</p>
                 </div>
-                <p className="text-lg font-bold">${a.value.toLocaleString()}</p>
+                <p className="text-lg font-bold">{arFmt(a.value)}</p>
               </Card>
             ))}
           </div>
 
+          {selectedContractId === "all" && isMultiContract && (
+            <div className="text-[11px] text-muted-foreground italic px-1">
+              Showing aggregate across all contracts (mixed currencies displayed per row). Select a specific contract to see it in one currency.
+            </div>
+          )}
+
           {arSelected.size > 0 && (
             <div className="flex items-center gap-3 p-3 bg-primary/5 border border-primary/20 rounded-lg">
               <span className="text-sm font-medium">{arSelected.size} selected</span>
-              <span className="text-sm font-bold" style={{ color: "#FF6000" }}>Total: ${arSelectedTotal.toLocaleString()}</span>
+              <span className="text-sm font-bold" style={{ color: "#FF6000" }}>Total: {arFmt(arSelectedTotal)}</span>
               <Button size="sm" onClick={() => setPayDialogOpen(true)}><CreditCard className="h-3 w-3 mr-1" />Pay Selected</Button>
               <Button size="sm" variant="outline" onClick={() => toast.success("Processing bulk payment...")}>Bulk Pay</Button>
               <Button size="sm" variant="ghost" className="ml-auto" onClick={() => setArSelected(new Set())}>Clear</Button>
             </div>
           )}
 
-          <Table>
+          {myAR.length === 0 ? (
+            <Card className="p-8 text-center text-muted-foreground text-sm">
+              No outstanding receivables for this contract.
+            </Card>
+          ) : (
+            <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-10"><Checkbox checked={arSelected.size === accountsReceivable.length} onCheckedChange={() => { if (arSelected.size === accountsReceivable.length) setArSelected(new Set()); else setArSelected(new Set(accountsReceivable.map(a => a.id))); }} /></TableHead>
+                <TableHead className="w-10"><Checkbox checked={arSelected.size === myAR.length && myAR.length > 0} onCheckedChange={() => { if (arSelected.size === myAR.length) setArSelected(new Set()); else setArSelected(new Set(myAR.map(a => a.id))); }} /></TableHead>
                 <TableHead>ELLIS Code</TableHead>
                 <TableHead>Hotel</TableHead>
-                <TableHead>Amount</TableHead>
+                <TableHead className="text-right">Amount</TableHead>
                 <TableHead>Cancel Deadline</TableHead>
                 <TableHead>Aging</TableHead>
                 <TableHead>Status</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {accountsReceivable.map(ar => (
-                <TableRow key={ar.id}>
-                  <TableCell><Checkbox checked={arSelected.has(ar.id)} onCheckedChange={() => toggleAr(ar.id)} /></TableCell>
-                  <TableCell className="font-mono text-sm">{ar.ellisCode}</TableCell>
-                  <TableCell>{ar.hotelName}</TableCell>
-                  <TableCell className="font-medium">${ar.amount.toLocaleString()}</TableCell>
-                  <TableCell>{ar.cancelDeadline}</TableCell>
-                  <TableCell>
-                    <Badge variant={ar.agingDays > 60 ? "destructive" : ar.agingDays > 30 ? "secondary" : "default"} className="text-[10px]">
-                      {ar.agingDays > 0 ? `${ar.agingDays} days` : "Current"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell><Badge variant="destructive" className="text-[10px]">{ar.paymentStatus}</Badge></TableCell>
-                </TableRow>
-              ))}
+              {myAR.map(ar => {
+                const rowFracDigits = ar.currency === "VND" || ar.currency === "JPY" ? 0 : 2;
+                const rowFmt = `${ar.currency} ${ar.amount.toLocaleString(undefined, { minimumFractionDigits: rowFracDigits, maximumFractionDigits: rowFracDigits })}`;
+                return (
+                  <TableRow key={ar.id}>
+                    <TableCell><Checkbox checked={arSelected.has(ar.id)} onCheckedChange={() => toggleAr(ar.id)} /></TableCell>
+                    <TableCell className="font-mono text-sm">{ar.ellisCode}</TableCell>
+                    <TableCell>{ar.hotelName}</TableCell>
+                    <TableCell className="font-medium text-right font-mono">{rowFmt}</TableCell>
+                    <TableCell>{ar.cancelDeadline}</TableCell>
+                    <TableCell>
+                      <Badge variant={ar.agingDays > 60 ? "destructive" : ar.agingDays > 30 ? "secondary" : "default"} className="text-[10px]">
+                        {ar.agingDays > 0 ? `${ar.agingDays} days` : "Current"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell><Badge variant="destructive" className="text-[10px]">{ar.paymentStatus}</Badge></TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
+          )}
         </TabsContent>}
 
       </Tabs>
@@ -1045,12 +1074,12 @@ export default function SettlementPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Confirm Payment</AlertDialogTitle>
             <AlertDialogDescription>
-              You are about to pay <strong>{arSelected.size} items</strong> totaling <strong>${arSelectedTotal.toLocaleString()}</strong>. This action will be processed via your default payment method.
+              You are about to pay <strong>{arSelected.size} items</strong> totaling <strong>{arFmt(arSelectedTotal)}</strong>. This action will be processed via your default payment method.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => { toast.success("Payment processed", { description: `$${arSelectedTotal.toLocaleString()} has been paid.` }); setArSelected(new Set()); }}>
+            <AlertDialogAction onClick={() => { toast.success("Payment processed", { description: `${arFmt(arSelectedTotal)} has been paid.` }); setArSelected(new Set()); }}>
               <CreditCard className="h-4 w-4 mr-1" />Confirm Payment
             </AlertDialogAction>
           </AlertDialogFooter>
