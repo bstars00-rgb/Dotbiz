@@ -15,6 +15,8 @@ import { Separator } from "@/components/ui/separator";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { useAuth } from "@/contexts/AuthContext";
+import { unreadAlertsFor } from "@/mocks/alerts";
+import { companies } from "@/mocks/companies";
 import { useI18n } from "@/contexts/I18nContext";
 import type { Locale } from "@/i18n/strings";
 import { currentUser } from "@/mocks/users";
@@ -37,6 +39,13 @@ export default function MainLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const { hasRole, isAuthenticated, user, logout } = useAuth();
+
+  /* Compute unread alert count for current logged-in customer */
+  const unreadCount = (() => {
+    const myCompany = companies.find(c => c.name === user?.company);
+    if (!myCompany) return 0;
+    return unreadAlertsFor(myCompany.id).length;
+  })();
   const { locale, setLocale, t } = useI18n();
 
   /* Auth guard — redirect to login if not authenticated */
@@ -171,7 +180,11 @@ export default function MainLayout() {
           {/* Notifications */}
           <Button variant="ghost" size="icon" className="text-white/80 hover:text-white hover:bg-white/10 h-8 w-8 relative" onClick={() => navigate("/app/notifications")} aria-label="Notifications">
             <Bell className="h-4 w-4" />
-            <span className="absolute -top-0.5 -right-0.5 h-4 w-4 rounded-full bg-red-500 text-[9px] text-white flex items-center justify-center">3</span>
+            {unreadCount > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 h-4 min-w-4 px-1 rounded-full bg-red-500 text-[9px] text-white flex items-center justify-center">
+                {unreadCount > 99 ? "99+" : unreadCount}
+              </span>
+            )}
           </Button>
 
           {/* User Avatar */}

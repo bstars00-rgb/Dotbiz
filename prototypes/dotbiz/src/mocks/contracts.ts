@@ -25,8 +25,28 @@ export interface Contract {
   depositAmount?: number;
   scope: ContractScope;
   contractDate: string;
-  /* Display label for UI dropdown — e.g. "OhMyHotel Vietnam · VND · Bi-weekly" */
   label?: string;
+
+  /* ── Credit leverage (only for collateral-backed deposit types) ──
+   * Floating Deposit = 1:1 (no multiplier — pre-funded cash)
+   * Bank Guarantee / Guarantee Deposit / Guarantee Insurance = leverage applied
+   * Credit by Company = direct credit limit (no underlying deposit)
+   *
+   * effective creditLimit = explicit creditLimit ?? (depositAmount × creditMultiplier)
+   */
+  creditMultiplier?: number;     /* e.g. 2.0 (2x leverage) */
+  creditLimit?: number;          /* explicit override; if undefined, computed from deposit × multiplier */
+
+  /* Alert thresholds — when creditAvailable falls below these, alerts trigger */
+  creditLowThreshold?: number;       /* e.g. $10,000 → "Low" alert */
+  creditCriticalThreshold?: number;  /* e.g. $5,000 → "Critical" alert + new bookings risk */
+}
+
+/* Helper: compute effective credit limit for a contract */
+export function getCreditLimit(c: Contract): number {
+  if (c.creditLimit !== undefined) return c.creditLimit;
+  if (c.depositAmount && c.creditMultiplier) return c.depositAmount * c.creditMultiplier;
+  return c.depositAmount || 0;  /* Floating / fallback: 1:1 */
 }
 
 export const contracts: Contract[] = [
@@ -36,6 +56,8 @@ export const contracts: Contract[] = [
     billingType: "POSTPAY", contractCurrency: "USD",
     settlementCycle: "Bi-weekly", paymentDueDays: 14,
     depositType: "Floating Deposit", depositAmount: 50000,
+    /* Floating Deposit: 1:1 (no multiplier), credit limit = deposit */
+    creditLowThreshold: 10000, creditCriticalThreshold: 5000,
     scope: { type: "INTERNATIONAL" },
     contractDate: "2024-03-15",
   },
@@ -51,6 +73,9 @@ export const contracts: Contract[] = [
     billingType: "POSTPAY", contractCurrency: "JPY",
     settlementCycle: "Bi-weekly", paymentDueDays: 14,
     depositType: "Bank Guarantee", depositAmount: 10000000,
+    /* Bank Guarantee: 2x leverage → 20M JPY credit limit */
+    creditMultiplier: 2.0,
+    creditLowThreshold: 4000000, creditCriticalThreshold: 2000000,
     scope: { type: "INTERNATIONAL" },
     contractDate: "2024-09-01",
   },
@@ -59,6 +84,9 @@ export const contracts: Contract[] = [
     billingType: "POSTPAY", contractCurrency: "CNY",
     settlementCycle: "Bi-weekly", paymentDueDays: 14,
     depositType: "Guarantee Deposit", depositAmount: 80000,
+    /* Guarantee Deposit: 2x leverage → CNY 160k credit limit */
+    creditMultiplier: 2.0,
+    creditLowThreshold: 30000, creditCriticalThreshold: 15000,
     scope: { type: "INTERNATIONAL" },
     contractDate: "2025-01-15",
   },
@@ -74,6 +102,7 @@ export const contracts: Contract[] = [
     billingType: "POSTPAY", contractCurrency: "SGD",
     settlementCycle: "Bi-weekly", paymentDueDays: 14,
     depositType: "Floating Deposit", depositAmount: 60000,
+    creditLowThreshold: 12000, creditCriticalThreshold: 6000,
     scope: { type: "INTERNATIONAL" },
     contractDate: "2024-07-20",
   },
@@ -87,6 +116,7 @@ export const contracts: Contract[] = [
     billingType: "POSTPAY", contractCurrency: "USD",
     settlementCycle: "Bi-weekly", paymentDueDays: 14,
     depositType: "Floating Deposit", depositAmount: 40000,
+    creditLowThreshold: 8000, creditCriticalThreshold: 4000,
     scope: { type: "INTERNATIONAL" },
     contractDate: "2025-08-01",
     label: "OhMyHotel Singapore · USD · International",
@@ -96,6 +126,7 @@ export const contracts: Contract[] = [
     billingType: "POSTPAY", contractCurrency: "VND",
     settlementCycle: "Bi-weekly", paymentDueDays: 14,
     depositType: "Floating Deposit", depositAmount: 1_000_000_000,  /* 1 billion VND ≈ USD 40k */
+    creditLowThreshold: 200_000_000, creditCriticalThreshold: 100_000_000,
     scope: { type: "LOCAL", countries: ["VN"] },
     contractDate: "2025-08-01",
     label: "OhMyHotel Vietnam · VND · Vietnam hotels",

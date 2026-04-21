@@ -19,6 +19,7 @@ import { currentUser } from "@/mocks/users";
 import { currentCompany } from "@/mocks/companies";
 import { operatingPartners } from "@/mocks/operatingPartners";
 import { getSavedCards, removeCard, type SavedCard } from "@/components/PaymentDialog";
+import { AlertPreferencesPanel } from "@/components/AlertPreferencesPanel";
 import { toast } from "sonner";
 
 const mockCoupons = {
@@ -146,48 +147,9 @@ export default function MyAccountPage() {
           </Card>
         </TabsContent>
 
-        {/* ══════ Notification Settings Tab ══════ */}
+        {/* ══════ Notification Settings Tab — Alert preferences per type/channel ══════ */}
         <TabsContent value="notifications" className="space-y-5 mt-4">
-          <Card className="p-6">
-            <h2 className="text-lg font-semibold mb-4 flex items-center gap-2"><Bell className="h-5 w-5" />Hotel Notification Settings</h2>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between py-2">
-                <div><p className="text-sm font-medium">Confirmation Number via Email</p><p className="text-xs text-muted-foreground">Receive hotel confirmation numbers via email</p></div>
-                <button role="switch" aria-checked={notifConfirmEmail} aria-label="Confirmation email notification" onClick={() => setNotifConfirmEmail(!notifConfirmEmail)} className={`w-11 h-6 rounded-full transition-colors ${notifConfirmEmail ? "bg-primary" : "bg-muted"}`}><div className={`h-5 w-5 bg-white rounded-full shadow transition-transform ${notifConfirmEmail ? "translate-x-5.5" : "translate-x-0.5"}`} /></button>
-              </div>
-              <Separator />
-              <div className="flex items-center justify-between py-2">
-                <div><p className="text-sm font-medium">Voucher via Email</p><p className="text-xs text-muted-foreground">Receive booking vouchers via email</p></div>
-                <button role="switch" aria-checked={notifVoucherEmail} aria-label="Voucher email notification" onClick={() => setNotifVoucherEmail(!notifVoucherEmail)} className={`w-11 h-6 rounded-full transition-colors ${notifVoucherEmail ? "bg-primary" : "bg-muted"}`}><div className={`h-5 w-5 bg-white rounded-full shadow transition-transform ${notifVoucherEmail ? "translate-x-5.5" : "translate-x-0.5"}`} /></button>
-              </div>
-              <Separator />
-              <div className="flex items-center justify-between py-2">
-                <div><p className="text-sm font-medium">Voucher via WeChat</p><p className="text-xs text-muted-foreground">Receive vouchers via WeChat notification</p></div>
-                <button role="switch" aria-checked={notifVoucherWeChat} aria-label="Voucher WeChat notification" onClick={() => setNotifVoucherWeChat(!notifVoucherWeChat)} className={`w-11 h-6 rounded-full transition-colors ${notifVoucherWeChat ? "bg-primary" : "bg-muted"}`}><div className={`h-5 w-5 bg-white rounded-full shadow transition-transform ${notifVoucherWeChat ? "translate-x-5.5" : "translate-x-0.5"}`} /></button>
-              </div>
-            </div>
-          </Card>
-
-          <Card className="p-6">
-            <h2 className="text-lg font-semibold mb-4">Email Subscription Settings</h2>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between py-2">
-                <div><p className="text-sm font-medium">Free Cancellation Deadline Alert</p><p className="text-xs text-muted-foreground">Email reminder before free cancellation deadline expires</p></div>
-                <button role="switch" aria-checked={notifFreeCancelAlert} aria-label="Free cancellation alert" onClick={() => setNotifFreeCancelAlert(!notifFreeCancelAlert)} className={`w-11 h-6 rounded-full transition-colors ${notifFreeCancelAlert ? "bg-primary" : "bg-muted"}`}><div className={`h-5 w-5 bg-white rounded-full shadow transition-transform ${notifFreeCancelAlert ? "translate-x-5.5" : "translate-x-0.5"}`} /></button>
-              </div>
-              <Separator />
-              <div className="flex items-center justify-between py-2">
-                <div><p className="text-sm font-medium">Booking Status Updates</p><p className="text-xs text-muted-foreground">Receive emails when booking status changes</p></div>
-                <button role="switch" aria-checked={notifBookingUpdate} aria-label="Booking status updates" onClick={() => setNotifBookingUpdate(!notifBookingUpdate)} className={`w-11 h-6 rounded-full transition-colors ${notifBookingUpdate ? "bg-primary" : "bg-muted"}`}><div className={`h-5 w-5 bg-white rounded-full shadow transition-transform ${notifBookingUpdate ? "translate-x-5.5" : "translate-x-0.5"}`} /></button>
-              </div>
-              <Separator />
-              <div className="flex items-center justify-between py-2">
-                <div><p className="text-sm font-medium">Promotions & Offers</p><p className="text-xs text-muted-foreground">Receive marketing emails about deals and promotions</p></div>
-                <button role="switch" aria-checked={notifPromotion} aria-label="Promotions and offers" onClick={() => setNotifPromotion(!notifPromotion)} className={`w-11 h-6 rounded-full transition-colors ${notifPromotion ? "bg-primary" : "bg-muted"}`}><div className={`h-5 w-5 bg-white rounded-full shadow transition-transform ${notifPromotion ? "translate-x-5.5" : "translate-x-0.5"}`} /></button>
-              </div>
-            </div>
-          </Card>
-          <Button onClick={() => toast.success("Notification settings saved!")}><Save className="h-4 w-4 mr-2" />Save Settings</Button>
+          <AlertPreferencesPanel />
         </TabsContent>
 
         {/* ══════ Card Management Tab ══════ */}

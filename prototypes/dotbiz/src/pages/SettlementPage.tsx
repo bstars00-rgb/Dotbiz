@@ -20,7 +20,7 @@ import { billingDetails, invoices, accountsReceivable, disputeSummary } from "@/
 import { companies, currentCompany } from "@/mocks/companies";
 import { bookings as allBookings, type Booking } from "@/mocks/bookings";
 import { downloadCSV, timestamp } from "@/lib/download";
-import { contractsForCustomer, getContract, type Contract } from "@/mocks/contracts";
+import { contractsForCustomer, getContract, getCreditLimit, type Contract } from "@/mocks/contracts";
 import { getEntity } from "@/mocks/ohMyHotelEntities";
 import PaymentDialog from "@/components/PaymentDialog";
 import InvoicePreviewDialog, { type InvoiceData } from "@/components/InvoicePreviewDialog";
@@ -254,29 +254,36 @@ export default function SettlementPage() {
           </p>
         </div>
 
-        {/* Right side: Contract selector (only when multi-contract) + KPI */}
+        {/* Right side: Contract selector (always shown — unified structure regardless of count) + KPI */}
         <div className="flex items-center gap-3 flex-wrap">
-          {isMultiContract && (
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground">Contract:</span>
-              <select
-                value={selectedContractId}
-                onChange={e => setSelectedContractId(e.target.value)}
-                className="border rounded px-2 py-1.5 text-sm bg-background min-w-[280px]"
-                aria-label="Contract selector"
-              >
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">Contract:</span>
+            <select
+              value={selectedContractId}
+              onChange={e => setSelectedContractId(e.target.value)}
+              className="border rounded px-2 py-1.5 text-sm bg-background min-w-[280px] disabled:opacity-80"
+              aria-label="Contract selector"
+              disabled={myContracts.length === 0}
+            >
+              {myContracts.length === 0 && (
+                <option value="all">No active contracts</option>
+              )}
+              {isMultiContract && (
                 <option value="all">📊 All contracts (Summary)</option>
-                {myContracts.map(c => {
-                  const ent = getEntity(c.ohmyhotelEntityId);
-                  return (
-                    <option key={c.id} value={c.id}>
-                      {ent.countryFlag} {ent.shortName} · {c.contractCurrency} · {c.billingType}
-                    </option>
-                  );
-                })}
-              </select>
-            </div>
-          )}
+              )}
+              {myContracts.map(c => {
+                const ent = getEntity(c.ohmyhotelEntityId);
+                return (
+                  <option key={c.id} value={c.id}>
+                    {ent.countryFlag} {ent.shortName} · {c.contractCurrency} · {c.billingType}
+                  </option>
+                );
+              })}
+            </select>
+            <Badge variant="outline" className="text-[10px]">
+              {myContracts.length} {myContracts.length === 1 ? "contract" : "contracts"}
+            </Badge>
+          </div>
           <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border text-xs">
             <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
             <span><strong>{disputeSummary.openCount}</strong> open disputes</span>
@@ -519,6 +526,130 @@ export default function SettlementPage() {
                   })}
                 </div>
               </div>
+            )}
+          </Card>
+        );
+      })()}
+
+      {/* Credit Utilization Card — for collateral-backed deposits with leverage (Bank Guarantee, Guarantee Deposit, Insurance)
+       * AND Floating Deposit (1:1 — for low-credit warning). Shown only when a specific contract is selected.
+       */}
+      {selectedContractId !== "all" && selectedContract && effectiveBilling === "POSTPAY" && effectiveDepositType !== "No Deposit" && effectiveDepositType !== "Credit by Company" && (() => {
+        const contract = selectedContract;
+        const creditLimit = getCreditLimit(contract);
+        if (creditLimit === 0) return null;
+
+        const used = myInvoices
+          .filter(i => i.matchStatus !== "Full" && i.matchStatus !== "Reconciled")
+          .reduce((s, i) => s + (i.total - i.receivedAmount), 0);
+        const available = Math.max(0, creditLimit - used);
+        const usedPct = Math.min(100, Math.round((used / creditLimit) * 100));
+
+        const lowThreshold = contract.creditLowThreshold || 0;
+        const criticalThreshold = contract.creditCriticalThreshold || 0;
+        const isCritical = criticalThreshold > 0 && available <= criticalThreshold;
+        const isLow = lowThreshold > 0 && available <= lowThreshold && !isCritical;
+
+        const barColor = isCritical ? "#DC2626" : isLow ? "#FF6000" : usedPct >= 50 ? "#FF8C00" : "#009505";
+        const hasLeverage = !!contract.creditMultiplier && contract.creditMultiplier > 1;
+        const curr = effectiveCurrency;
+
+        return (
+          <Card className={`p-6 ${isCritical ? "border-2 border-red-500 bg-red-50/40 dark:bg-red-950/10" : isLow ? "border-2 border-orange-500 bg-orange-50/40 dark:bg-orange-950/10" : "border-2 border-slate-200 dark:border-slate-800"}`}>
+            <div className="flex items-start justify-between gap-4 flex-wrap">
+              <div className="flex-1 min-w-[400px]">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="h-10 w-10 rounded-full flex items-center justify-center" style={{ background: barColor + "20" }}>
+                    <CreditCard className="h-5 w-5" style={{ color: barColor }} />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-bold flex items-center gap-2">
+                      Credit Available
+                      {hasLeverage && <Badge variant="outline" className="text-[10px]">{contract.creditMultiplier}× leverage</Badge>}
+                    </h2>
+                    <p className="text-xs text-muted-foreground">
+                      {hasLeverage
+                        ? `Backed by ${effectiveDepositType} ${curr} ${(effectiveDepositAmount || 0).toLocaleString()} × ${contract.creditMultiplier}`
+                        : `1:1 with ${effectiveDepositType}`}
+                    </p>
+                  </div>
+                  <div className="ml-auto text-right">
+                    <p className="text-3xl font-bold" style={{ color: barColor }}>{usedPct}%</p>
+                    <p className="text-[10px] text-muted-foreground uppercase">used</p>
+                  </div>
+                </div>
+
+                {/* Big bar with threshold markers */}
+                <div className="relative h-6 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
+                  <div className="h-full rounded-full transition-all flex items-center justify-end pr-2" style={{ width: `${usedPct}%`, background: barColor }}>
+                    {usedPct > 15 && <span className="text-[10px] font-bold text-white">{curr} {used.toLocaleString()}</span>}
+                  </div>
+                  {/* Threshold markers */}
+                  {lowThreshold > 0 && (
+                    <div
+                      className="absolute top-0 bottom-0 border-l-2 border-amber-500 dark:border-amber-400"
+                      style={{ left: `${Math.min(100, (1 - lowThreshold / creditLimit) * 100)}%` }}
+                      title={`Low threshold: ${curr} ${lowThreshold.toLocaleString()} available`}
+                    />
+                  )}
+                  {criticalThreshold > 0 && (
+                    <div
+                      className="absolute top-0 bottom-0 border-l-2 border-red-600"
+                      style={{ left: `${Math.min(100, (1 - criticalThreshold / creditLimit) * 100)}%` }}
+                      title={`Critical threshold: ${curr} ${criticalThreshold.toLocaleString()} available`}
+                    />
+                  )}
+                </div>
+
+                {/* 4 stat blocks: Limit / Used / Available / Threshold */}
+                <div className="grid grid-cols-4 gap-3 mt-4">
+                  <div className="text-center">
+                    <p className="text-[10px] text-muted-foreground uppercase">Credit Limit</p>
+                    <p className="text-xl font-bold font-mono">{curr} {creditLimit.toLocaleString()}</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-[10px] text-muted-foreground uppercase">Used</p>
+                    <p className="text-xl font-bold font-mono" style={{ color: barColor }}>{curr} {used.toLocaleString()}</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-[10px] text-muted-foreground uppercase">Available</p>
+                    <p className={`text-xl font-bold font-mono ${isCritical ? "text-red-600" : isLow ? "text-orange-600" : "text-green-600"}`}>{curr} {available.toLocaleString()}</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-[10px] text-muted-foreground uppercase">Alert at</p>
+                    <p className="text-sm font-mono mt-1">
+                      <span className="text-amber-600">⚠ {curr} {lowThreshold.toLocaleString()}</span><br />
+                      <span className="text-red-600">🔴 {curr} {criticalThreshold.toLocaleString()}</span>
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Critical alert banner */}
+            {isCritical && (
+              <Alert className="mt-4 border-red-300 bg-red-50 dark:bg-red-950/30">
+                <AlertTriangle className="h-4 w-4 text-red-600" />
+                <AlertTitle className="text-red-900 dark:text-red-100">Critical: only {curr} {available.toLocaleString()} of credit available</AlertTitle>
+                <AlertDescription className="text-xs text-red-800 dark:text-red-200 flex items-center justify-between gap-3 flex-wrap mt-1">
+                  <span>You are below the critical threshold ({curr} {criticalThreshold.toLocaleString()}). New bookings may be blocked. Top up your collateral or settle outstanding invoices to restore credit.</span>
+                  <Button size="sm" className="text-white shrink-0" style={{ background: "#DC2626" }} onClick={() => setTopUpOpen(true)}>
+                    <CreditCard className="h-3 w-3 mr-1" />Top Up Now
+                  </Button>
+                </AlertDescription>
+              </Alert>
+            )}
+            {isLow && (
+              <Alert className="mt-4 border-orange-300 bg-orange-50 dark:bg-orange-950/20">
+                <AlertTriangle className="h-4 w-4 text-orange-600" />
+                <AlertTitle className="text-orange-900 dark:text-orange-100">Credit running low — {curr} {available.toLocaleString()} available</AlertTitle>
+                <AlertDescription className="text-xs text-orange-800 dark:text-orange-200 flex items-center justify-between gap-3 flex-wrap mt-1">
+                  <span>You have crossed the low threshold ({curr} {lowThreshold.toLocaleString()}). Top up your collateral or consider settling outstanding invoices to free up credit.</span>
+                  <Button size="sm" variant="outline" onClick={() => setTopUpOpen(true)}>
+                    <CreditCard className="h-3 w-3 mr-1" />Top Up
+                  </Button>
+                </AlertDescription>
+              </Alert>
             )}
           </Card>
         );

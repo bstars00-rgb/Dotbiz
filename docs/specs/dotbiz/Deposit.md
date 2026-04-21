@@ -109,6 +109,54 @@ Returns: `{ canBook: boolean, reason?: string, availableAfter?: number }`
 
 ---
 
+## 7b. Credit Leverage — Collateral × Multiplier = Credit Limit (NEW)
+
+Not all deposit types map 1:1 to credit limit. **Collateral-backed deposits** (Bank Guarantee, Guarantee Deposit, Guarantee Insurance) can be leveraged — the bank/insurer has already underwritten the risk, so OhMyHotel extends a credit limit that is a **multiple** of the collateral face value.
+
+### Multiplier matrix (default — per-contract overridable)
+
+| Deposit type | Default multiplier | Rationale |
+|---|---|---|
+| `floating` | **1.00** | Pre-funded cash; no leverage |
+| `credit_co` | n/a (explicit `creditLimit`) | Offline-granted |
+| `guarantee_dep` | 2.00 | Legal collateral |
+| `insurance` | 2.00 | Insurer-backed |
+| `bank_guarantee` | 2.00 | Bank-issued LoG |
+| `none` | n/a (explicit `creditLimit`) | — |
+
+### Calculation
+
+```
+creditLimit = contract.creditLimit                        -- explicit override wins
+           OR deposit.amount * contract.creditMultiplier -- collateral × multiplier
+           OR deposit.amount                              -- fallback: 1:1
+```
+
+### Contract fields (added)
+
+```ts
+creditMultiplier?: number;           // e.g. 2.0
+creditLimit?: number;                // explicit override (beats multiplier)
+creditLowThreshold?: number;         // available ≤ this → alert `credit_low` (P0)
+creditCriticalThreshold?: number;    // available ≤ this → alert `credit_critical` (P0, undisableable)
+```
+
+### UI surfaces (already implemented)
+
+- Settlement page: **Credit Utilization Card** below Deposit Utilization Card
+- Threshold markers on the progress bar (low → orange dashed line; critical → red dashed line)
+- Low/Critical alert banners with direct Top-Up CTA
+- "2× leverage" badge when `creditMultiplier > 1`
+
+### Alerts emitted
+
+- `credit_low` — when `available ≤ creditLowThreshold` (once per breach; rearmed after top-up)
+- `credit_critical` — when `available ≤ creditCriticalThreshold` (undisableable; SMS by default)
+
+Full alert taxonomy: see [AlertSystem.md](./AlertSystem.md).
+
+---
+
 ## 8. Out of Scope
 
 - Multi-currency deposits (1 deposit per customer in 1 currency)
