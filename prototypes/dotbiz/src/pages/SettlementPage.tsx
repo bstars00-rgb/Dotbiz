@@ -236,7 +236,7 @@ export default function SettlementPage() {
           {isPrepay && <TabsTrigger value="reminders">Reminder Log</TabsTrigger>}
           <TabsTrigger value="invoices">Invoices</TabsTrigger>
           <TabsTrigger value="billing">Billing Details</TabsTrigger>
-          <TabsTrigger value="ar">Accounts Receivable</TabsTrigger>
+          {!isPrepay && <TabsTrigger value="ar">Accounts Receivable</TabsTrigger>}
           <TabsTrigger value="closing">
             <Lock className="h-3 w-3 mr-1" />
             Month-End Close
@@ -593,8 +593,8 @@ export default function SettlementPage() {
           </Table>
         </TabsContent>
 
-        {/* ══════ Accounts Receivable Tab ══════ */}
-        <TabsContent value="ar" className="space-y-4 mt-4">
+        {/* ══════ Accounts Receivable Tab (POSTPAY only) ══════ */}
+        {!isPrepay && <TabsContent value="ar" className="space-y-4 mt-4">
           {/* AR Aging Cards */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {[
@@ -729,7 +729,7 @@ export default function SettlementPage() {
               ))}
             </TableBody>
           </Table>
-        </TabsContent>
+        </TabsContent>}
 
         {/* ══════ Month-End Close Tab ══════ */}
         <TabsContent value="closing" className="space-y-4 mt-4">

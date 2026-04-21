@@ -1,69 +1,57 @@
 import { useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router";
-import { ArrowLeft, Download, DollarSign, AlertTriangle, CheckCircle2, Sparkles, FileText, Clock, Zap, Ticket as TicketIcon } from "lucide-react";
+import { ArrowLeft, Download, AlertTriangle, Ticket as TicketIcon, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Separator } from "@/components/ui/separator";
-import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { invoices, paymentMatchLog as initialLog, disputeSummary, type InvoiceWithMatch, type PaymentMatchLog } from "@/mocks/settlement";
+import { invoices, type InvoiceWithMatch } from "@/mocks/settlement";
 import { bookings as allBookings, type Booking } from "@/mocks/bookings";
 import { companies, currentCompany } from "@/mocks/companies";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { CheckCircle, XCircle, UserCheck } from "lucide-react";
 
-/* DIDA-inspired Settlement Detail Page
- * URL: /app/settlement/invoice/:invoiceNo
+/* Settlement Invoice Detail Page — customer-facing view.
  *
- * 핵심 기능:
- * 1. 인보이스 상세 (기간, 총액, 예약 목록)
- * 2. Payment Matching — 실제 입금액 입력 → 차액 자동 감지
- * 3. Dispute Detection — 차액에 매칭되는 예약 자동 하이라이트
- * 4. Dispute 등록 → 티켓 연결
- * 5. VLOOKUP 절감 시간 KPI 표시
+ * What a CUSTOMER can do:
+ *   - View the invoice and its linked bookings
+ *   - Download / email the invoice PDF
+ *   - If they think a booking line is wrong → open a support ticket
+ *
+ * What a customer CANNOT do (admin-only, not in this prototype):
+ *   - Register / resolve disputes directly (would give them unilateral
+ *     power to withhold payment)
+ *   - Run payment-matching auto-detection (that's an OhMyHotel OP tool)
+ *   - Approve/reject payment matches (admin workflow)
+ *
+ * Dispute flags shown on rows are tagged by OhMyHotel OP on the admin
+ * side (after the customer raises a ticket). Here we only display them.
  */
 export default function SettlementDetailPage() {
   const { invoiceNo } = useParams<{ invoiceNo: string }>();
   const navigate = useNavigate();
-  const { hasRole, user } = useAuth();
-  const isMaster = hasRole(["Master"]);
-  const userRole = user?.role || "OP";
+  const { hasRole } = useAuth();
 
-  const [invoice, setInvoice] = useState<InvoiceWithMatch | null>(() => invoices.find(i => i.invoiceNo === invoiceNo) || null);
-  const [matchLog, setMatchLog] = useState<PaymentMatchLog[]>(initialLog);
+  const [invoice] = useState<InvoiceWithMatch | null>(() => invoices.find(i => i.invoiceNo === invoiceNo) || null);
 
-  /* Payment Match panel state */
-  const [receivedInput, setReceivedInput] = useState(() => invoice?.receivedAmount.toString() || "");
-  const [matchResult, setMatchResult] = useState<{ exclusions: Booking[]; variance: number; perfectMatch: boolean } | null>(null);
+  /* Contract-currency aware formatter */
+  const curr = invoice?.contractCurrency || "USD";
+  const fmt = (n: number) => `${curr} ${n.toLocaleString()}`;
 
-  /* Dispute dialog state */
-  const [disputeTarget, setDisputeTarget] = useState<Booking | null>(null);
-  const [disputeReason, setDisputeReason] = useState<string>("Room type mismatch");
-  const [disputeNote, setDisputeNote] = useState("");
+  /* Invoice's actual customer (from invoice.customerCompanyId) */
+  const invoiceCustomer = invoice?.customerCompanyId
+    ? companies.find(c => c.id === invoice.customerCompanyId) || currentCompany
+    : currentCompany;
 
-  /* Auto-matched bookings for this invoice */
+  /* Bookings linked to this invoice */
   const linkedBookings = useMemo(() => {
     if (!invoice) return [];
     return invoice.bookingIds
       .map(id => allBookings.find(b => b.id === id))
       .filter((b): b is Booking => !!b);
   }, [invoice]);
-
-  const logsForInvoice = matchLog.filter(l => l.invoiceNo === invoiceNo);
-
-  /* Contract-currency aware formatter — all amounts in invoice's fixed currency */
-  const curr = invoice?.contractCurrency || "USD";
-  const fmt = (n: number) => `${curr} ${n.toLocaleString()}`;
-
-  /* Invoice's actual customer (from invoice.customerCompanyId) — not the logged-in user */
-  const invoiceCustomer = invoice?.customerCompanyId
-    ? companies.find(c => c.id === invoice.customerCompanyId) || currentCompany
-    : currentCompany;
 
   if (!hasRole(["Master", "OP"])) {
     return (
@@ -82,167 +70,13 @@ export default function SettlementDetailPage() {
     );
   }
 
-  /* ─────────── Core algorithm: Payment Matching ─────────── */
-  /*
-   * 1. 고객 입금액 vs 인보이스 총액 비교
-   * 2. 차액 발생 시, 각 예약 금액의 합이 차액과 일치하는 조합을 찾음
-   * 3. subset-sum 문제이지만 현장에선 보통 1~3건 제외이므로 brute-force OK
-   */
-  const detectExclusions = (received: number): { exclusions: Booking[]; variance: number; perfectMatch: boolean } => {
-    const variance = invoice.total - received;
-    if (variance === 0) return { exclusions: [], variance: 0, perfectMatch: true };
-    if (variance < 0) return { exclusions: [], variance, perfectMatch: false };  /* overpay */
-
-    /* Try to find subset whose sum = variance */
-    const items = linkedBookings.map(b => ({ b, amt: b.sumAmount }));
-
-    /* Subset-sum (up to 10 items → 2^10 = 1024 combos, trivial) */
-    const n = items.length;
-    for (let mask = 1; mask < (1 << n); mask++) {
-      let sum = 0;
-      const subset: Booking[] = [];
-      for (let i = 0; i < n; i++) {
-        if (mask & (1 << i)) { sum += items[i].amt; subset.push(items[i].b); }
-      }
-      if (sum === variance) return { exclusions: subset, variance, perfectMatch: false };
-    }
-
-    return { exclusions: [], variance, perfectMatch: false };
-  };
-
-  const runMatch = () => {
-    const received = parseFloat(receivedInput) || 0;
-    const result = detectExclusions(received);
-    setMatchResult(result);
-
-    /* Add to log — requires Master approval before reconcile */
-    const newLog: PaymentMatchLog = {
-      id: `pml-${Date.now()}`,
-      invoiceNo: invoice.invoiceNo,
-      expectedAmount: invoice.total,
-      receivedAmount: received,
-      variance: result.variance,
-      detectedExclusions: result.exclusions.map(b => b.id),
-      matchedAt: new Date().toISOString().replace("T", " ").slice(0, 19),
-      matchedBy: `${user?.name || "Unknown"} (${userRole})`,
-      status: result.perfectMatch ? "Auto-matched" : "Manual-review",
-      vlookupTimeSavedMinutes: result.exclusions.length > 0 ? 30 + result.exclusions.length * 15 : 10,
-      approvalStatus: "Pending Master",
-    };
-    setMatchLog(prev => [newLog, ...prev]);
-
-    if (result.perfectMatch) {
-      toast.success("✓ Full match — no exclusions detected", { description: "Payment reconciled successfully." });
-    } else if (result.exclusions.length > 0) {
-      toast.warning(`⚠️ ${result.exclusions.length} exclusion(s) auto-detected`, { description: `Variance ${fmt(result.variance)} matches these bookings exactly. Consider disputing.` });
-    } else if (result.variance > 0) {
-      toast.error("No exact subset found", { description: `Variance ${fmt(result.variance)} doesn't match any combination. Manual review required.` });
-    } else {
-      toast.error("Overpayment detected", { description: `Received ${fmt(Math.abs(result.variance))} more than expected.` });
-    }
-  };
-
-  const openDispute = (b: Booking) => {
-    setDisputeTarget(b);
-    setDisputeReason(b.disputeReason || "Room type mismatch");
-    setDisputeNote(b.disputeNote || "");
-  };
-
-  const submitDispute = () => {
-    if (!disputeTarget) return;
-    /* Mutate booking in-place (mock) */
-    disputeTarget.disputed = true;
-    disputeTarget.disputeStatus = "Open";
-    disputeTarget.disputeReason = disputeReason as Booking["disputeReason"];
-    disputeTarget.disputeNote = disputeNote;
-    disputeTarget.disputeDate = new Date().toISOString().split("T")[0];
-
-    /* Update invoice */
-    setInvoice(prev => {
-      if (!prev) return prev;
-      const newDisputed = [...new Set([...prev.disputedBookingIds, disputeTarget.id])];
-      const newDisputedAmount = newDisputed.reduce((s, id) => {
-        const b = allBookings.find(x => x.id === id);
-        return s + (b?.sumAmount || 0);
-      }, 0);
-      return { ...prev, disputedBookingIds: newDisputed, disputedAmount: newDisputedAmount };
-    });
-
-    toast.success(`Dispute registered for ${disputeTarget.ellisCode}`, { description: `Reason: ${disputeReason}` });
-    setDisputeTarget(null);
-  };
-
-  const approveMatch = (logId: string) => {
-    if (!isMaster) { toast.error("Master role required"); return; }
-    setMatchLog(prev => prev.map(l => l.id === logId ? {
-      ...l, approvalStatus: "Approved" as const,
-      approvedBy: `${user?.name} (Master)`, approvedAt: new Date().toISOString().replace("T", " ").slice(0, 19),
-    } : l));
-    /* Reconcile invoice */
-    setInvoice(prev => prev ? { ...prev, matchStatus: "Reconciled" } : prev);
-    toast.success("Payment match approved", { description: "Invoice reconciled. Disputes confirmed." });
-  };
-
-  const rejectMatch = (logId: string) => {
-    if (!isMaster) { toast.error("Master role required"); return; }
-    const reason = window.prompt("Rejection reason?", "Need manual review");
-    if (!reason) return;
-    setMatchLog(prev => prev.map(l => l.id === logId ? {
-      ...l, approvalStatus: "Rejected" as const,
-      approvedBy: `${user?.name} (Master)`, approvedAt: new Date().toISOString().replace("T", " ").slice(0, 19),
-      rejectedReason: reason,
-    } : l));
-    toast.warning("Match rejected — OP will re-run", { description: reason });
-  };
-
-  const resolveDispute = (b: Booking) => {
-    b.disputeStatus = "Resolved";
-    b.disputeResolvedDate = new Date().toISOString().split("T")[0];
-
-    /* Carry over to next invoice (Mar → Apr) */
-    const currentIdx = invoices.findIndex(i => i.invoiceNo === invoice?.invoiceNo);
-    const nextInvoice = invoices.slice(currentIdx + 1).find(i => i.status === "Issued" || i.status === "Unpaid");
-    /* Fallback: find by period sequence (next month) */
-    const targetNext = nextInvoice || invoices.find(i => i.carriedOverFrom === invoice?.invoiceNo);
-
-    if (targetNext) {
-      targetNext.carriedOverBookingIds = [...new Set([...(targetNext.carriedOverBookingIds || []), b.id])];
-      targetNext.carriedOverAmount = (targetNext.carriedOverAmount || 0) + b.sumAmount;
-      /* Also add to bookingIds so it's billed next cycle */
-      if (!targetNext.bookingIds.includes(b.id)) {
-        targetNext.bookingIds = [...targetNext.bookingIds, b.id];
-        targetNext.total += b.sumAmount;
-        targetNext.supplyAmount = Math.round(targetNext.total / 1.1);
-        targetNext.vat = targetNext.total - targetNext.supplyAmount;
-      }
-      /* Point booking to new invoice */
-      b.invoiceNo = targetNext.invoiceNo;
-    }
-
-    /* Remove from current invoice disputedBookingIds */
-    setInvoice(prev => {
-      if (!prev) return prev;
-      const newDisputed = prev.disputedBookingIds.filter(id => id !== b.id);
-      const newAmt = newDisputed.reduce((s, id) => s + (allBookings.find(x => x.id === id)?.sumAmount || 0), 0);
-      return { ...prev, disputedBookingIds: newDisputed, disputedAmount: newAmt };
-    });
-
-    toast.success(`Dispute resolved: ${b.ellisCode}`, {
-      description: targetNext
-        ? `Carried over to ${targetNext.invoiceNo} (${targetNext.period}). Will be billed in next cycle.`
-        : "No next invoice available — booking marked resolved only.",
-    });
-  };
-
   const matchStatusBadge = {
-    Unpaid: { label: "Unpaid", variant: "destructive" as const, bg: "bg-red-50 dark:bg-red-950/20" },
-    Partial: { label: "Partial (Dispute Detected)", variant: "secondary" as const, bg: "bg-amber-50 dark:bg-amber-950/20" },
-    Full: { label: "Fully Paid", variant: "default" as const, bg: "bg-green-50 dark:bg-green-950/20" },
-    Reconciled: { label: "Reconciled", variant: "default" as const, bg: "bg-green-50 dark:bg-green-950/20" },
+    Unpaid: { label: "Unpaid", variant: "destructive" as const },
+    Partial: { label: "Partial Payment", variant: "secondary" as const },
+    Full: { label: "Fully Paid", variant: "default" as const },
+    Reconciled: { label: "Reconciled", variant: "default" as const },
   };
   const matchBadge = matchStatusBadge[invoice.matchStatus];
-
-  const totalSavedMinutes = matchLog.reduce((s, l) => s + l.vlookupTimeSavedMinutes, 0);
 
   return (
     <div className="p-6 space-y-4 max-w-[1400px] mx-auto">
@@ -299,114 +133,38 @@ export default function SettlementDetailPage() {
             <p className="text-[10px] text-muted-foreground">{invoice.bookingIds.length} bookings</p>
           </div>
           <div>
-            <p className="text-xs text-muted-foreground">Received</p>
+            <p className="text-xs text-muted-foreground">Paid</p>
             <p className="text-2xl font-bold font-mono text-green-600 dark:text-green-400">{fmt(invoice.receivedAmount)}</p>
             <p className="text-[10px] text-muted-foreground">{invoice.paymentDate || "—"}</p>
           </div>
           <div>
-            <p className="text-xs text-muted-foreground">Variance (Disputed)</p>
+            <p className="text-xs text-muted-foreground">Balance</p>
+            <p className={`text-2xl font-bold font-mono ${(invoice.total - invoice.receivedAmount) > 0 ? "text-amber-600" : "text-green-600"}`}>
+              {fmt(invoice.total - invoice.receivedAmount)}
+            </p>
+            <p className="text-[10px] text-muted-foreground">Outstanding</p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Disputed (flagged)</p>
             <p className={`text-2xl font-bold font-mono ${invoice.disputedAmount > 0 ? "text-red-600 dark:text-red-400" : ""}`}>
               {fmt(invoice.disputedAmount)}
             </p>
-            <p className="text-[10px] text-muted-foreground">{invoice.disputedBookingIds.length} booking(s)</p>
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">Outstanding</p>
-            <p className="text-2xl font-bold font-mono">{fmt(invoice.total - invoice.receivedAmount)}</p>
-            <p className="text-[10px] text-muted-foreground">Awaiting remittance</p>
+            <p className="text-[10px] text-muted-foreground">{invoice.disputedBookingIds.length} booking(s) — via ticket</p>
           </div>
         </div>
       </Card>
 
-      {/* ─────────── Payment Matching Panel (핵심!) ─────────── */}
-      <Card className="p-5 border-2" style={{ borderColor: "#FF6000" }}>
-        <div className="flex items-center gap-2 mb-3">
-          <Sparkles className="h-5 w-5" style={{ color: "#FF6000" }} />
-          <h2 className="text-lg font-bold">Payment Matching — Auto-detect remittance variance</h2>
-          <Badge variant="outline" className="ml-auto text-[10px]">
-            <Zap className="h-3 w-3 mr-0.5" />Replaces Excel VLOOKUP
-          </Badge>
-        </div>
-        <p className="text-xs text-muted-foreground mb-4">
-          Contract currency fixed at <strong className="text-foreground font-mono">{curr}</strong>. Customer wires the exact invoice amount in that currency (no FX conversion on our side).
-          When the customer excludes disputed items, the variance = sum of excluded bookings. The system finds the matching combination automatically.
-        </p>
-
-        <div className="flex items-end gap-3 flex-wrap">
-          <div className="flex-1 min-w-[200px]">
-            <label className="text-xs font-medium text-muted-foreground">Customer Received Amount ({curr})</label>
-            <Input
-              type="number"
-              value={receivedInput}
-              onChange={e => setReceivedInput(e.target.value)}
-              placeholder={invoice.total.toString()}
-              className="mt-1 font-mono text-lg"
-            />
-          </div>
-          <div>
-            <label className="text-xs font-medium text-muted-foreground">Expected ({curr})</label>
-            <p className="mt-1 font-mono text-lg h-10 flex items-center">{fmt(invoice.total)}</p>
-          </div>
-          <Button onClick={runMatch} style={{ background: "#FF6000" }} className="text-white hover:opacity-90">
-            <Sparkles className="h-4 w-4 mr-1" />Run Auto-Match
-          </Button>
-        </div>
-
-        {/* Match Result */}
-        {matchResult && (
-          <div className="mt-4">
-            {matchResult.perfectMatch ? (
-              <Alert className="border-green-300 bg-green-50 dark:bg-green-950/20">
-                <CheckCircle2 className="h-4 w-4 text-green-600" />
-                <AlertTitle className="text-green-900 dark:text-green-100">Perfect Match ✓</AlertTitle>
-                <AlertDescription className="text-green-800 dark:text-green-200 text-xs">
-                  Received amount matches invoice total. No exclusions detected. Ready to reconcile.
-                </AlertDescription>
-              </Alert>
-            ) : matchResult.exclusions.length > 0 ? (
-              <Alert className="border-amber-300 bg-amber-50 dark:bg-amber-950/20">
-                <AlertTriangle className="h-4 w-4 text-amber-600" />
-                <AlertTitle className="text-amber-900 dark:text-amber-100">
-                  Variance {fmt(matchResult.variance)} → {matchResult.exclusions.length} booking(s) auto-detected as excluded
-                </AlertTitle>
-                <AlertDescription className="text-amber-800 dark:text-amber-200 text-xs mt-2">
-                  <p className="mb-2">The sum of the following bookings exactly matches the variance. Register them as disputes?</p>
-                  <div className="space-y-1">
-                    {matchResult.exclusions.map(b => (
-                      <div key={b.id} className="flex items-center gap-2 bg-white/50 dark:bg-black/20 rounded px-2 py-1">
-                        <span className="font-mono text-[11px]">{b.ellisCode}</span>
-                        <span>·</span>
-                        <span>{b.hotelName}</span>
-                        <span>·</span>
-                        <span className="font-bold font-mono">{fmt(b.sumAmount)}</span>
-                        <Button size="sm" variant="ghost" className="ml-auto h-6 text-[11px]" onClick={() => openDispute(b)}>
-                          Register Dispute →
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                </AlertDescription>
-              </Alert>
-            ) : matchResult.variance > 0 ? (
-              <Alert variant="destructive">
-                <AlertTriangle className="h-4 w-4" />
-                <AlertTitle>No matching combination found</AlertTitle>
-                <AlertDescription className="text-xs">
-                  Variance {fmt(matchResult.variance)} doesn't match any subset of bookings. Manual review — check partial dispute amounts, late fees, or rounding.
-                </AlertDescription>
-              </Alert>
-            ) : (
-              <Alert variant="destructive">
-                <AlertTriangle className="h-4 w-4" />
-                <AlertTitle>Overpayment</AlertTitle>
-                <AlertDescription className="text-xs">
-                  Received {fmt(Math.abs(matchResult.variance))} more than expected. Check for duplicate remittance or advance credit.
-                </AlertDescription>
-              </Alert>
-            )}
-          </div>
-        )}
-      </Card>
+      {/* ─────────── Dispute Guidance (customer view) ─────────── */}
+      {linkedBookings.length > 0 && (
+        <Alert className="border-blue-200 bg-blue-50 dark:bg-blue-900/10">
+          <TicketIcon className="h-4 w-4 text-blue-600" />
+          <AlertTitle>Need to dispute a booking?</AlertTitle>
+          <AlertDescription className="text-xs">
+            To raise a concern about any line item, please <Button variant="link" size="sm" className="h-auto p-0 underline" onClick={() => navigate("/app/tickets")}>open a support ticket</Button>.
+            Our team will review and, if valid, flag the booking as disputed on this invoice.
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* ─────────── Linked Bookings ─────────── */}
       <Card className="p-5">
@@ -414,7 +172,7 @@ export default function SettlementDetailPage() {
           <h2 className="text-base font-bold">Linked Bookings ({linkedBookings.length})</h2>
           <div className="flex items-center gap-3 text-xs text-muted-foreground">
             <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-full bg-green-400" />Normal</div>
-            <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-full bg-amber-400" />Open Dispute</div>
+            <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-full bg-amber-400" />Disputed</div>
             <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-full bg-slate-400" />Resolved</div>
           </div>
         </div>
@@ -437,10 +195,8 @@ export default function SettlementDetailPage() {
               <TableHead title="Booking Sum Amount" className="text-right">B. Sum Amt</TableHead>
               <TableHead title="Paid Amount" className="text-right">Paid Amt</TableHead>
               <TableHead title="Booking Balance (unpaid)" className="text-right">B. Balance</TableHead>
-              <TableHead title="Our margin" className="text-right">Revenue</TableHead>
               <TableHead>Dispute</TableHead>
               <TableHead>Dispute Remark</TableHead>
-              <TableHead className="w-32">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -449,11 +205,9 @@ export default function SettlementDetailPage() {
               const isResolved = b.disputeStatus === "Resolved";
               const isCarriedOver = invoice.carriedOverBookingIds?.includes(b.id);
               const rowClass = isDisputed ? "bg-amber-50 dark:bg-amber-950/10" : isCarriedOver ? "bg-blue-50 dark:bg-blue-950/10" : isResolved ? "bg-slate-50 dark:bg-slate-900/20 opacity-70" : "";
-              /* Derived values */
               const checkOut = (() => { const d = new Date(b.checkIn); d.setDate(d.getDate() + b.nights); return d.toISOString().split("T")[0]; })();
               const paid = b.paymentStatus === "Fully Paid" ? b.sumAmount : b.paymentStatus === "Partially Paid" ? Math.round(b.sumAmount * 0.5) : 0;
               const balance = b.sumAmount - paid;
-              const revenue = Math.round(b.sumAmount * 0.05); /* mock 5% margin */
               return (
                 <TableRow key={b.id} className={rowClass}>
                   <TableCell className="font-mono text-xs text-[#0066cc]">
@@ -477,37 +231,21 @@ export default function SettlementDetailPage() {
                   <TableCell className="text-right font-mono text-xs font-medium">{b.sumAmount.toFixed(2)}</TableCell>
                   <TableCell className={`text-right font-mono text-xs ${paid > 0 ? "text-green-600" : ""}`}>{paid.toFixed(2)}</TableCell>
                   <TableCell className={`text-right font-mono text-xs ${balance > 0 ? "text-amber-600 font-medium" : "text-green-600"}`}>{balance.toFixed(2)}</TableCell>
-                  <TableCell className="text-right font-mono text-xs text-green-700 dark:text-green-400">{revenue.toFixed(2)}</TableCell>
                   <TableCell className="text-xs">
                     {isDisputed ? <Badge variant="secondary" className="text-[10px] bg-amber-100 text-amber-900 border-amber-300">Yes</Badge>
                       : isResolved ? <Badge variant="outline" className="text-[10px]">Resolved</Badge>
                       : <span className="text-muted-foreground">No</span>}
                   </TableCell>
-                  <TableCell className="text-[10px] max-w-[180px]">
-                    {isDisputed ? <span className="text-amber-700 dark:text-amber-400">{b.disputeReason}</span>
-                      : isResolved ? <span className="text-muted-foreground">Resolved {b.disputeResolvedDate}</span>
-                      : <span className="text-muted-foreground">N</span>}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-1">
-                      {!b.disputed && (
-                        <Button size="sm" variant="outline" className="h-6 text-[10px]" onClick={() => openDispute(b)}>
-                          <AlertTriangle className="h-3 w-3 mr-0.5" />Dispute
-                        </Button>
-                      )}
-                      {isDisputed && (
-                        <>
-                          {b.disputeTicketId && (
-                            <Button size="sm" variant="ghost" className="h-6 text-[10px]" onClick={() => navigate(`/app/tickets?highlight=${b.disputeTicketId}`)}>
-                              <TicketIcon className="h-3 w-3" />{b.disputeTicketId}
-                            </Button>
-                          )}
-                          <Button size="sm" variant="outline" className="h-6 text-[10px] text-green-700 border-green-300" onClick={() => resolveDispute(b)}>
-                            Resolve
-                          </Button>
-                        </>
-                      )}
-                    </div>
+                  <TableCell className="text-[10px] max-w-[200px]">
+                    {isDisputed && b.disputeTicketId ? (
+                      <Button variant="link" size="sm" className="h-auto p-0 text-[10px] text-amber-700" onClick={() => navigate(`/app/tickets?highlight=${b.disputeTicketId}`)}>
+                        <TicketIcon className="h-3 w-3 mr-0.5" />{b.disputeTicketId} · {b.disputeReason}
+                      </Button>
+                    ) : isResolved ? (
+                      <span className="text-muted-foreground">Resolved {b.disputeResolvedDate}</span>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
                   </TableCell>
                 </TableRow>
               );
@@ -517,7 +255,6 @@ export default function SettlementDetailPage() {
               const sumB = linkedBookings.reduce((s, b) => s + b.sumAmount, 0);
               const sumPaid = linkedBookings.reduce((s, b) => s + (b.paymentStatus === "Fully Paid" ? b.sumAmount : b.paymentStatus === "Partially Paid" ? Math.round(b.sumAmount * 0.5) : 0), 0);
               const sumBal = sumB - sumPaid;
-              const sumRev = linkedBookings.reduce((s, b) => s + Math.round(b.sumAmount * 0.05), 0);
               const disputeCount = linkedBookings.filter(b => b.disputed && b.disputeStatus === "Open").length;
               return (
                 <TableRow className="bg-slate-100 dark:bg-slate-800/40 font-bold border-t-2">
@@ -525,9 +262,7 @@ export default function SettlementDetailPage() {
                   <TableCell className="text-right font-mono text-xs">{sumB.toFixed(2)}</TableCell>
                   <TableCell className="text-right font-mono text-xs text-green-600">{sumPaid.toFixed(2)}</TableCell>
                   <TableCell className={`text-right font-mono text-xs ${sumBal > 0 ? "text-amber-600" : "text-green-600"}`}>{sumBal.toFixed(2)}</TableCell>
-                  <TableCell className="text-right font-mono text-xs text-green-700 dark:text-green-400">{sumRev.toFixed(2)}</TableCell>
                   <TableCell className="text-xs">{disputeCount > 0 ? <Badge variant="destructive" className="text-[10px]">{disputeCount}</Badge> : "0"}</TableCell>
-                  <TableCell />
                   <TableCell />
                 </TableRow>
               );
@@ -539,163 +274,13 @@ export default function SettlementDetailPage() {
         {linkedBookings.length === 0 && (
           <p className="text-center text-sm text-muted-foreground py-8">No bookings linked to this invoice.</p>
         )}
+
+        <div className="mt-4 flex items-center justify-end gap-2">
+          <Button variant="outline" size="sm" onClick={() => navigate("/app/tickets")}>
+            <AlertTriangle className="h-3 w-3 mr-1" />Dispute an item via Ticket
+          </Button>
+        </div>
       </Card>
-
-      {/* ─────────── KPI Row ─────────── */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-        <Card className="p-4">
-          <div className="flex items-center gap-2 mb-1"><AlertTriangle className="h-4 w-4 text-amber-500" /><p className="text-xs text-muted-foreground">Open Disputes</p></div>
-          <p className="text-xl font-bold">{disputeSummary.openCount}</p>
-          <p className="text-[10px] text-muted-foreground">${disputeSummary.openAmount.toLocaleString()}</p>
-        </Card>
-        <Card className="p-4">
-          <div className="flex items-center gap-2 mb-1"><CheckCircle2 className="h-4 w-4 text-green-500" /><p className="text-xs text-muted-foreground">Resolved (This Month)</p></div>
-          <p className="text-xl font-bold">{disputeSummary.resolvedThisMonth}</p>
-          <p className="text-[10px] text-muted-foreground">Avg {disputeSummary.avgResolutionDays}d</p>
-        </Card>
-        <Card className="p-4">
-          <div className="flex items-center gap-2 mb-1"><Clock className="h-4 w-4" style={{ color: "#FF6000" }} /><p className="text-xs text-muted-foreground">VLOOKUP Time Saved</p></div>
-          <p className="text-xl font-bold">{Math.round(totalSavedMinutes / 60 * 10) / 10}h</p>
-          <p className="text-[10px] text-muted-foreground">This month (auto-match)</p>
-        </Card>
-        <Card className="p-4">
-          <div className="flex items-center gap-2 mb-1"><Zap className="h-4 w-4 text-blue-500" /><p className="text-xs text-muted-foreground">Auto-Match Accuracy</p></div>
-          <p className="text-xl font-bold">{disputeSummary.autoMatchAccuracy}%</p>
-          <p className="text-[10px] text-muted-foreground">{matchLog.length} runs logged</p>
-        </Card>
-      </div>
-
-      {/* ─────────── Payment Match Log ─────────── */}
-      {logsForInvoice.length > 0 && (
-        <Card className="p-5">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-base font-bold">Payment Match History · Master Approval</h2>
-            <Badge variant="outline" className="text-[10px]">
-              <UserCheck className="h-3 w-3 mr-0.5" />
-              {isMaster ? "Master: You can approve/reject" : "OP: Read-only, awaits Master"}
-            </Badge>
-          </div>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Matched At</TableHead>
-                <TableHead>By</TableHead>
-                <TableHead>Variance</TableHead>
-                <TableHead>Exclusions</TableHead>
-                <TableHead>Approval</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {logsForInvoice.map(l => {
-                const approvalColor = l.approvalStatus === "Approved" ? "default" : l.approvalStatus === "Rejected" ? "destructive" : "secondary";
-                return (
-                  <TableRow key={l.id}>
-                    <TableCell className="text-xs font-mono">{l.matchedAt}</TableCell>
-                    <TableCell className="text-xs">{l.matchedBy}</TableCell>
-                    <TableCell className="font-mono text-xs font-medium">{fmt(l.variance)}</TableCell>
-                    <TableCell className="text-xs">
-                      {l.detectedExclusions.length > 0
-                        ? l.detectedExclusions.map(id => allBookings.find(x => x.id === id)?.ellisCode).join(", ")
-                        : "—"}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={approvalColor} className="text-[10px]">{l.approvalStatus}</Badge>
-                      {l.approvedBy && <p className="text-[9px] text-muted-foreground mt-0.5">{l.approvedBy} · {l.approvedAt}</p>}
-                      {l.rejectedReason && <p className="text-[9px] text-red-600 mt-0.5 max-w-[180px] truncate">{l.rejectedReason}</p>}
-                    </TableCell>
-                    <TableCell>
-                      {l.approvalStatus === "Pending Master" && isMaster && (
-                        <div className="flex items-center gap-1">
-                          <Button size="sm" variant="outline" className="h-7 text-[11px] text-green-700 border-green-300" onClick={() => approveMatch(l.id)}>
-                            <CheckCircle className="h-3 w-3 mr-0.5" />Approve
-                          </Button>
-                          <Button size="sm" variant="outline" className="h-7 text-[11px] text-red-700 border-red-300" onClick={() => rejectMatch(l.id)}>
-                            <XCircle className="h-3 w-3 mr-0.5" />Reject
-                          </Button>
-                        </div>
-                      )}
-                      {l.approvalStatus === "Pending Master" && !isMaster && (
-                        <span className="text-[10px] text-muted-foreground">Awaiting Master</span>
-                      )}
-                      {l.approvalStatus === "Approved" && (
-                        <span className="text-[10px] text-green-600 flex items-center gap-1"><CheckCircle className="h-3 w-3" />Reconciled</span>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-          {!isMaster && logsForInvoice.some(l => l.approvalStatus === "Pending Master") && (
-            <Alert className="mt-3 border-blue-200 bg-blue-50 dark:bg-blue-900/10">
-              <UserCheck className="h-4 w-4 text-blue-600" />
-              <AlertDescription className="text-xs">
-                OP role: can run matches. Final approval requires <strong>Master</strong> role (e.g. <code>master@dotbiz.com</code>).
-              </AlertDescription>
-            </Alert>
-          )}
-        </Card>
-      )}
-
-      {/* ─────────── Dispute Dialog ─────────── */}
-      <Dialog open={!!disputeTarget} onOpenChange={o => !o && setDisputeTarget(null)}>
-        <DialogContent style={{ maxWidth: 600 }}>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-amber-500" />
-              Register Dispute — {disputeTarget?.ellisCode}
-            </DialogTitle>
-          </DialogHeader>
-          {disputeTarget && (
-            <div className="space-y-4">
-              <div className="p-3 bg-muted/40 rounded-md text-sm">
-                <p><strong>{disputeTarget.hotelName}</strong></p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Guest: {disputeTarget.guestName} · {disputeTarget.checkIn} ({disputeTarget.nights}N) · <span className="font-mono font-bold">{fmt(disputeTarget.sumAmount)}</span>
-                </p>
-              </div>
-
-              <div>
-                <label className="text-sm font-medium"><span className="text-red-500">*</span> Dispute Reason</label>
-                <select
-                  value={disputeReason}
-                  onChange={e => setDisputeReason(e.target.value)}
-                  className="w-full border rounded px-3 py-2 text-sm bg-background mt-1"
-                >
-                  {["Room type mismatch", "No show (guest didn't check in)", "Rate higher than confirmation", "Cancellation fee disputed", "Hotel service complaint", "Invoice amount mismatch", "Other"].map(r => (
-                    <option key={r}>{r}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="text-sm font-medium">Details / Evidence</label>
-                <Textarea
-                  value={disputeNote}
-                  onChange={e => setDisputeNote(e.target.value)}
-                  rows={3}
-                  placeholder="Customer claim / hotel response / supporting evidence"
-                  className="mt-1 resize-none"
-                />
-              </div>
-
-              <Alert className="border-blue-200 bg-blue-50 dark:bg-blue-900/10">
-                <TicketIcon className="h-4 w-4 text-blue-600" />
-                <AlertDescription className="text-xs text-blue-700 dark:text-blue-300">
-                  A ticket is auto-created and assigned to the responsible agent upon dispute registration.
-                </AlertDescription>
-              </Alert>
-            </div>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDisputeTarget(null)}>Cancel</Button>
-            <Button style={{ background: "#DC2626" }} className="text-white hover:opacity-90" onClick={submitDispute}>
-              <AlertTriangle className="h-4 w-4 mr-1" />Register Dispute
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
