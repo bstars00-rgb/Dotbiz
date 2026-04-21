@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router";
-import { Download, CreditCard, RefreshCw, Search, X, CheckCircle2, Clock, AlertTriangle, Sparkles, Zap, ExternalLink } from "lucide-react";
+import { Download, CreditCard, RefreshCw, Search, X, CheckCircle2, Clock, AlertTriangle, Sparkles, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -16,7 +16,7 @@ import { useScreenState } from "@/hooks/useScreenState";
 import { StateToolbar } from "@/components/StateToolbar";
 import { useAuth } from "@/contexts/AuthContext";
 import { useI18n } from "@/contexts/I18nContext";
-import { billingDetails, invoices, accountsReceivable, disputeSummary, paymentReminders, reminderSummary } from "@/mocks/settlement";
+import { billingDetails, invoices, accountsReceivable, disputeSummary } from "@/mocks/settlement";
 import { Lock } from "lucide-react";
 import MonthEndClose from "@/components/MonthEndClose";
 import { companies, currentCompany } from "@/mocks/companies";
@@ -199,11 +199,6 @@ export default function SettlementPage() {
             <span><strong>{disputeSummary.openCount}</strong> open disputes</span>
             <span className="text-muted-foreground">· ${disputeSummary.openAmount.toLocaleString()}</span>
           </div>
-          <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border" style={{ borderColor: "#FF6000" }}>
-            <Zap className="h-3.5 w-3.5" style={{ color: "#FF6000" }} />
-            <span>Saved <strong>{Math.round(disputeSummary.vlookupTimeSavedThisMonth / 60 * 10) / 10}h</strong></span>
-            <span className="text-muted-foreground">this month</span>
-          </div>
         </div>
       </div>
 
@@ -211,7 +206,6 @@ export default function SettlementPage() {
       <Tabs defaultValue={isPrepay ? "pending" : "invoices"}>
         <TabsList className="!h-auto flex-wrap justify-start gap-1">
           {isPrepay && <TabsTrigger value="pending">Pending Payment {visiblePending.length > 0 && <span className="ml-1 text-[10px] bg-red-500 text-white rounded-full px-1.5">{visiblePending.length}</span>}</TabsTrigger>}
-          {isPrepay && <TabsTrigger value="reminders">Reminder Log</TabsTrigger>}
           <TabsTrigger value="invoices">Invoices</TabsTrigger>
           <TabsTrigger value="billing">Billing Details</TabsTrigger>
           {!isPrepay && <TabsTrigger value="ar">Accounts Receivable</TabsTrigger>}
@@ -350,67 +344,6 @@ export default function SettlementPage() {
           </TabsContent>
         )}
 
-        {/* ══════ Reminder Log Tab (PREPAY) ══════ */}
-        {isPrepay && (
-          <TabsContent value="reminders" className="space-y-4 mt-4">
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-              <Card className="p-3"><p className="text-xs text-muted-foreground">Sent This Month</p><p className="text-lg font-bold">{reminderSummary.totalSentThisMonth}</p></Card>
-              <Card className="p-3"><p className="text-xs text-muted-foreground">Open Rate</p><p className="text-lg font-bold">{reminderSummary.openRate}%</p></Card>
-              <Card className="p-3"><p className="text-xs text-muted-foreground">Payment After Reminder</p><p className="text-lg font-bold text-green-600">{reminderSummary.paymentAfterReminderRate}%</p></Card>
-              <Card className="p-3"><p className="text-xs text-muted-foreground">Auto-cancelled</p><p className="text-lg font-bold text-red-600">{reminderSummary.autoCancelled}</p></Card>
-              <Card className="p-3"><p className="text-xs text-muted-foreground">Scheduled Today</p><p className="text-lg font-bold" style={{ color: "#FF6000" }}>{reminderSummary.scheduledToday}</p></Card>
-            </div>
-
-            <Alert className="border-blue-200 bg-blue-50 dark:bg-blue-900/10">
-              <Clock className="h-4 w-4 text-blue-600" />
-              <AlertTitle>Auto Scheduler (cron · daily 09:00 KST)</AlertTitle>
-              <AlertDescription className="text-xs">
-                Reminders auto-sent via Email / In-app / SMS at D-7 / D-3 / D-1 / D-Day (KST).
-                After D-Day the booking is auto-cancelled — there is no overdue state. If payment completes after a reminder, subsequent ones are skipped.
-              </AlertDescription>
-            </Alert>
-
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Sent At</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead title="Delivery channel: Email / In-app / SMS">Sent Via</TableHead>
-                  <TableHead>ELLIS Code</TableHead>
-                  <TableHead>Hotel</TableHead>
-                  <TableHead>Guest</TableHead>
-                  <TableHead>Recipient</TableHead>
-                  <TableHead className="text-right">Amount</TableHead>
-                  <TableHead>Deadline</TableHead>
-                  <TableHead>Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {paymentReminders.map(r => {
-                  const typeColor = r.type === "D-Day" || r.type === "D-1" ? "destructive" : r.type === "D-3" ? "secondary" : "default";
-                  const statusColor = r.status === "Opened" ? "default" : r.status === "Failed" ? "destructive" : "secondary";
-                  return (
-                    <TableRow key={r.id}>
-                      <TableCell className="font-mono text-xs">{r.sentAt}</TableCell>
-                      <TableCell><Badge variant={typeColor} className="text-[10px]">{r.type}</Badge></TableCell>
-                      <TableCell className="text-xs"><Badge variant="outline" className="text-[10px]">{r.channel}</Badge></TableCell>
-                      <TableCell className="font-mono text-xs">{r.ellisCode}</TableCell>
-                      <TableCell className="text-xs">{r.hotelName}</TableCell>
-                      <TableCell className="text-xs">{r.guestName}</TableCell>
-                      <TableCell className="text-xs truncate max-w-[160px]">{r.recipient}</TableCell>
-                      <TableCell className="text-right font-mono text-xs">${r.amount.toLocaleString()}</TableCell>
-                      <TableCell className="text-xs">{r.deadline}</TableCell>
-                      <TableCell>
-                        <Badge variant={statusColor} className="text-[10px]">{r.status}</Badge>
-                        {r.openedAt && <p className="text-[9px] text-muted-foreground mt-0.5">opened {r.openedAt.split(" ")[0]}</p>}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </TabsContent>
-        )}
 
         {/* ══════ Billing Details Tab ══════ */}
         <TabsContent value="billing" className="space-y-4 mt-4">
