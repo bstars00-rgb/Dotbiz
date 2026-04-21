@@ -49,31 +49,32 @@ export default function SettlementPage() {
       })
       .sort((a, b) => a.daysLeft - b.daysLeft);
   }, []);
-  const overdueCount = pendingPayments.filter(p => p.daysLeft < 0).length;
-  const d7Count = pendingPayments.filter(p => p.daysLeft >= 0 && p.daysLeft <= 7).length;
-  const todayCount = pendingPayments.filter(p => p.daysLeft === 0).length;
-  const todayTotal = pendingPayments.filter(p => p.daysLeft === 0).reduce((s, p) => s + p.sumAmount, 0);
-  const overdueTotal = pendingPayments.filter(p => p.daysLeft < 0).reduce((s, p) => s + p.sumAmount, 0);
+  /* PREPAY policy: deadline passed → auto-cancel immediately.
+   * So bookings with daysLeft < 0 are filtered out from Pending Payment entirely.
+   */
+  const visiblePending = useMemo(() => pendingPayments.filter(p => p.daysLeft >= 0), [pendingPayments]);
+  const d7Count = visiblePending.filter(p => p.daysLeft <= 7).length;
+  const todayCount = visiblePending.filter(p => p.daysLeft === 0).length;
+  const todayTotal = visiblePending.filter(p => p.daysLeft === 0).reduce((s, p) => s + p.sumAmount, 0);
 
   /* Pending Payment filters */
-  const [pendingFilter, setPendingFilter] = useState<"all" | "overdue" | "today" | "tomorrow" | "week" | "custom">("all");
+  const [pendingFilter, setPendingFilter] = useState<"all" | "today" | "tomorrow" | "week" | "custom">("all");
   const [pendingFrom, setPendingFrom] = useState("");
   const [pendingTo, setPendingTo] = useState("");
   const filteredPending = useMemo(() => {
-    if (pendingFilter === "overdue") return pendingPayments.filter(p => p.daysLeft < 0);
-    if (pendingFilter === "today") return pendingPayments.filter(p => p.daysLeft === 0);
-    if (pendingFilter === "tomorrow") return pendingPayments.filter(p => p.daysLeft === 1);
-    if (pendingFilter === "week") return pendingPayments.filter(p => p.daysLeft >= 0 && p.daysLeft <= 7);
+    if (pendingFilter === "today") return visiblePending.filter(p => p.daysLeft === 0);
+    if (pendingFilter === "tomorrow") return visiblePending.filter(p => p.daysLeft === 1);
+    if (pendingFilter === "week") return visiblePending.filter(p => p.daysLeft <= 7);
     if (pendingFilter === "custom") {
-      return pendingPayments.filter(p => {
+      return visiblePending.filter(p => {
         const dl = p.cancelDeadline.split(" ")[0];
         if (pendingFrom && dl < pendingFrom) return false;
         if (pendingTo && dl > pendingTo) return false;
         return true;
       });
     }
-    return pendingPayments;
-  }, [pendingFilter, pendingFrom, pendingTo, pendingPayments]);
+    return visiblePending;
+  }, [pendingFilter, pendingFrom, pendingTo, visiblePending]);
 
   /* Bulk selection */
   const [pendingSelected, setPendingSelected] = useState<Set<string>>(new Set());
@@ -218,21 +219,21 @@ export default function SettlementPage() {
       )}
 
       {/* PREPAY deadline-alert banner */}
-      {isPrepay && (overdueCount > 0 || d7Count > 0) && (
-        <Alert className="border-red-300 bg-red-50 dark:bg-red-950/20">
-          <AlertTriangle className="h-4 w-4 text-red-600" />
-          <AlertTitle className="text-red-900 dark:text-red-100">Payment Deadline Alert</AlertTitle>
-          <AlertDescription className="text-xs text-red-800 dark:text-red-200">
-            {overdueCount > 0 && <span className="font-bold">Overdue: {overdueCount}. </span>}
+      {isPrepay && (todayCount > 0 || d7Count > 0) && (
+        <Alert className="border-amber-300 bg-amber-50 dark:bg-amber-950/20">
+          <AlertTriangle className="h-4 w-4 text-amber-600" />
+          <AlertTitle className="text-amber-900 dark:text-amber-100">Payment Deadline Alert</AlertTitle>
+          <AlertDescription className="text-xs text-amber-800 dark:text-amber-200">
+            {todayCount > 0 && <span className="font-bold">Due today: {todayCount}. </span>}
             {d7Count > 0 && <span>Due within 7 days: {d7Count}. </span>}
-            Unpaid bookings may be auto-cancelled. <Button variant="link" size="sm" className="h-auto p-0 text-red-600 underline" onClick={() => toast.info("Scroll to Pending Payment tab")}>View all →</Button>
+            Bookings past their deadline are auto-cancelled. <Button variant="link" size="sm" className="h-auto p-0 text-amber-700 underline" onClick={() => toast.info("Scroll to Pending Payment tab")}>View all →</Button>
           </AlertDescription>
         </Alert>
       )}
 
       <Tabs defaultValue={isPrepay ? "pending" : "invoices"}>
         <TabsList className="!h-auto flex-wrap justify-start gap-1">
-          {isPrepay && <TabsTrigger value="pending">Pending Payment {pendingPayments.length > 0 && <span className="ml-1 text-[10px] bg-red-500 text-white rounded-full px-1.5">{pendingPayments.length}</span>}</TabsTrigger>}
+          {isPrepay && <TabsTrigger value="pending">Pending Payment {visiblePending.length > 0 && <span className="ml-1 text-[10px] bg-red-500 text-white rounded-full px-1.5">{visiblePending.length}</span>}</TabsTrigger>}
           {isPrepay && <TabsTrigger value="reminders">Reminder Log</TabsTrigger>}
           <TabsTrigger value="invoices">Invoices</TabsTrigger>
           <TabsTrigger value="billing">Billing Details</TabsTrigger>
@@ -246,28 +247,28 @@ export default function SettlementPage() {
         {/* ══════ PREPAY Pending Payment Tab ══════ */}
         {isPrepay && (
           <TabsContent value="pending" className="space-y-4 mt-4">
+            {/* Timezone policy notice */}
+            <Alert className="border-slate-200 bg-slate-50 dark:bg-slate-900/20">
+              <Clock className="h-4 w-4 text-slate-600" />
+              <AlertDescription className="text-xs">
+                All payment deadlines operate on <strong>KST (UTC+9)</strong> — OhMyHotel's operational timezone. Bookings past their KST deadline are automatically cancelled. Please schedule remittance accordingly if your team operates in a different timezone.
+              </AlertDescription>
+            </Alert>
+
             {/* Today's Action Summary */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <Card className={`p-4 border-2 ${overdueCount > 0 ? "border-red-500 bg-red-50 dark:bg-red-950/20" : ""}`}>
-                <div className="flex items-center gap-2 mb-1">
-                  <AlertTriangle className={`h-4 w-4 ${overdueCount > 0 ? "text-red-600" : "text-muted-foreground"}`} />
-                  <p className="text-xs font-medium">Overdue</p>
-                </div>
-                <p className={`text-2xl font-bold ${overdueCount > 0 ? "text-red-600" : ""}`}>{overdueCount} <span className="text-sm font-normal">bookings</span></p>
-                <p className="text-xs text-muted-foreground">${overdueTotal.toLocaleString()} · collect immediately</p>
-              </Card>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <Card className={`p-4 border-2 ${todayCount > 0 ? "border-amber-500 bg-amber-50 dark:bg-amber-950/20" : ""}`}>
                 <div className="flex items-center gap-2 mb-1">
                   <Clock className={`h-4 w-4 ${todayCount > 0 ? "text-amber-600" : "text-muted-foreground"}`} />
-                  <p className="text-xs font-medium">Due Today</p>
+                  <p className="text-xs font-medium">Due Today <span className="text-[10px] text-muted-foreground font-normal">(KST)</span></p>
                 </div>
                 <p className={`text-2xl font-bold ${todayCount > 0 ? "text-amber-600" : ""}`}>{todayCount} <span className="text-sm font-normal">bookings</span></p>
-                <p className="text-xs text-muted-foreground">${todayTotal.toLocaleString()} · action required today</p>
+                <p className="text-xs text-muted-foreground">${todayTotal.toLocaleString()} · last chance today</p>
               </Card>
               <Card className="p-4">
                 <div className="flex items-center gap-2 mb-1">
                   <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
-                  <p className="text-xs font-medium">This Week</p>
+                  <p className="text-xs font-medium">This Week <span className="text-[10px] text-muted-foreground font-normal">(KST)</span></p>
                 </div>
                 <p className="text-2xl font-bold">{d7Count} <span className="text-sm font-normal">bookings</span></p>
                 <p className="text-xs text-muted-foreground">within 7 days</p>
@@ -279,10 +280,9 @@ export default function SettlementPage() {
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-xs font-medium text-muted-foreground mr-1">Filter by deadline:</span>
                 {[
-                  { key: "all" as const, label: "All", count: pendingPayments.length },
-                  { key: "overdue" as const, label: "Overdue", count: overdueCount },
+                  { key: "all" as const, label: "All", count: visiblePending.length },
                   { key: "today" as const, label: "Today", count: todayCount },
-                  { key: "tomorrow" as const, label: "Tomorrow", count: pendingPayments.filter(p => p.daysLeft === 1).length },
+                  { key: "tomorrow" as const, label: "Tomorrow", count: visiblePending.filter(p => p.daysLeft === 1).length },
                   { key: "week" as const, label: "Next 7 days", count: d7Count },
                   { key: "custom" as const, label: "Custom range", count: -1 },
                 ].map(f => (
@@ -331,17 +331,17 @@ export default function SettlementPage() {
                   <TableHead>Guest</TableHead>
                   <TableHead>Check-in</TableHead>
                   <TableHead className="text-right">Amount</TableHead>
-                  <TableHead>Deadline</TableHead>
+                  <TableHead title="Deadline in KST (OhMyHotel operational timezone)">Deadline (KST)</TableHead>
                   <TableHead>Days Left</TableHead>
                   <TableHead></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredPending.map(p => {
-                  const urgency = p.daysLeft < 0 ? "destructive" : p.daysLeft <= 3 ? "destructive" : p.daysLeft <= 7 ? "secondary" : "default";
-                  const label = p.daysLeft < 0 ? `${Math.abs(p.daysLeft)}d overdue` : p.daysLeft === 0 ? "Today" : `${p.daysLeft} days`;
+                  const urgency = p.daysLeft <= 3 ? "destructive" : p.daysLeft <= 7 ? "secondary" : "default";
+                  const label = p.daysLeft === 0 ? "Today" : `${p.daysLeft} days`;
                   return (
-                    <TableRow key={p.id} className={p.daysLeft < 0 ? "bg-red-50 dark:bg-red-950/10" : p.daysLeft === 0 ? "bg-amber-50 dark:bg-amber-950/10" : p.daysLeft <= 3 ? "bg-orange-50/60 dark:bg-orange-950/10" : ""}>
+                    <TableRow key={p.id} className={p.daysLeft === 0 ? "bg-amber-50 dark:bg-amber-950/10" : p.daysLeft <= 3 ? "bg-orange-50/60 dark:bg-orange-950/10" : ""}>
                       <TableCell><Checkbox checked={pendingSelected.has(p.id)} onCheckedChange={() => togglePending(p.id)} /></TableCell>
                       <TableCell className="font-mono text-xs">{p.ellisCode}</TableCell>
                       <TableCell className="text-sm">{p.hotelName}</TableCell>
