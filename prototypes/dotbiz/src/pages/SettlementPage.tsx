@@ -80,8 +80,14 @@ export default function SettlementPage() {
   const [pendingSelected, setPendingSelected] = useState<Set<string>>(new Set());
   const togglePending = (id: string) => setPendingSelected(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
   const selectAllPending = () => {
-    if (pendingSelected.size === filteredPending.length) setPendingSelected(new Set());
-    else setPendingSelected(new Set(filteredPending.map(p => p.id)));
+    const allInViewSelected = filteredPending.length > 0 && filteredPending.every(p => pendingSelected.has(p.id));
+    if (allInViewSelected) {
+      /* Deselect only items in current view (keep hidden selections intact) */
+      setPendingSelected(prev => { const n = new Set(prev); filteredPending.forEach(p => n.delete(p.id)); return n; });
+    } else {
+      /* Select all items currently in view (add to existing) */
+      setPendingSelected(prev => { const n = new Set(prev); filteredPending.forEach(p => n.add(p.id)); return n; });
+    }
   };
   const selectedPendingItems = filteredPending.filter(p => pendingSelected.has(p.id));
   const selectedPendingTotal = selectedPendingItems.reduce((s, p) => s + p.sumAmount, 0);
@@ -306,12 +312,17 @@ export default function SettlementPage() {
             </Card>
 
             {/* Bulk Action Bar */}
-            {pendingSelected.size > 0 && (
+            {selectedPendingItems.length > 0 && (
               <div className="flex items-center gap-3 p-3 bg-orange-50 dark:bg-orange-950/20 border-2 border-orange-300 dark:border-orange-900 rounded-lg sticky top-0 z-10">
-                <span className="text-sm font-medium">{pendingSelected.size} selected</span>
+                <span className="text-sm font-medium">
+                  {selectedPendingItems.length} selected
+                  {pendingSelected.size > selectedPendingItems.length && (
+                    <span className="ml-1 text-xs text-muted-foreground">({pendingSelected.size - selectedPendingItems.length} hidden by filter)</span>
+                  )}
+                </span>
                 <span className="text-sm font-bold" style={{ color: "#FF6000" }}>Total: ${selectedPendingTotal.toLocaleString()}</span>
                 <Button size="sm" className="text-white" style={{ background: "#FF6000" }} onClick={() => setBulkPayOpen(true)}>
-                  <CreditCard className="h-3 w-3 mr-1" />Pay {pendingSelected.size} bookings
+                  <CreditCard className="h-3 w-3 mr-1" />Pay {selectedPendingItems.length} bookings
                 </Button>
                 <Button size="sm" variant="ghost" className="ml-auto" onClick={() => setPendingSelected(new Set())}>Clear</Button>
               </div>
@@ -322,7 +333,7 @@ export default function SettlementPage() {
                 <TableRow>
                   <TableHead className="w-10">
                     <Checkbox
-                      checked={filteredPending.length > 0 && pendingSelected.size === filteredPending.length}
+                      checked={filteredPending.length > 0 && filteredPending.every(p => pendingSelected.has(p.id))}
                       onCheckedChange={selectAllPending}
                     />
                   </TableHead>
@@ -383,8 +394,8 @@ export default function SettlementPage() {
               <Clock className="h-4 w-4 text-blue-600" />
               <AlertTitle>Auto Scheduler (cron · daily 09:00 KST)</AlertTitle>
               <AlertDescription className="text-xs">
-                Reminders auto-sent via Email / In-app / SMS at D-7 / D-3 / D-1 / D-Day / Overdue.
-                If payment completes within 24h after send, subsequent reminders are auto-cancelled.
+                Reminders auto-sent via Email / In-app / SMS at D-7 / D-3 / D-1 / D-Day (KST).
+                After D-Day the booking is auto-cancelled — there is no overdue state. If payment completes after a reminder, subsequent ones are skipped.
               </AlertDescription>
             </Alert>
 
@@ -405,7 +416,7 @@ export default function SettlementPage() {
               </TableHeader>
               <TableBody>
                 {paymentReminders.map(r => {
-                  const typeColor = r.type === "Overdue" ? "destructive" : r.type === "D-Day" || r.type === "D-1" ? "destructive" : r.type === "D-3" ? "secondary" : "default";
+                  const typeColor = r.type === "D-Day" || r.type === "D-1" ? "destructive" : r.type === "D-3" ? "secondary" : "default";
                   const statusColor = r.status === "Opened" ? "default" : r.status === "Failed" ? "destructive" : "secondary";
                   return (
                     <TableRow key={r.id}>

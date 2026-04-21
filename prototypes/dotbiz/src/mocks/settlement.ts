@@ -274,10 +274,11 @@ export const paymentMatchLog: PaymentMatchLog[] = [
 ];
 
 /* ── Payment Deadline Reminder Log (PREPAY) ──
- * 자동 스케줄러가 결제 데드라인 D-7/3/1/Overdue 시점에 발송한 알림 이력.
+ * Auto-scheduler sends reminders at D-7 / D-3 / D-1 / D-Day (KST).
+ * After D-Day, the booking is auto-cancelled — no overdue state.
  * 실제 프로덕션에서는 cron job이 매일 돌며 조건 충족 시 생성.
  */
-export type ReminderType = "D-7" | "D-3" | "D-1" | "D-Day" | "Overdue";
+export type ReminderType = "D-7" | "D-3" | "D-1" | "D-Day";
 export type ReminderChannel = "Email" | "In-app" | "SMS";
 export type ReminderStatus = "Sent" | "Delivered" | "Opened" | "Failed" | "Scheduled";
 
@@ -315,7 +316,6 @@ export const paymentReminders: PaymentReminder[] = [
   { id: "rmd-007", bookingId: "bk-005", ellisCode: "K26032510083H01", guestName: "Robert Chen", hotelName: "Mandarin Oriental Tokyo", amount: 2250, deadline: "2026-04-19 17:00", type: "D-3", channel: "Email", recipient: "robert@example.com", sentAt: "2026-04-16 09:00:00", status: "Delivered" },
   { id: "rmd-008", bookingId: "bk-005", ellisCode: "K26032510083H01", guestName: "Robert Chen", hotelName: "Mandarin Oriental Tokyo", amount: 2250, deadline: "2026-04-19 17:00", type: "D-1", channel: "Email", recipient: "robert@example.com", sentAt: "2026-04-18 09:00:00", status: "Delivered" },
   { id: "rmd-009", bookingId: "bk-005", ellisCode: "K26032510083H01", guestName: "Robert Chen", hotelName: "Mandarin Oriental Tokyo", amount: 2250, deadline: "2026-04-19 17:00", type: "D-Day", channel: "SMS", recipient: "+86-138-1234-5678", sentAt: "2026-04-19 08:00:00", status: "Delivered" },
-  { id: "rmd-010", bookingId: "bk-005", ellisCode: "K26032510083H01", guestName: "Robert Chen", hotelName: "Mandarin Oriental Tokyo", amount: 2250, deadline: "2026-04-19 17:00", type: "Overdue", channel: "Email", recipient: "robert@example.com", sentAt: "2026-04-20 09:00:00", status: "Sent", note: "Payment overdue. Booking will be auto-cancelled in 48 hours." },
 ];
 
 export const reminderSummary = {
