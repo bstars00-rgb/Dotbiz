@@ -7,7 +7,9 @@ import { Badge } from "@/components/ui/badge";
 import { Copy, AlertTriangle, CheckCircle2, Clock, CreditCard } from "lucide-react";
 import { toast } from "sonner";
 import type { Company } from "@/mocks/companies";
-import { ohMyHotelBankInfo, generateRefCode, topUpRequests, type TopUpRequest } from "@/mocks/topUp";
+import { generateRefCode, topUpRequests, type TopUpRequest } from "@/mocks/topUp";
+import type { OhMyHotelEntity } from "@/mocks/ohMyHotelEntities";
+import { ohMyHotelEntities } from "@/mocks/ohMyHotelEntities";
 
 /* Top-Up Deposit dialog
  *
@@ -27,12 +29,20 @@ interface Props {
   onOpenChange: (open: boolean) => void;
   customer: Company;
   currentBalance: number;
+  /* Multi-entity: which OhMyHotel entity to wire to. Defaults to SG HQ. */
+  entity?: OhMyHotelEntity;
+  /* Currency for this top-up (matches contract). Defaults to customer.contractCurrency. */
+  currency?: string;
 }
 
-export default function TopUpDepositDialog({ open, onOpenChange, customer, currentBalance }: Props) {
+export default function TopUpDepositDialog({ open, onOpenChange, customer, currentBalance, entity, currency }: Props) {
   const [step, setStep] = useState<"amount" | "wire" | "submitted">("amount");
   const [amount, setAmount] = useState<string>("");
   const [refCode, setRefCode] = useState<string>("");
+
+  /* Resolve entity: prop > SG HQ default */
+  const targetEntity: OhMyHotelEntity = entity || ohMyHotelEntities.find(e => e.isHQ) || ohMyHotelEntities[0];
+  const targetCurrency = currency || customer.contractCurrency;
 
   useEffect(() => {
     if (open) {
@@ -42,10 +52,14 @@ export default function TopUpDepositDialog({ open, onOpenChange, customer, curre
     }
   }, [open]);
 
+  /* Per-entity minimums */
+  const minAmount = targetCurrency === "VND" ? 25_000_000 : targetCurrency === "JPY" ? 150_000 : targetCurrency === "KRW" ? 1_500_000 : 1000;
+
   const handleNext = () => {
     const n = parseFloat(amount) || 0;
-    if (n < 1000) { toast.error("Minimum top-up amount is 1,000 USD"); return; }
-    setRefCode(generateRefCode());
+    if (n < minAmount) { toast.error(`Minimum top-up is ${targetCurrency} ${minAmount.toLocaleString()}`); return; }
+    /* Ref code includes entity prefix for routing: TUP-SG-… or TUP-VN-… */
+    setRefCode(generateRefCode(targetEntity.refCodePrefix));
     setStep("wire");
   };
 
@@ -56,15 +70,14 @@ export default function TopUpDepositDialog({ open, onOpenChange, customer, curre
       customerCompanyId: customer.id,
       refCode,
       requestedAmount: n,
-      currency: customer.contractCurrency,
+      currency: targetCurrency,
       requestedAt: new Date().toISOString().replace("T", " ").slice(0, 19),
       expiresAt: (() => { const d = new Date(); d.setDate(d.getDate() + 7); return d.toISOString().replace("T", " ").slice(0, 19); })(),
       status: "Pending",
     };
-    /* In production: POST /api/topup-requests → ELLIS persists & returns id */
     topUpRequests.unshift(newReq);
     setStep("submitted");
-    toast.success("Top-up request created", { description: `Wire ${customer.contractCurrency} ${n.toLocaleString()} with memo: ${refCode}` });
+    toast.success("Top-up request created", { description: `Wire ${targetCurrency} ${n.toLocaleString()} to ${targetEntity.shortName} with memo: ${refCode}` });
   };
 
   const copy = (text: string, label: string) => {
@@ -87,7 +100,7 @@ export default function TopUpDepositDialog({ open, onOpenChange, customer, curre
           <div className="space-y-4">
             <Alert className="border-blue-200 bg-blue-50 dark:bg-blue-900/10">
               <AlertDescription className="text-xs">
-                Current available balance: <strong className="text-green-600">{customer.contractCurrency} {currentBalance.toLocaleString()}</strong>.
+                Current available balance: <strong className="text-green-600">{targetCurrency} {currentBalance.toLocaleString()}</strong>.
                 A top-up adds to this balance once your wire transfer is received and reconciled (1-2 business days).
               </AlertDescription>
             </Alert>
@@ -95,18 +108,25 @@ export default function TopUpDepositDialog({ open, onOpenChange, customer, curre
             <div>
               <label className="text-sm font-medium">Top-up amount</label>
               <div className="flex gap-2 mt-1">
-                <Badge variant="outline" className="font-mono px-3 flex items-center">{customer.contractCurrency}</Badge>
-                <Input type="number" min={1000} step={1000} value={amount} onChange={e => setAmount(e.target.value)} placeholder="e.g. 20000" className="font-mono text-lg" />
+                <Badge variant="outline" className="font-mono px-3 flex items-center">{targetCurrency}</Badge>
+                <Input type="number" min={minAmount} step={minAmount} value={amount} onChange={e => setAmount(e.target.value)} placeholder={`e.g. ${(minAmount * 20).toLocaleString()}`} className="font-mono text-lg" />
               </div>
-              <p className="text-[10px] text-muted-foreground mt-1">Minimum 1,000 · Suggested: 10,000 / 20,000 / 50,000</p>
-              <div className="flex gap-2 mt-2">
-                {[10000, 20000, 50000].map(v => (
+              <p className="text-[10px] text-muted-foreground mt-1">Minimum {targetCurrency} {minAmount.toLocaleString()}</p>
+              <div className="flex gap-2 mt-2 flex-wrap">
+                {[minAmount * 10, minAmount * 20, minAmount * 50].map(v => (
                   <Button key={v} size="sm" variant="outline" onClick={() => setAmount(String(v))}>
-                    {customer.contractCurrency} {v.toLocaleString()}
+                    {targetCurrency} {v.toLocaleString()}
                   </Button>
                 ))}
               </div>
             </div>
+
+            <Alert className="border-orange-200 bg-orange-50/40 dark:bg-orange-950/10">
+              <AlertDescription className="text-xs">
+                <strong>Beneficiary:</strong> {targetEntity.countryFlag} {targetEntity.legalName}<br/>
+                <strong>Bank:</strong> {targetEntity.bankInfo.bankName} · {targetEntity.bankInfo.swift}
+              </AlertDescription>
+            </Alert>
           </div>
         )}
 
@@ -143,12 +163,13 @@ export default function TopUpDepositDialog({ open, onOpenChange, customer, curre
             <div className="border rounded-lg p-4 space-y-2 bg-slate-50 dark:bg-slate-900/40">
               <p className="text-xs font-bold uppercase text-muted-foreground mb-2">Wire to OhMyHotel</p>
               {[
-                { label: "Bank", value: ohMyHotelBankInfo.bankName },
-                { label: "SWIFT", value: ohMyHotelBankInfo.swift },
-                { label: "Account Holder", value: ohMyHotelBankInfo.accountHolder },
-                { label: "Account Number", value: ohMyHotelBankInfo.accountNumber },
-                { label: "Bank Address", value: ohMyHotelBankInfo.bankAddress },
-                { label: "Amount", value: `${customer.contractCurrency} ${parseFloat(amount).toLocaleString()}` },
+                { label: "Beneficiary Entity", value: `${targetEntity.countryFlag} ${targetEntity.legalName}`, highlight: false },
+                { label: "Bank", value: targetEntity.bankInfo.bankName },
+                { label: "SWIFT", value: targetEntity.bankInfo.swift },
+                { label: "Account Holder", value: targetEntity.bankInfo.accountHolder },
+                { label: "Account Number", value: targetEntity.bankInfo.accountNumber },
+                { label: "Bank Address", value: targetEntity.bankInfo.bankAddress },
+                { label: "Amount", value: `${targetCurrency} ${parseFloat(amount).toLocaleString()}` },
                 { label: "Memo (mandatory)", value: refCode, highlight: true },
               ].map(row => (
                 <div key={row.label} className="flex items-start justify-between gap-3 py-1 border-b border-slate-200 dark:border-slate-800 last:border-0">
@@ -180,7 +201,7 @@ export default function TopUpDepositDialog({ open, onOpenChange, customer, curre
             </div>
             <Alert className="border-blue-200 bg-blue-50 dark:bg-blue-900/10">
               <AlertDescription className="text-xs">
-                <strong>Next:</strong> Wire {customer.contractCurrency} {parseFloat(amount).toLocaleString()} to the bank account
+                <strong>Next:</strong> Wire {targetCurrency} {parseFloat(amount).toLocaleString()} to {targetEntity.shortName}'s bank account
                 shown previously, with the reference code in the memo.
                 <br /><strong>Reconciliation:</strong> Typically 1-2 business days after our bank confirms receipt.
                 You will be notified by email and the deposit balance will update automatically.

@@ -42,27 +42,47 @@ export interface BillingLineItem {
   status: "Settled" | "Pending" | "Overdue";
   invoiceNo: string;          /* Which aggregate invoice this bill belongs to */
   customerCompanyId: string;  /* For tenant scoping */
+  contractId?: string;        /* Multi-entity routing */
 }
 
 export const billingDetails: BillingLineItem[] = [
   /* ── POSTPAY TravelCo (comp-001) — INV-2026-0089 (Mar) ── */
-  { billId: "BILL-2026-0001", billType: "Hotel Booking", bookingId: "K26032014532H01", hotelName: "Grand Hyatt Seoul", amount: 840, currency: "USD", createdDate: "2026-03-20", dueDate: "2026-04-30", settlementDate: "2026-04-15", status: "Settled", invoiceNo: "INV-2026-0089", customerCompanyId: "comp-001" },
-  { billId: "BILL-2026-0002", billType: "Hotel Booking", bookingId: "K26032209155H01", hotelName: "Shilla Stay Mapo", amount: 580, currency: "USD", createdDate: "2026-03-22", dueDate: "2026-04-30", settlementDate: "", status: "Pending", invoiceNo: "INV-2026-0089", customerCompanyId: "comp-001" },
-  { billId: "BILL-2026-0003", billType: "Hotel Booking", bookingId: "K26031511457H01", hotelName: "Hotel Nikko Bangkok", amount: 780, currency: "USD", createdDate: "2026-03-15", dueDate: "2026-04-30", settlementDate: "", status: "Pending", invoiceNo: "INV-2026-0089", customerCompanyId: "comp-001" },
-  { billId: "BILL-2026-0004", billType: "Hotel Booking", bookingId: "K26032813402H01", hotelName: "The Peninsula Shanghai", amount: 1140, currency: "USD", createdDate: "2026-03-28", dueDate: "2026-04-30", settlementDate: "2026-04-15", status: "Settled", invoiceNo: "INV-2026-0089", customerCompanyId: "comp-001" },
-  { billId: "BILL-2026-0005", billType: "Hotel Booking", bookingId: "K26033017227H01", hotelName: "Marina Bay Sands", amount: 840, currency: "USD", createdDate: "2026-03-30", dueDate: "2026-04-30", settlementDate: "2026-04-15", status: "Settled", invoiceNo: "INV-2026-0089", customerCompanyId: "comp-001" },
+  { billId: "BILL-2026-0001", billType: "Hotel Booking", bookingId: "K26032014532H01", hotelName: "Grand Hyatt Seoul", amount: 840, currency: "USD", createdDate: "2026-03-20", dueDate: "2026-04-30", settlementDate: "2026-04-15", status: "Settled", invoiceNo: "INV-2026-0089", customerCompanyId: "comp-001", contractId: "ctr-001-sg" },
+  { billId: "BILL-2026-0002", billType: "Hotel Booking", bookingId: "K26032209155H01", hotelName: "Shilla Stay Mapo", amount: 580, currency: "USD", createdDate: "2026-03-22", dueDate: "2026-04-30", settlementDate: "", status: "Pending", invoiceNo: "INV-2026-0089", customerCompanyId: "comp-001", contractId: "ctr-001-sg" },
+  { billId: "BILL-2026-0003", billType: "Hotel Booking", bookingId: "K26031511457H01", hotelName: "Hotel Nikko Bangkok", amount: 780, currency: "USD", createdDate: "2026-03-15", dueDate: "2026-04-30", settlementDate: "", status: "Pending", invoiceNo: "INV-2026-0089", customerCompanyId: "comp-001", contractId: "ctr-001-sg" },
+  { billId: "BILL-2026-0004", billType: "Hotel Booking", bookingId: "K26032813402H01", hotelName: "The Peninsula Shanghai", amount: 1140, currency: "USD", createdDate: "2026-03-28", dueDate: "2026-04-30", settlementDate: "2026-04-15", status: "Settled", invoiceNo: "INV-2026-0089", customerCompanyId: "comp-001", contractId: "ctr-001-sg" },
+  { billId: "BILL-2026-0005", billType: "Hotel Booking", bookingId: "K26033017227H01", hotelName: "Marina Bay Sands", amount: 840, currency: "USD", createdDate: "2026-03-30", dueDate: "2026-04-30", settlementDate: "2026-04-15", status: "Settled", invoiceNo: "INV-2026-0089", customerCompanyId: "comp-001", contractId: "ctr-001-sg" },
   /* INV-2026-0067 (Feb 2026, paid) */
-  { billId: "BILL-2026-0006", billType: "Hotel Booking", bookingId: "K26031016208H01", hotelName: "ANA Crowne Plaza Osaka", amount: 330, currency: "USD", createdDate: "2026-03-10", dueDate: "2026-03-31", settlementDate: "2026-03-20", status: "Settled", invoiceNo: "INV-2026-0067", customerCompanyId: "comp-001" },
-  { billId: "BILL-2026-0007", billType: "Cancellation Fee", bookingId: "K26031016208H01", hotelName: "ANA Crowne Plaza Osaka", amount: 65, currency: "USD", createdDate: "2026-03-18", dueDate: "2026-03-31", settlementDate: "2026-03-20", status: "Settled", invoiceNo: "INV-2026-0067", customerCompanyId: "comp-001" },
+  { billId: "BILL-2026-0006", billType: "Hotel Booking", bookingId: "K26031016208H01", hotelName: "ANA Crowne Plaza Osaka", amount: 330, currency: "USD", createdDate: "2026-03-10", dueDate: "2026-03-31", settlementDate: "2026-03-20", status: "Settled", invoiceNo: "INV-2026-0067", customerCompanyId: "comp-001", contractId: "ctr-001-sg" },
+  { billId: "BILL-2026-0007", billType: "Cancellation Fee", bookingId: "K26031016208H01", hotelName: "ANA Crowne Plaza Osaka", amount: 65, currency: "USD", createdDate: "2026-03-18", dueDate: "2026-03-31", settlementDate: "2026-03-20", status: "Settled", invoiceNo: "INV-2026-0067", customerCompanyId: "comp-001", contractId: "ctr-001-sg" },
   /* INV-2026-0130 (Apr in progress) */
-  { billId: "BILL-2026-0008", billType: "Hotel Booking", bookingId: "K26040215182H01", hotelName: "Four Seasons Bali at Sayan", amount: 2900, currency: "USD", createdDate: "2026-04-02", dueDate: "2026-05-31", settlementDate: "", status: "Pending", invoiceNo: "INV-2026-0130", customerCompanyId: "comp-001" },
-  { billId: "BILL-2026-0009", billType: "Cancellation Fee", bookingId: "K26040514508H01", hotelName: "InterContinental Da Nang", amount: 130, currency: "USD", createdDate: "2026-04-09", dueDate: "2026-05-31", settlementDate: "", status: "Pending", invoiceNo: "INV-2026-0130", customerCompanyId: "comp-001" },
-  { billId: "BILL-2026-0010", billType: "Adjustment", bookingId: "K26032014532H01", hotelName: "Grand Hyatt Seoul", amount: -45, currency: "USD", createdDate: "2026-04-12", dueDate: "2026-04-30", settlementDate: "2026-04-15", status: "Settled", invoiceNo: "INV-2026-0089", customerCompanyId: "comp-001" },
+  { billId: "BILL-2026-0008", billType: "Hotel Booking", bookingId: "K26040215182H01", hotelName: "Four Seasons Bali at Sayan", amount: 2900, currency: "USD", createdDate: "2026-04-02", dueDate: "2026-05-31", settlementDate: "", status: "Pending", invoiceNo: "INV-2026-0130", customerCompanyId: "comp-001", contractId: "ctr-001-sg" },
+  { billId: "BILL-2026-0009", billType: "Cancellation Fee", bookingId: "K26040514508H01", hotelName: "InterContinental Da Nang", amount: 130, currency: "USD", createdDate: "2026-04-09", dueDate: "2026-05-31", settlementDate: "", status: "Pending", invoiceNo: "INV-2026-0130", customerCompanyId: "comp-001", contractId: "ctr-001-sg" },
+  { billId: "BILL-2026-0010", billType: "Adjustment", bookingId: "K26032014532H01", hotelName: "Grand Hyatt Seoul", amount: -45, currency: "USD", createdDate: "2026-04-12", dueDate: "2026-04-30", settlementDate: "2026-04-15", status: "Settled", invoiceNo: "INV-2026-0089", customerCompanyId: "comp-001", contractId: "ctr-001-sg" },
 
   /* ── PREPAY Asia Tours (comp-002) — Per-booking invoices ── */
-  { billId: "BILL-2026-0101", billType: "Hotel Booking", bookingId: "K26040816352H01", hotelName: "Raffles Singapore", amount: 1650, currency: "USD", createdDate: "2026-04-08", dueDate: "2026-04-25", settlementDate: "", status: "Pending", invoiceNo: "INV-2026-PRE-0201", customerCompanyId: "comp-002" },
-  { billId: "BILL-2026-0102", billType: "Hotel Booking", bookingId: "K26040109301H01", hotelName: "Park Hyatt Saigon", amount: 920, currency: "USD", createdDate: "2026-04-01", dueDate: "2026-04-20", settlementDate: "", status: "Pending", invoiceNo: "INV-2026-PRE-0205", customerCompanyId: "comp-002" },
-  { billId: "BILL-2026-0103", billType: "Hotel Booking", bookingId: "K26032608558H01", hotelName: "Lotte Hotel Hanoi", amount: 360, currency: "USD", createdDate: "2026-03-26", dueDate: "2026-04-04", settlementDate: "2026-04-02", status: "Settled", invoiceNo: "INV-2026-PRE-0198", customerCompanyId: "comp-002" },
+  { billId: "BILL-2026-0101", billType: "Hotel Booking", bookingId: "K26040816352H01", hotelName: "Raffles Singapore", amount: 1650, currency: "USD", createdDate: "2026-04-08", dueDate: "2026-04-25", settlementDate: "", status: "Pending", invoiceNo: "INV-2026-PRE-0201", customerCompanyId: "comp-002", contractId: "ctr-002-sg" },
+  { billId: "BILL-2026-0102", billType: "Hotel Booking", bookingId: "K26040109301H01", hotelName: "Park Hyatt Saigon", amount: 920, currency: "USD", createdDate: "2026-04-01", dueDate: "2026-04-20", settlementDate: "", status: "Pending", invoiceNo: "INV-2026-PRE-0205", customerCompanyId: "comp-002", contractId: "ctr-002-sg" },
+  { billId: "BILL-2026-0103", billType: "Hotel Booking", bookingId: "K26032608558H01", hotelName: "Lotte Hotel Hanoi", amount: 360, currency: "USD", createdDate: "2026-03-26", dueDate: "2026-04-04", settlementDate: "2026-04-02", status: "Settled", invoiceNo: "INV-2026-PRE-0198", customerCompanyId: "comp-002", contractId: "ctr-002-sg" },
+
+  /* ── GOTADI (comp-010) ── */
+  /* SG contract bills (USD) — international hotels */
+  { billId: "BILL-SG-0010-001", billType: "Hotel Booking", bookingId: "K26032014532H01", hotelName: "Grand Hyatt Seoul", amount: 2400, currency: "USD", createdDate: "2026-03-22", dueDate: "2026-04-30", settlementDate: "2026-04-12", status: "Settled", invoiceNo: "INV-SG-2026-1101", customerCompanyId: "comp-010", contractId: "ctr-010-sg" },
+  { billId: "BILL-SG-0010-002", billType: "Hotel Booking", bookingId: "K26031016208H01", hotelName: "ANA Crowne Plaza Osaka", amount: 3000, currency: "USD", createdDate: "2026-03-12", dueDate: "2026-04-30", settlementDate: "2026-04-12", status: "Settled", invoiceNo: "INV-SG-2026-1101", customerCompanyId: "comp-010", contractId: "ctr-010-sg" },
+  { billId: "BILL-SG-0010-003", billType: "Hotel Booking", bookingId: "K26033017227H01", hotelName: "Marina Bay Sands", amount: 4200, currency: "USD", createdDate: "2026-04-04", dueDate: "2026-05-31", settlementDate: "", status: "Pending", invoiceNo: "INV-SG-2026-1130", customerCompanyId: "comp-010", contractId: "ctr-010-sg" },
+  { billId: "BILL-SG-0010-004", billType: "Hotel Booking", bookingId: "K26032813402H01", hotelName: "The Peninsula Shanghai", amount: 4000, currency: "USD", createdDate: "2026-04-08", dueDate: "2026-05-31", settlementDate: "", status: "Pending", invoiceNo: "INV-SG-2026-1130", customerCompanyId: "comp-010", contractId: "ctr-010-sg" },
+  /* VN contract bills (VND) — Vietnam-local hotels */
+  { billId: "BILL-VN-0010-001", billType: "Hotel Booking", bookingId: "K26040109301H01", hotelName: "Park Hyatt Saigon", amount: 168000000, currency: "VND", createdDate: "2026-03-25", dueDate: "2026-04-30", settlementDate: "2026-04-15", status: "Settled", invoiceNo: "INV-VN-2026-0420", customerCompanyId: "comp-010", contractId: "ctr-010-vn" },
+  { billId: "BILL-VN-0010-002", billType: "Hotel Booking", bookingId: "K26032608558H01", hotelName: "Lotte Hotel Hanoi", amount: 240000000, currency: "VND", createdDate: "2026-03-28", dueDate: "2026-04-30", settlementDate: "2026-04-15", status: "Settled", invoiceNo: "INV-VN-2026-0420", customerCompanyId: "comp-010", contractId: "ctr-010-vn" },
+  { billId: "BILL-VN-0010-003", billType: "Hotel Booking", bookingId: "K26040514508H01", hotelName: "InterContinental Da Nang", amount: 305000000, currency: "VND", createdDate: "2026-04-10", dueDate: "2026-05-31", settlementDate: "", status: "Pending", invoiceNo: "INV-VN-2026-0430", customerCompanyId: "comp-010", contractId: "ctr-010-vn" },
+  { billId: "BILL-VN-0010-004", billType: "Hotel Booking", bookingId: "K26040109301H01", hotelName: "Park Hyatt Saigon", amount: 220000000, currency: "VND", createdDate: "2026-04-15", dueDate: "2026-05-31", settlementDate: "", status: "Pending", invoiceNo: "INV-VN-2026-0430", customerCompanyId: "comp-010", contractId: "ctr-010-vn" },
+
+  /* ── Vietnam Vacation Co (comp-011) — PREPAY ── */
+  /* SG contract per-booking */
+  { billId: "BILL-SG-0011-001", billType: "Hotel Booking", bookingId: "K26031511457H01", hotelName: "Hotel Nikko Bangkok", amount: 1200, currency: "USD", createdDate: "2026-04-10", dueDate: "2026-04-20", settlementDate: "2026-04-12", status: "Settled", invoiceNo: "INV-SG-PRE-2026-3041", customerCompanyId: "comp-011", contractId: "ctr-011-sg" },
+  { billId: "BILL-SG-0011-002", billType: "Hotel Booking", bookingId: "K26032510083H01", hotelName: "Mandarin Oriental Tokyo", amount: 2400, currency: "USD", createdDate: "2026-04-18", dueDate: "2026-04-28", settlementDate: "", status: "Pending", invoiceNo: "INV-SG-PRE-2026-3055", customerCompanyId: "comp-011", contractId: "ctr-011-sg" },
+  /* VN contract per-booking */
+  { billId: "BILL-VN-0011-001", billType: "Hotel Booking", bookingId: "K26040109301H01", hotelName: "Park Hyatt Saigon", amount: 33000000, currency: "VND", createdDate: "2026-04-15", dueDate: "2026-04-25", settlementDate: "", status: "Pending", invoiceNo: "INV-VN-PRE-2026-0512", customerCompanyId: "comp-011", contractId: "ctr-011-vn" },
 ];
 
 /* ── Invoices (확장) ──
@@ -95,6 +115,9 @@ export interface InvoiceWithMatch {
   /* Billing type tag — POSTPAY = monthly aggregate, PREPAY = 1 per booking */
   billingType: "POSTPAY" | "PREPAY";
   customerCompanyId?: string;
+  /* Multi-entity: which OhMyHotel entity issued this invoice (via contract) */
+  contractId?: string;
+  ohmyhotelEntityId?: string;  /* derived from contract for UI convenience */
   /* ── Audit metadata (DIDA-style) ── */
   firstInsertUser: string;      /* BATCH_USER = scheduler / API_USER = API call / human name */
   firstInsertTime: string;
@@ -123,7 +146,7 @@ export const invoices: InvoiceWithMatch[] = [
     disputedBookingIds: ["bk-002", "bk-003"],
     disputedAmount: 1360,
     remarks: "Customer remittance missing 2 items — auto-detected and tagged as dispute",
-    billingType: "POSTPAY", customerCompanyId: "comp-001",
+    billingType: "POSTPAY", customerCompanyId: "comp-001", contractId: "ctr-001-sg", ohmyhotelEntityId: "omh-sg",
     firstInsertUser: "BATCH_USER", firstInsertTime: "2026-04-01 01:00:40",
     lastUpdateUser: "Sarah Kim", lastUpdateTime: "2026-04-15 14:43:43",
     paidAmount: 2820, balance: 1360, revenue: 209,
@@ -135,7 +158,7 @@ export const invoices: InvoiceWithMatch[] = [
     bookingIds: ["bk-004"],
     receivedAmount: 3850, paymentDate: "2026-03-20",
     matchStatus: "Full", disputedBookingIds: [], disputedAmount: 0,
-    billingType: "POSTPAY", customerCompanyId: "comp-001",
+    billingType: "POSTPAY", customerCompanyId: "comp-001", contractId: "ctr-001-sg", ohmyhotelEntityId: "omh-sg",
     firstInsertUser: "BATCH_USER", firstInsertTime: "2026-03-01 01:00:40",
     lastUpdateUser: "API_USER", lastUpdateTime: "2026-03-20 10:15:30",
     paidAmount: 3850, balance: 0, revenue: 192,
@@ -147,7 +170,7 @@ export const invoices: InvoiceWithMatch[] = [
     bookingIds: ["bk-009", "bk-010", "bk-011", "bk-012", "bk-013", "bk-014", "bk-015"],
     receivedAmount: 0, paymentDate: "",
     matchStatus: "Unpaid", disputedBookingIds: [], disputedAmount: 0,
-    billingType: "POSTPAY", customerCompanyId: "comp-001",
+    billingType: "POSTPAY", customerCompanyId: "comp-001", contractId: "ctr-001-sg", ohmyhotelEntityId: "omh-sg",
     firstInsertUser: "BATCH_USER", firstInsertTime: "2026-05-01 01:00:41",
     lastUpdateUser: "BATCH_USER", lastUpdateTime: "2026-05-01 02:02:03",
     paidAmount: 0, balance: 10630, revenue: 531,
@@ -161,7 +184,7 @@ export const invoices: InvoiceWithMatch[] = [
     bookingIds: ["bk-005"],
     receivedAmount: 495000, paymentDate: "2026-04-25",
     matchStatus: "Full", disputedBookingIds: [], disputedAmount: 0,
-    billingType: "POSTPAY", customerCompanyId: "comp-003",
+    billingType: "POSTPAY", customerCompanyId: "comp-003", contractId: "ctr-003-sg", ohmyhotelEntityId: "omh-sg",
     firstInsertUser: "BATCH_USER", firstInsertTime: "2026-04-03 01:00:40",
     lastUpdateUser: "Tran Thuy Tien", lastUpdateTime: "2026-04-25 10:43:43",
     paidAmount: 495000, balance: 0, revenue: 24750,
@@ -175,7 +198,7 @@ export const invoices: InvoiceWithMatch[] = [
     bookingIds: ["bk-007"],
     receivedAmount: 56550, paymentDate: "2026-04-18",
     matchStatus: "Full", disputedBookingIds: [], disputedAmount: 0,
-    billingType: "POSTPAY", customerCompanyId: "comp-004",
+    billingType: "POSTPAY", customerCompanyId: "comp-004", contractId: "ctr-004-sg", ohmyhotelEntityId: "omh-sg",
     firstInsertUser: "API_USER", firstInsertTime: "2026-04-05 09:20:00",
     lastUpdateUser: "API_USER", lastUpdateTime: "2026-04-18 16:20:18",
     paidAmount: 56550, balance: 0, revenue: 2828,
@@ -191,7 +214,7 @@ export const invoices: InvoiceWithMatch[] = [
     paymentDate: "2026-04-08",
     matchStatus: "Partial", disputedBookingIds: [], disputedAmount: 0,
     remarks: "PREPAY · Per-booking invoice · 50% prepaid, awaiting remainder",
-    billingType: "PREPAY", customerCompanyId: "comp-002",
+    billingType: "PREPAY", customerCompanyId: "comp-002", contractId: "ctr-002-sg", ohmyhotelEntityId: "omh-sg",
     firstInsertUser: "API_USER", firstInsertTime: "2026-04-08 14:30:02",
     lastUpdateUser: "Kevin Lee", lastUpdateTime: "2026-04-15 09:12:33",
     paidAmount: 825, balance: 825, revenue: 82,
@@ -204,7 +227,7 @@ export const invoices: InvoiceWithMatch[] = [
     receivedAmount: 0, paymentDate: "",
     matchStatus: "Unpaid", disputedBookingIds: [], disputedAmount: 0,
     remarks: "PREPAY · Payment deadline imminent (D-Day) — auto-reminders in progress",
-    billingType: "PREPAY", customerCompanyId: "comp-002",
+    billingType: "PREPAY", customerCompanyId: "comp-002", contractId: "ctr-002-sg", ohmyhotelEntityId: "omh-sg",
     firstInsertUser: "API_USER", firstInsertTime: "2026-04-01 09:30:41",
     lastUpdateUser: "BATCH_USER", lastUpdateTime: "2026-04-20 08:00:00",
     paidAmount: 0, balance: 920, revenue: 46,
@@ -216,7 +239,7 @@ export const invoices: InvoiceWithMatch[] = [
     bookingIds: ["bk-006"],
     receivedAmount: 360, paymentDate: "2026-04-02",
     matchStatus: "Full", disputedBookingIds: [], disputedAmount: 0,
-    billingType: "PREPAY", customerCompanyId: "comp-002",
+    billingType: "PREPAY", customerCompanyId: "comp-002", contractId: "ctr-002-sg", ohmyhotelEntityId: "omh-sg",
     firstInsertUser: "API_USER", firstInsertTime: "2026-03-26 08:55:19",
     lastUpdateUser: "API_USER", lastUpdateTime: "2026-04-02 11:20:10",
     paidAmount: 360, balance: 0, revenue: 18,
@@ -229,7 +252,7 @@ export const invoices: InvoiceWithMatch[] = [
     issuedDate: "2026-02-01", dueDate: "2026-02-28",
     bookingIds: [], receivedAmount: 35200, paymentDate: "2026-02-22",
     matchStatus: "Full", disputedBookingIds: [], disputedAmount: 0,
-    billingType: "POSTPAY", customerCompanyId: "comp-001",
+    billingType: "POSTPAY", customerCompanyId: "comp-001", contractId: "ctr-001-sg", ohmyhotelEntityId: "omh-sg",
     firstInsertUser: "BATCH_USER", firstInsertTime: "2026-02-01 01:00:40",
     lastUpdateUser: "James Park", lastUpdateTime: "2026-02-22 15:30:00",
     paidAmount: 35200, balance: 0, revenue: 1760,
@@ -241,10 +264,108 @@ export const invoices: InvoiceWithMatch[] = [
     bookingIds: [], receivedAmount: 0, paymentDate: "",
     matchStatus: "Unpaid", disputedBookingIds: [], disputedAmount: 0,
     remarks: "60+ days overdue — assign to collections team",
-    billingType: "POSTPAY", customerCompanyId: "comp-001",
+    billingType: "POSTPAY", customerCompanyId: "comp-001", contractId: "ctr-001-sg", ohmyhotelEntityId: "omh-sg",
     firstInsertUser: "BATCH_USER", firstInsertTime: "2025-11-01 01:00:40",
     lastUpdateUser: "Sarah Kim", lastUpdateTime: "2026-04-10 14:22:05",
     paidAmount: 0, balance: 29400, revenue: 1470,
+  },
+
+  /* ── GOTADI (comp-010) — POSTPAY multi-entity ── */
+  /* SG contract — international hotels (USD) */
+  {
+    invoiceNo: "INV-SG-2026-1101", period: "Mar 2026", status: "Paid",
+    supplyAmount: 5400, vat: 0, total: 5400, contractCurrency: "USD",
+    issuedDate: "2026-04-01", dueDate: "2026-04-30",
+    bookingIds: [], receivedAmount: 5400, paymentDate: "2026-04-12",
+    matchStatus: "Full", disputedBookingIds: [], disputedAmount: 0,
+    remarks: "International hotels (KR, JP) settled via OhMyHotel SG",
+    billingType: "POSTPAY", customerCompanyId: "comp-010",
+    contractId: "ctr-010-sg", ohmyhotelEntityId: "omh-sg",
+    firstInsertUser: "BATCH_USER", firstInsertTime: "2026-04-01 01:00:40",
+    lastUpdateUser: "API_USER", lastUpdateTime: "2026-04-12 09:18:23",
+    paidAmount: 5400, balance: 0, revenue: 270,
+  },
+  {
+    invoiceNo: "INV-SG-2026-1130", period: "Apr 2026", status: "Issued",
+    supplyAmount: 8200, vat: 0, total: 8200, contractCurrency: "USD",
+    issuedDate: "2026-05-01", dueDate: "2026-05-31",
+    bookingIds: [], receivedAmount: 0, paymentDate: "",
+    matchStatus: "Unpaid", disputedBookingIds: [], disputedAmount: 0,
+    billingType: "POSTPAY", customerCompanyId: "comp-010",
+    contractId: "ctr-010-sg", ohmyhotelEntityId: "omh-sg",
+    firstInsertUser: "BATCH_USER", firstInsertTime: "2026-05-01 01:00:40",
+    lastUpdateUser: "BATCH_USER", lastUpdateTime: "2026-05-01 02:01:11",
+    paidAmount: 0, balance: 8200, revenue: 410,
+  },
+  /* VN contract — Vietnam-local hotels (VND, domestic VAT 10%) */
+  {
+    invoiceNo: "INV-VN-2026-0420", period: "Mar 2026", status: "Paid",
+    supplyAmount: 408000000, vat: 40800000, total: 448800000, contractCurrency: "VND",
+    issuedDate: "2026-04-01", dueDate: "2026-04-30",
+    bookingIds: [], receivedAmount: 448800000, paymentDate: "2026-04-15",
+    matchStatus: "Full", disputedBookingIds: [], disputedAmount: 0,
+    remarks: "Vietnam hotels — domestic VAT 10% included · OhMyHotel VN",
+    billingType: "POSTPAY", customerCompanyId: "comp-010",
+    contractId: "ctr-010-vn", ohmyhotelEntityId: "omh-vn",
+    firstInsertUser: "BATCH_USER", firstInsertTime: "2026-04-01 01:00:40",
+    lastUpdateUser: "Tran Thuy Tien", lastUpdateTime: "2026-04-15 10:43:43",
+    paidAmount: 448800000, balance: 0, revenue: 22440000,
+  },
+  {
+    invoiceNo: "INV-VN-2026-0430", period: "Apr 2026", status: "Issued",
+    supplyAmount: 525000000, vat: 52500000, total: 577500000, contractCurrency: "VND",
+    issuedDate: "2026-05-01", dueDate: "2026-05-31",
+    bookingIds: [], receivedAmount: 0, paymentDate: "",
+    matchStatus: "Unpaid", disputedBookingIds: [], disputedAmount: 0,
+    remarks: "Vietnam hotels — domestic VAT 10% included · OhMyHotel VN",
+    billingType: "POSTPAY", customerCompanyId: "comp-010",
+    contractId: "ctr-010-vn", ohmyhotelEntityId: "omh-vn",
+    firstInsertUser: "BATCH_USER", firstInsertTime: "2026-05-01 01:00:40",
+    lastUpdateUser: "BATCH_USER", lastUpdateTime: "2026-05-01 02:01:11",
+    paidAmount: 0, balance: 577500000, revenue: 28875000,
+  },
+
+  /* ── Vietnam Vacation Co (comp-011) — PREPAY multi-entity ── */
+  /* SG contract — per-booking (international hotels) */
+  {
+    invoiceNo: "INV-SG-PRE-2026-3041", period: "Apr 2026", status: "Paid",
+    supplyAmount: 1200, vat: 0, total: 1200, contractCurrency: "USD",
+    issuedDate: "2026-04-10", dueDate: "2026-04-20",
+    bookingIds: [], receivedAmount: 1200, paymentDate: "2026-04-12",
+    matchStatus: "Full", disputedBookingIds: [], disputedAmount: 0,
+    remarks: "PREPAY · Per-booking · International (Bangkok hotel)",
+    billingType: "PREPAY", customerCompanyId: "comp-011",
+    contractId: "ctr-011-sg", ohmyhotelEntityId: "omh-sg",
+    firstInsertUser: "API_USER", firstInsertTime: "2026-04-10 14:22:18",
+    lastUpdateUser: "API_USER", lastUpdateTime: "2026-04-12 11:08:00",
+    paidAmount: 1200, balance: 0, revenue: 60,
+  },
+  {
+    invoiceNo: "INV-SG-PRE-2026-3055", period: "Apr 2026", status: "Issued",
+    supplyAmount: 2400, vat: 0, total: 2400, contractCurrency: "USD",
+    issuedDate: "2026-04-18", dueDate: "2026-04-28",
+    bookingIds: [], receivedAmount: 0, paymentDate: "",
+    matchStatus: "Unpaid", disputedBookingIds: [], disputedAmount: 0,
+    remarks: "PREPAY · Per-booking · International (Tokyo hotel) · payment due in 8 days",
+    billingType: "PREPAY", customerCompanyId: "comp-011",
+    contractId: "ctr-011-sg", ohmyhotelEntityId: "omh-sg",
+    firstInsertUser: "API_USER", firstInsertTime: "2026-04-18 09:35:42",
+    lastUpdateUser: "API_USER", lastUpdateTime: "2026-04-18 09:35:42",
+    paidAmount: 0, balance: 2400, revenue: 120,
+  },
+  /* VN contract — per-booking (Vietnam local hotels) */
+  {
+    invoiceNo: "INV-VN-PRE-2026-0512", period: "Apr 2026", status: "Issued",
+    supplyAmount: 30000000, vat: 3000000, total: 33000000, contractCurrency: "VND",
+    issuedDate: "2026-04-15", dueDate: "2026-04-25",
+    bookingIds: [], receivedAmount: 0, paymentDate: "",
+    matchStatus: "Unpaid", disputedBookingIds: [], disputedAmount: 0,
+    remarks: "PREPAY · Vietnam-local hotel · VAT 10% included · OhMyHotel VN",
+    billingType: "PREPAY", customerCompanyId: "comp-011",
+    contractId: "ctr-011-vn", ohmyhotelEntityId: "omh-vn",
+    firstInsertUser: "API_USER", firstInsertTime: "2026-04-15 11:20:00",
+    lastUpdateUser: "API_USER", lastUpdateTime: "2026-04-15 11:20:00",
+    paidAmount: 0, balance: 33000000, revenue: 1500000,
   },
 ];
 

@@ -30,6 +30,12 @@ const MOCK_USERS: { email: string; password: string; user: User }[] = [
   { email: "postpay@dotbiz.com", password: "postpay123", user: { email: "postpay@dotbiz.com", name: "Demo User", role: "Master", company: "TravelCo International", billingType: "POSTPAY" } },
   /* PREPAY 고객사 (Asia Tours Ltd.) */
   { email: "prepay@dotbiz.com", password: "prepay123", user: { email: "prepay@dotbiz.com", name: "Kevin Lee", role: "Master", company: "Asia Tours Ltd.", billingType: "PREPAY" } },
+
+  /* ── Multi-entity demo accounts (SG + VN contracts) ── */
+  /* GOTADI — POSTPAY with both SG and VN contracts */
+  { email: "gotadi@dotbiz.com", password: "gotadi123", user: { email: "gotadi@dotbiz.com", name: "Nguyen Van Minh", role: "Master", company: "GOTADI", billingType: "POSTPAY" } },
+  /* Vietnam Vacation Co — PREPAY with both SG and VN contracts */
+  { email: "vvc@dotbiz.com", password: "vvc123", user: { email: "vvc@dotbiz.com", name: "Tran Thi Hoa", role: "Master", company: "Vietnam Vacation Co", billingType: "PREPAY" } },
 ];
 
 const STORAGE_KEY = "dotbiz_auth";

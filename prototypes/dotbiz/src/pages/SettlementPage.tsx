@@ -20,6 +20,8 @@ import { billingDetails, invoices, accountsReceivable, disputeSummary } from "@/
 import { companies, currentCompany } from "@/mocks/companies";
 import { bookings as allBookings, type Booking } from "@/mocks/bookings";
 import { downloadCSV, timestamp } from "@/lib/download";
+import { contractsForCustomer, getContract, type Contract } from "@/mocks/contracts";
+import { getEntity } from "@/mocks/ohMyHotelEntities";
 import PaymentDialog from "@/components/PaymentDialog";
 import InvoicePreviewDialog, { type InvoiceData } from "@/components/InvoicePreviewDialog";
 import TopUpDepositDialog from "@/components/TopUpDepositDialog";
@@ -36,7 +38,23 @@ export default function SettlementPage() {
   const { hasRole, user } = useAuth();
   /* Resolve logged-in company from user (fallback to demo default) */
   const activeCompany = companies.find(c => c.name === user?.company) || currentCompany;
-  const isPrepay = activeCompany.billingType === "PREPAY";
+
+  /* Multi-entity contract handling */
+  const myContracts = useMemo<Contract[]>(() => contractsForCustomer(activeCompany.id), [activeCompany.id]);
+  const isMultiContract = myContracts.length > 1;
+  /* "all" = summary view across all contracts. Otherwise specific contract id. */
+  const [selectedContractId, setSelectedContractId] = useState<string>(isMultiContract ? "all" : (myContracts[0]?.id || "all"));
+  const selectedContract: Contract | null = selectedContractId === "all" ? null : (getContract(selectedContractId) || null);
+  const selectedEntity = selectedContract ? getEntity(selectedContract.ohmyhotelEntityId) : null;
+  /* When contract is selected, take its values; else fall back to company defaults (legacy) */
+  const effectiveBilling = selectedContract?.billingType || activeCompany.billingType;
+  const effectiveCurrency = selectedContract?.contractCurrency || activeCompany.contractCurrency;
+  const effectiveCycle = selectedContract?.settlementCycle || activeCompany.settlementCycle;
+  const effectiveDueDays = selectedContract?.paymentDueDays || activeCompany.paymentDueDays;
+  const effectiveDepositType = selectedContract?.depositType || activeCompany.depositType;
+  const effectiveDepositAmount = selectedContract?.depositAmount ?? activeCompany.depositAmount;
+
+  const isPrepay = effectiveBilling === "PREPAY";
 
   /* PREPAY: 미결제 예약 (TL 미도래 + 데드라인 임박) */
   const pendingPayments = useMemo(() => {
@@ -125,7 +143,11 @@ export default function SettlementPage() {
   const [billDateTo, setBillDateTo] = useState("");
 
   /* Tenant-scope: only this customer's bills */
-  const myBills = useMemo(() => billingDetails.filter(b => b.customerCompanyId === activeCompany.id), [activeCompany.id]);
+  const myBills = useMemo(() => billingDetails.filter(b => {
+    if (b.customerCompanyId !== activeCompany.id) return false;
+    if (selectedContractId !== "all" && b.contractId !== selectedContractId) return false;
+    return true;
+  }), [activeCompany.id, selectedContractId]);
 
   const filteredBills = useMemo(() => {
     let result = [...myBills];
@@ -179,7 +201,11 @@ export default function SettlementPage() {
    * PREPAY 고객 → 자기 예약별 인보이스
    * POSTPAY 고객 → 자기 월별 집계 인보이스
    */
-  const myInvoices = useMemo(() => invoices.filter(i => i.customerCompanyId === activeCompany.id), [activeCompany.id]);
+  const myInvoices = useMemo(() => invoices.filter(i => {
+    if (i.customerCompanyId !== activeCompany.id) return false;
+    if (selectedContractId !== "all" && i.contractId !== selectedContractId) return false;
+    return true;
+  }), [activeCompany.id, selectedContractId]);
   const myTopUps = useMemo(() => topUpRequests.filter(t => t.customerCompanyId === activeCompany.id), [activeCompany.id, topUpOpen]);
   const filteredInvoices = useMemo(() => {
     if (invStatus === "All") return myInvoices;
@@ -210,22 +236,48 @@ export default function SettlementPage() {
         <div className="space-y-1">
           <div className="flex items-center gap-2 flex-wrap">
             <h1 className="text-2xl font-bold">{t("page.settlement")}</h1>
-            <Badge variant="outline" className="bg-orange-50 dark:bg-orange-900/20 text-orange-700 dark:text-orange-300 border-orange-300">
-              {activeCompany.billingType}
-              {activeCompany.billingType === "POSTPAY" && activeCompany.settlementCycle && ` · ${activeCompany.settlementCycle}`}
-            </Badge>
+            {selectedContractId !== "all" && (
+              <Badge variant="outline" className="bg-orange-50 dark:bg-orange-900/20 text-orange-700 dark:text-orange-300 border-orange-300">
+                {effectiveBilling}
+                {effectiveBilling === "POSTPAY" && effectiveCycle && ` · ${effectiveCycle}`}
+              </Badge>
+            )}
+            {selectedEntity && (
+              <Badge variant="outline" className="text-[10px]">{selectedEntity.countryFlag} {selectedEntity.shortName}</Badge>
+            )}
           </div>
           <p className="text-sm text-muted-foreground">
             {activeCompany.name}
-            {activeCompany.billingType === "POSTPAY" && (
-              <span className="ml-1">· Settles <strong>{activeCompany.settlementCycle?.toLowerCase()}</strong>, payment due <strong>Net-{activeCompany.paymentDueDays}</strong> after invoice issue</span>
+            {selectedContract && effectiveBilling === "POSTPAY" && (
+              <span className="ml-1">· Settles <strong>{effectiveCycle?.toLowerCase()}</strong>, payment due <strong>Net-{effectiveDueDays}</strong> after invoice issue</span>
             )}
           </p>
         </div>
 
-        {/* Quick KPI */}
-        <div className="flex items-center gap-2 text-xs">
-          <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border">
+        {/* Right side: Contract selector (only when multi-contract) + KPI */}
+        <div className="flex items-center gap-3 flex-wrap">
+          {isMultiContract && (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">Contract:</span>
+              <select
+                value={selectedContractId}
+                onChange={e => setSelectedContractId(e.target.value)}
+                className="border rounded px-2 py-1.5 text-sm bg-background min-w-[280px]"
+                aria-label="Contract selector"
+              >
+                <option value="all">📊 All contracts (Summary)</option>
+                {myContracts.map(c => {
+                  const ent = getEntity(c.ohmyhotelEntityId);
+                  return (
+                    <option key={c.id} value={c.id}>
+                      {ent.countryFlag} {ent.shortName} · {c.contractCurrency} · {c.billingType}
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
+          )}
+          <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border text-xs">
             <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
             <span><strong>{disputeSummary.openCount}</strong> open disputes</span>
             <span className="text-muted-foreground">· ${disputeSummary.openAmount.toLocaleString()}</span>
@@ -233,10 +285,59 @@ export default function SettlementPage() {
         </div>
       </div>
 
-      {/* Deposit Utilization Card (POSTPAY only) — type-aware CTA */}
-      {activeCompany.billingType === "POSTPAY" && activeCompany.depositType && (() => {
-        const depositType = activeCompany.depositType;
-        const deposit = activeCompany.depositAmount || 0;
+      {/* Multi-contract summary banner (shown when "All contracts" selected) */}
+      {isMultiContract && selectedContractId === "all" && (
+        <Card className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20 border-blue-200">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="text-base font-bold">{activeCompany.name} — {myContracts.length} active contracts</span>
+            <Badge variant="outline" className="text-[10px]">SUMMARY VIEW</Badge>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {myContracts.map(c => {
+              const ent = getEntity(c.ohmyhotelEntityId);
+              const ctrInvoices = invoices.filter(i => i.contractId === c.id);
+              const ctrTotal = ctrInvoices.reduce((s, i) => s + i.total, 0);
+              const ctrOutstanding = ctrInvoices.filter(i => i.matchStatus !== "Full" && i.matchStatus !== "Reconciled").reduce((s, i) => s + (i.total - i.receivedAmount), 0);
+              return (
+                <div
+                  key={c.id}
+                  onClick={() => setSelectedContractId(c.id)}
+                  className="p-3 bg-white dark:bg-slate-900 rounded-md cursor-pointer border hover:border-orange-400 transition-colors"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="text-xl">{ent.countryFlag}</span>
+                    <div className="flex-1">
+                      <p className="font-semibold text-sm">{ent.shortName}</p>
+                      <p className="text-[10px] text-muted-foreground">{c.contractCurrency} · {c.billingType}{c.billingType === "POSTPAY" && c.settlementCycle ? ` · ${c.settlementCycle}` : ""}</p>
+                    </div>
+                    <Badge variant="outline" className="text-[9px] uppercase">{c.scope.type === "LOCAL" ? `Local (${c.scope.countries.join(",")})` : "International"}</Badge>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 mt-3 text-[10px]">
+                    <div>
+                      <p className="text-muted-foreground">Invoices</p>
+                      <p className="font-bold font-mono">{ctrInvoices.length}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Total Issued</p>
+                      <p className="font-bold font-mono">{c.contractCurrency} {ctrTotal.toLocaleString()}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Outstanding</p>
+                      <p className={`font-bold font-mono ${ctrOutstanding > 0 ? "text-amber-600" : "text-green-600"}`}>{c.contractCurrency} {ctrOutstanding.toLocaleString()}</p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <p className="text-[10px] text-muted-foreground mt-2 italic">Click a contract card to see its invoices, billing details, and deposit utilization.</p>
+        </Card>
+      )}
+
+      {/* Deposit Utilization Card (POSTPAY only, single-contract view only) — type-aware CTA */}
+      {selectedContractId !== "all" && effectiveBilling === "POSTPAY" && effectiveDepositType && (() => {
+        const depositType = effectiveDepositType;
+        const deposit = effectiveDepositAmount || 0;
 
         /* Per-type behavior */
         const config: Record<string, { subtitle: string; ctaLabel: string; ctaToast: { title: string; description: string }; ctaColor: string; lowMsg: string; midMsg: string }> = {
@@ -855,12 +956,14 @@ export default function SettlementPage() {
         }}
       />
 
-      {/* Top-Up Deposit Dialog (Floating Deposit only) */}
+      {/* Top-Up Deposit Dialog (Floating Deposit only, contract-aware) */}
       <TopUpDepositDialog
         open={topUpOpen}
         onOpenChange={setTopUpOpen}
         customer={activeCompany}
-        currentBalance={Math.max(0, (activeCompany.depositAmount || 0) - myInvoices.filter(i => i.matchStatus !== "Full" && i.matchStatus !== "Reconciled").reduce((s, i) => s + (i.total - i.receivedAmount), 0))}
+        entity={selectedEntity || undefined}
+        currency={effectiveCurrency}
+        currentBalance={Math.max(0, (effectiveDepositAmount || 0) - myInvoices.filter(i => i.matchStatus !== "Full" && i.matchStatus !== "Reconciled").reduce((s, i) => s + (i.total - i.receivedAmount), 0))}
       />
 
       <StateToolbar state={state} setState={setState} />

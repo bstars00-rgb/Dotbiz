@@ -6,8 +6,9 @@ Specs for features that **DOTBIZ has** but **ELLIS does not yet implement**. Eac
 
 | Spec | What it covers |
 |---|---|
+| [MultiEntity.md](./MultiEntity.md) | 5 OhMyHotel legal entities · customer × entity contracts · booking-to-contract routing (VN local vs SG international) |
 | [Deposit.md](./Deposit.md) | 6 deposit types · utilization calculation · booking-time enforcement · ledger model |
-| [TopUpDeposit.md](./TopUpDeposit.md) | Floating Deposit top-up flow with unique reference code (TUP-YYYYMMDD-XXXX) for auto-attribution |
+| [TopUpDeposit.md](./TopUpDeposit.md) | Floating Deposit top-up flow with unique reference code (TUP-{ENTITY}-YYYYMMDD-XXXX) for auto-attribution |
 | [DisputeResolution.md](./DisputeResolution.md) | Authority model (customer raises ticket, admin marks disputed) · lifecycle · APIs · notifications |
 | [BankReconciliation.md](./BankReconciliation.md) | Backend-only · CSV upload + bank API · subset-sum auto-match algorithm |
 

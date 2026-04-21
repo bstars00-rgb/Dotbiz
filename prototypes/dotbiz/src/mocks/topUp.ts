@@ -73,12 +73,15 @@ export const ohMyHotelBankInfo = {
   bankAddress: "8 Marina View, #21-00 Asia Square Tower 1, Singapore 018960",
 };
 
-/* Utility — generate a fresh ref code */
-export function generateRefCode(): string {
+/* Utility — generate a fresh ref code, optionally with entity prefix.
+ * Format: TUP-{ENTITY}-YYYYMMDD-XXXX (e.g. TUP-SG-20260420-A4F7, TUP-VN-…)
+ * If no prefix passed, omits entity segment (legacy single-entity format). */
+export function generateRefCode(entityPrefix?: string): string {
   const d = new Date();
   const yyyy = d.getFullYear();
   const mm = String(d.getMonth() + 1).padStart(2, "0");
   const dd = String(d.getDate()).padStart(2, "0");
   const rand = Math.random().toString(36).substring(2, 6).toUpperCase();
-  return `TUP-${yyyy}${mm}${dd}-${rand}`;
+  const prefix = entityPrefix ? `${entityPrefix}-` : "";
+  return `TUP-${prefix}${yyyy}${mm}${dd}-${rand}`;
 }

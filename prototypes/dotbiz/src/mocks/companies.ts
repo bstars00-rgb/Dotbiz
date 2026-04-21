@@ -63,6 +63,25 @@ export const companies: Company[] = [
     contractDate: "2025-03-10", ellisSyncDate: "2026-04-15",
     contractCurrency: "USD", country: "Vietnam",
   },
+  /* ── NEW multi-entity demo customers ── */
+  {
+    id: "comp-010", name: "GOTADI", businessRegNo: "0315647892",
+    businessType: "Postpaid", billingType: "POSTPAY",
+    address: "194 Hoa Hung, Ward 13, District 10, Ho Chi Minh City, Vietnam",
+    phone: "+84-28-3864-7892", email: "ops@gotadi.vn",
+    contractDate: "2025-08-01", ellisSyncDate: "2026-04-20",
+    depositType: "Floating Deposit", depositAmount: 40000, settlementCycle: "Bi-weekly", paymentDueDays: 14,
+    contractCurrency: "USD", country: "Vietnam",
+  },
+  {
+    id: "comp-011", name: "Vietnam Vacation Co", businessRegNo: "0412987456",
+    businessType: "Prepaid", billingType: "PREPAY",
+    address: "72 Ly Thuong Kiet, Hoan Kiem, Hanoi, Vietnam",
+    phone: "+84-24-3934-5678", email: "billing@vnvacation.com",
+    contractDate: "2025-11-15", ellisSyncDate: "2026-04-20",
+    contractCurrency: "USD", country: "Vietnam",
+  },
+
   {
     id: "comp-006", name: "Lion City Travel Pte Ltd", businessRegNo: "201312345K",
     businessType: "Postpaid", billingType: "POSTPAY",
