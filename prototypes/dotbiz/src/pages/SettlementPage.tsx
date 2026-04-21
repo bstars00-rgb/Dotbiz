@@ -21,6 +21,8 @@ import { companies, currentCompany } from "@/mocks/companies";
 import { bookings as allBookings, type Booking } from "@/mocks/bookings";
 import PaymentDialog from "@/components/PaymentDialog";
 import InvoicePreviewDialog, { type InvoiceData } from "@/components/InvoicePreviewDialog";
+import TopUpDepositDialog from "@/components/TopUpDepositDialog";
+import { topUpRequests } from "@/mocks/topUp";
 import { toast } from "sonner";
 
 const billStatusColors: Record<string, string> = { Settled: "default", Pending: "secondary", Overdue: "destructive" };
@@ -89,6 +91,7 @@ export default function SettlementPage() {
   const selectedPendingItems = filteredPending.filter(p => pendingSelected.has(p.id));
   const selectedPendingTotal = selectedPendingItems.reduce((s, p) => s + p.sumAmount, 0);
   const [bulkPayOpen, setBulkPayOpen] = useState(false);
+  const [topUpOpen, setTopUpOpen] = useState(false);
 
   /* Force-refresh state after mock mutations */
   const [, forceUpdate] = useState(0);
@@ -149,6 +152,7 @@ export default function SettlementPage() {
    * POSTPAY 고객 → 자기 월별 집계 인보이스
    */
   const myInvoices = useMemo(() => invoices.filter(i => i.customerCompanyId === activeCompany.id), [activeCompany.id]);
+  const myTopUps = useMemo(() => topUpRequests.filter(t => t.customerCompanyId === activeCompany.id), [activeCompany.id, topUpOpen]);
   const filteredInvoices = useMemo(() => {
     if (invStatus === "All") return myInvoices;
     return myInvoices.filter(i => i.status === invStatus);
@@ -273,7 +277,7 @@ export default function SettlementPage() {
                     <p className="text-xs text-muted-foreground">{cfg.subtitle} · No collateral on file with OhMyHotel</p>
                   </div>
                 </div>
-                <Button size="sm" className="text-white" style={{ background: cfg.ctaColor }} onClick={() => toast.success(cfg.ctaToast.title, { description: cfg.ctaToast.description })}>
+                <Button size="sm" className="text-white" style={{ background: cfg.ctaColor }} onClick={() => { if (depositType === "Floating Deposit") setTopUpOpen(true); else toast.success(cfg.ctaToast.title, { description: cfg.ctaToast.description }); }}>
                   <CreditCard className="h-3 w-3 mr-1" />{cfg.ctaLabel}
                 </Button>
               </div>
@@ -344,7 +348,7 @@ export default function SettlementPage() {
                 <AlertTitle className="text-red-900 dark:text-red-100">Limit running low — only {availPct}% available</AlertTitle>
                 <AlertDescription className="text-xs text-red-800 dark:text-red-200 flex items-center justify-between gap-3 flex-wrap mt-1">
                   <span>{cfg.lowMsg}</span>
-                  <Button size="sm" className="text-white shrink-0" style={{ background: cfg.ctaColor }} onClick={() => toast.success(cfg.ctaToast.title, { description: cfg.ctaToast.description })}>
+                  <Button size="sm" className="text-white shrink-0" style={{ background: cfg.ctaColor }} onClick={() => { if (depositType === "Floating Deposit") setTopUpOpen(true); else toast.success(cfg.ctaToast.title, { description: cfg.ctaToast.description }); }}>
                     <CreditCard className="h-3 w-3 mr-1" />{cfg.ctaLabel}
                   </Button>
                 </AlertDescription>
@@ -356,9 +360,35 @@ export default function SettlementPage() {
                   <AlertTriangle className="h-3 w-3" />
                   {cfg.midMsg} (<strong>{availPct}%</strong> available)
                 </p>
-                <Button size="sm" variant="outline" onClick={() => toast.success(cfg.ctaToast.title, { description: cfg.ctaToast.description })}>
+                <Button size="sm" variant="outline" onClick={() => { if (depositType === "Floating Deposit") setTopUpOpen(true); else toast.success(cfg.ctaToast.title, { description: cfg.ctaToast.description }); }}>
                   <CreditCard className="h-3 w-3 mr-1" />{cfg.ctaLabel}
                 </Button>
+              </div>
+            )}
+
+            {/* Recent Top-Up requests (Floating Deposit only) */}
+            {depositType === "Floating Deposit" && myTopUps.length > 0 && (
+              <div className="mt-4 pt-4 border-t">
+                <p className="text-xs font-bold uppercase text-muted-foreground mb-2">Recent Top-Up Requests</p>
+                <div className="space-y-1.5">
+                  {myTopUps.slice(0, 3).map(t => {
+                    const statusBg = t.status === "Confirmed" ? "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-200"
+                      : t.status === "Pending" ? "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200"
+                      : t.status === "Manual Review" ? "bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-200"
+                      : "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300";
+                    return (
+                      <div key={t.id} className="flex items-center gap-3 text-xs py-1.5 px-2 rounded hover:bg-muted/50">
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-medium ${statusBg}`}>{t.status}</span>
+                        <span className="font-mono text-[#FF6000]">{t.refCode}</span>
+                        <span className="font-mono">{t.currency} {t.requestedAmount.toLocaleString()}</span>
+                        <span className="text-muted-foreground ml-auto">{t.requestedAt.split(" ")[0]}</span>
+                        {t.status === "Confirmed" && t.confirmedAt && (
+                          <span className="text-[10px] text-green-600">✓ {t.confirmedAt.split(" ")[0]}</span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
           </Card>
@@ -773,6 +803,14 @@ export default function SettlementPage() {
           setBulkPayOpen(false);
           refresh();
         }}
+      />
+
+      {/* Top-Up Deposit Dialog (Floating Deposit only) */}
+      <TopUpDepositDialog
+        open={topUpOpen}
+        onOpenChange={setTopUpOpen}
+        customer={activeCompany}
+        currentBalance={Math.max(0, (activeCompany.depositAmount || 0) - myInvoices.filter(i => i.matchStatus !== "Full" && i.matchStatus !== "Reconciled").reduce((s, i) => s + (i.total - i.receivedAmount), 0))}
       />
 
       <StateToolbar state={state} setState={setState} />
