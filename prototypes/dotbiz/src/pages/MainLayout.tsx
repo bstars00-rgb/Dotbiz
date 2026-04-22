@@ -539,8 +539,24 @@ export default function MainLayout() {
 
       {/* Body */}
       <div className="flex flex-1 min-h-0">
-        {/* Sidebar — slide out to hide, hidden on mobile */}
-        <nav className={`w-60 border-r hidden md:flex flex-col shrink-0 bg-card transition-all duration-300 overflow-hidden ${sidebarHidden ? "!w-0 !border-0 !p-0" : ""}`} role="navigation">
+        {/* Collapsed rail — thin 40px sidebar showing just the expand button.
+         * VSCode-style. Keeps the toggle anchored to the sidebar visually
+         * and doesn't overlap page content. */}
+        {!isMobile && sidebarHidden && (
+          <div className="w-10 border-r bg-card shrink-0 hidden md:flex flex-col items-center pt-3">
+            <button
+              onClick={() => { setSidebarHidden(false); localStorage.setItem("dotbiz_sidebar", "visible"); }}
+              className="h-8 w-8 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+              aria-label="Expand sidebar"
+              title="Expand sidebar"
+            >
+              <PanelLeftOpen className="h-4 w-4" />
+            </button>
+          </div>
+        )}
+
+        {/* Sidebar — hidden when collapsed (rail above takes its place) */}
+        <nav className={`w-60 border-r flex-col shrink-0 bg-card ${sidebarHidden ? "hidden" : "hidden md:flex"}`} role="navigation">
           {/* Logo + Collapse button */}
           <div className="p-3 flex items-center gap-2 whitespace-nowrap">
             <div className="flex items-center gap-3 flex-1 cursor-pointer" onClick={() => navigate("/app/dashboard")}>
@@ -612,18 +628,7 @@ export default function MainLayout() {
         </nav>
 
         {/* Content */}
-        <main className="flex-1 overflow-auto flex flex-col relative">
-          {/* Floating expand button — only visible when sidebar is collapsed (desktop) */}
-          {!isMobile && sidebarHidden && (
-            <button
-              onClick={() => { setSidebarHidden(false); localStorage.setItem("dotbiz_sidebar", "visible"); }}
-              className="absolute top-3 left-3 z-40 h-8 w-8 rounded-md bg-card border shadow-sm flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-              aria-label="Expand sidebar"
-              title="Expand sidebar"
-            >
-              <PanelLeftOpen className="h-4 w-4" />
-            </button>
-          )}
+        <main className="flex-1 overflow-auto flex flex-col">
           <div className="flex-1">
             <AnimatePresence mode="wait">
               <PageTransition key={location.pathname}>
