@@ -21,19 +21,62 @@ import { useI18n } from "@/contexts/I18nContext";
 import type { Locale } from "@/i18n/strings";
 import { currentUser } from "@/mocks/users";
 
-const navItems = [
-  { i18nKey: "nav.findHotel", label: "Find Hotel", icon: Search, path: "/app/find-hotel" },
-  { i18nKey: "nav.dashboard", label: "Dashboard", icon: LayoutDashboard, path: "/app/dashboard" },
-  { i18nKey: "nav.bookings", label: "Bookings", icon: CalendarCheck, path: "/app/bookings" },
-  { i18nKey: "nav.settlement", label: "Settlement", icon: Wallet, path: "/app/settlement", roles: ["Master"] },
-  { i18nKey: "nav.clientMgmt", label: "Client Mgmt", icon: Users, path: "/app/client", roles: ["Master"] },
-  { i18nKey: "nav.tickets", label: "Tickets", icon: Ticket, path: "/app/tickets" },
-  { i18nKey: "nav.notifications", label: "Notifications", icon: Bell, path: "/app/notifications" },
-  { i18nKey: "nav.faq", label: "FAQ Board", icon: HelpCircle, path: "/app/faq" },
-  { i18nKey: "nav.myAccount", label: "My Account", icon: User, path: "/app/my-account" },
-  { i18nKey: "nav.rewards", label: "Rewards Mall", icon: Gift, path: "/app/rewards" },
-  { i18nKey: "nav.blog", label: "OhMy Blog", icon: Pen, path: "/app/blog" },
+/* Sidebar grouped into 3 sections based on usage pattern:
+ *   WORK      — daily operations (most used, top of sidebar)
+ *   ADMIN     — management + personal settings
+ *   RESOURCES — reference content (least clicked, bottom)
+ *
+ * Kept as a flat `navItems` export for any code that looks it up by path,
+ * with a parallel `navSections` structure driving the sidebar layout.
+ */
+interface NavItem {
+  i18nKey: string;
+  label: string;
+  icon: typeof Search;
+  path: string;
+  roles?: string[];
+}
+interface NavSection {
+  id: "work" | "admin" | "resources";
+  i18nKey: string;
+  label: string;
+  items: NavItem[];
+}
+const navSections: NavSection[] = [
+  {
+    id: "work",
+    i18nKey: "nav.section.work",
+    label: "Work",
+    items: [
+      { i18nKey: "nav.dashboard",   label: "Dashboard",   icon: LayoutDashboard, path: "/app/dashboard" },
+      { i18nKey: "nav.findHotel",   label: "Find Hotel",  icon: Search,          path: "/app/find-hotel" },
+      { i18nKey: "nav.bookings",    label: "Bookings",    icon: CalendarCheck,   path: "/app/bookings" },
+      { i18nKey: "nav.settlement",  label: "Settlement",  icon: Wallet,          path: "/app/settlement", roles: ["Master"] },
+      { i18nKey: "nav.tickets",     label: "Tickets",     icon: Ticket,          path: "/app/tickets" },
+    ],
+  },
+  {
+    id: "admin",
+    i18nKey: "nav.section.admin",
+    label: "Admin",
+    items: [
+      { i18nKey: "nav.clientMgmt",    label: "Client Mgmt",   icon: Users, path: "/app/client", roles: ["Master"] },
+      { i18nKey: "nav.notifications", label: "Notifications", icon: Bell,  path: "/app/notifications" },
+      { i18nKey: "nav.myAccount",     label: "My Account",    icon: User,  path: "/app/my-account" },
+    ],
+  },
+  {
+    id: "resources",
+    i18nKey: "nav.section.resources",
+    label: "Resources",
+    items: [
+      { i18nKey: "nav.faq",     label: "FAQ Board",    icon: HelpCircle, path: "/app/faq" },
+      { i18nKey: "nav.blog",    label: "OhMy Blog",    icon: Pen,        path: "/app/blog" },
+      { i18nKey: "nav.rewards", label: "Rewards Mall", icon: Gift,       path: "/app/rewards" },
+    ],
+  },
 ];
+const navItems: NavItem[] = navSections.flatMap(s => s.items);
 
 export default function MainLayout() {
   const navigate = useNavigate();
@@ -385,19 +428,30 @@ export default function MainLayout() {
               <span className="text-xl font-bold font-heading" style={{ color: "#FF6000" }}>DOTBIZ</span>
             </SheetTitle>
           </SheetHeader>
-          <div className="flex flex-col gap-1 px-2 py-2 flex-1">
-            {navItems.map(item => {
-              if (item.roles && !hasRole(item.roles)) return null;
-              const active = isActive(item.path);
+          <div className="flex flex-col gap-3 px-2 py-2 flex-1 overflow-y-auto">
+            {navSections.map((section, idx) => {
+              const visible = section.items.filter(item => !item.roles || hasRole(item.roles));
+              if (visible.length === 0) return null;
               return (
-                <button
-                  key={item.path}
-                  onClick={() => { navigate(item.path); setMobileNavOpen(false); }}
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors text-left ${active ? "bg-primary text-primary-foreground" : "hover:bg-accent text-foreground"}`}
-                >
-                  <item.icon className="h-4 w-4" aria-hidden="true" />
-                  {t(item.i18nKey)}
-                </button>
+                <div key={section.id} className="flex flex-col gap-1">
+                  {idx > 0 && <Separator className="mb-1" />}
+                  <p className="px-3 pt-1 text-[10px] uppercase tracking-wider font-semibold text-muted-foreground/70">
+                    {t(section.i18nKey)}
+                  </p>
+                  {visible.map(item => {
+                    const active = isActive(item.path);
+                    return (
+                      <button
+                        key={item.path}
+                        onClick={() => { navigate(item.path); setMobileNavOpen(false); }}
+                        className={`flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors text-left ${active ? "bg-primary text-primary-foreground" : "hover:bg-accent text-foreground"}`}
+                      >
+                        <item.icon className="h-4 w-4" aria-hidden="true" />
+                        {t(item.i18nKey)}
+                      </button>
+                    );
+                  })}
+                </div>
               );
             })}
           </div>
@@ -434,20 +488,31 @@ export default function MainLayout() {
             </div>
             <span className="text-xl font-bold font-heading" style={{ color: "#FF6000" }}>DOTBIZ</span>
           </div>
-          {/* Nav items */}
-          <div className="flex flex-col gap-1 px-2">
-            {navItems.map(item => {
-              if (item.roles && !hasRole(item.roles)) return null;
-              const active = isActive(item.path);
+          {/* Nav items — grouped by section */}
+          <div className="flex flex-col gap-3 px-2 overflow-y-auto">
+            {navSections.map((section, idx) => {
+              const visible = section.items.filter(item => !item.roles || hasRole(item.roles));
+              if (visible.length === 0) return null;
               return (
-                <button
-                  key={item.path}
-                  onClick={() => navigate(item.path)}
-                  className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors text-left whitespace-nowrap ${active ? "bg-primary text-primary-foreground" : "hover:bg-accent text-foreground"}`}
-                >
-                  <item.icon className="h-4 w-4 shrink-0" aria-hidden="true" />
-                  {t(item.i18nKey)}
-                </button>
+                <div key={section.id} className="flex flex-col gap-1">
+                  {idx > 0 && <Separator className="mb-1" />}
+                  <p className="px-3 pt-1 text-[10px] uppercase tracking-wider font-semibold text-muted-foreground/70 whitespace-nowrap">
+                    {t(section.i18nKey)}
+                  </p>
+                  {visible.map(item => {
+                    const active = isActive(item.path);
+                    return (
+                      <button
+                        key={item.path}
+                        onClick={() => navigate(item.path)}
+                        className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors text-left whitespace-nowrap ${active ? "bg-primary text-primary-foreground" : "hover:bg-accent text-foreground"}`}
+                      >
+                        <item.icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+                        {t(item.i18nKey)}
+                      </button>
+                    );
+                  })}
+                </div>
               );
             })}
           </div>
