@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { AnimatePresence } from "framer-motion";
 import PageTransition from "@/components/PageTransition";
 import Footer from "@/components/Footer";
-import { Search, Moon, Sun, Bell, User, LogOut, LayoutDashboard, CalendarCheck, Wallet, HelpCircle, Gift, Pen, Menu, Users, Ticket, Heart, Phone, ChevronDown, ChevronRight, PieChart, UserCog, Network, ArrowRightLeft } from "lucide-react";
+import { Search, Moon, Sun, Bell, User, LogOut, LayoutDashboard, CalendarCheck, Wallet, HelpCircle, Gift, Pen, Menu, Users, Ticket, Heart, Phone, ChevronDown, ChevronRight, PieChart, UserCog, Network, ArrowRightLeft, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { creditSummary } from "@/mocks/clientManagement";
 import { currentCompany } from "@/mocks/companies";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
@@ -225,13 +225,13 @@ export default function MainLayout() {
     <div className="flex flex-col h-full">
       {/* Top Bar (DIDA style) */}
       <header ref={headerRef} className="flex items-center h-12 px-4 gap-1 shrink-0 text-white relative" style={{ background: "linear-gradient(90deg, #1a1a2e, #16213e)" }} role="banner">
-        {/* Left: Menu toggle + Logo + Nav */}
-        {isMobile ? (
+        {/* Left: Menu toggle (mobile only — opens the sheet).
+         * Desktop: sidebar has its own PanelLeftClose button at the top,
+         * and a floating PanelLeftOpen button appears in the main area
+         * when the sidebar is hidden. This keeps the toggle action
+         * visually attached to the sidebar it controls. */}
+        {isMobile && (
           <Button variant="ghost" size="icon" onClick={() => setMobileNavOpen(true)} aria-label="Open menu" className="text-white hover:bg-white/10">
-            <Menu className="h-5 w-5" />
-          </Button>
-        ) : (
-          <Button variant="ghost" size="icon" onClick={() => { const next = !sidebarHidden; setSidebarHidden(next); localStorage.setItem("dotbiz_sidebar", next ? "hidden" : "visible"); }} aria-label="Toggle sidebar" className="text-white hover:bg-white/10 mr-1">
             <Menu className="h-5 w-5" />
           </Button>
         )}
@@ -541,15 +541,26 @@ export default function MainLayout() {
       <div className="flex flex-1 min-h-0">
         {/* Sidebar — slide out to hide, hidden on mobile */}
         <nav className={`w-60 border-r hidden md:flex flex-col shrink-0 bg-card transition-all duration-300 overflow-hidden ${sidebarHidden ? "!w-0 !border-0 !p-0" : ""}`} role="navigation">
-          {/* Logo */}
-          <div className="p-4 cursor-pointer flex items-center gap-3 whitespace-nowrap" onClick={() => navigate("/app/dashboard")}>
-            <div className="relative w-9 h-9 shrink-0">
-              <div className="absolute inset-0 rounded-full" style={{ background: "conic-gradient(from 180deg, #FF6000, #FF8C00, #FFCF8F, #FF6000)" }} />
-              <div className="absolute inset-[2px] rounded-full bg-white dark:bg-slate-800 flex items-center justify-center">
-                <svg viewBox="0 0 24 24" className="w-4.5 h-4.5" fill="none"><path d="M12 3C7.5 3 4 6.5 4 11c0 3 1.5 5.5 4 7l1-2c-2-1-3-3-3-5 0-3.3 2.7-6 6-6s6 2.7 6 6c0 2-1 3.8-2.5 5l1 2c2.3-1.5 3.5-4 3.5-7 0-4.5-3.5-8-8-8z" fill="#FF6000" /><circle cx="12" cy="4" r="2.5" fill="#009505" /></svg>
+          {/* Logo + Collapse button */}
+          <div className="p-3 flex items-center gap-2 whitespace-nowrap">
+            <div className="flex items-center gap-3 flex-1 cursor-pointer" onClick={() => navigate("/app/dashboard")}>
+              <div className="relative w-9 h-9 shrink-0">
+                <div className="absolute inset-0 rounded-full" style={{ background: "conic-gradient(from 180deg, #FF6000, #FF8C00, #FFCF8F, #FF6000)" }} />
+                <div className="absolute inset-[2px] rounded-full bg-white dark:bg-slate-800 flex items-center justify-center">
+                  <svg viewBox="0 0 24 24" className="w-4.5 h-4.5" fill="none"><path d="M12 3C7.5 3 4 6.5 4 11c0 3 1.5 5.5 4 7l1-2c-2-1-3-3-3-5 0-3.3 2.7-6 6-6s6 2.7 6 6c0 2-1 3.8-2.5 5l1 2c2.3-1.5 3.5-4 3.5-7 0-4.5-3.5-8-8-8z" fill="#FF6000" /><circle cx="12" cy="4" r="2.5" fill="#009505" /></svg>
+                </div>
               </div>
+              <span className="text-xl font-bold font-heading" style={{ color: "#FF6000" }}>DOTBIZ</span>
             </div>
-            <span className="text-xl font-bold font-heading" style={{ color: "#FF6000" }}>DOTBIZ</span>
+            {/* Collapse sidebar */}
+            <button
+              onClick={() => { setSidebarHidden(true); localStorage.setItem("dotbiz_sidebar", "hidden"); }}
+              className="h-8 w-8 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors shrink-0"
+              aria-label="Collapse sidebar"
+              title="Collapse sidebar"
+            >
+              <PanelLeftClose className="h-4 w-4" />
+            </button>
           </div>
           {/* Nav items — grouped by section */}
           <div className="flex flex-col gap-3 px-2 overflow-y-auto">
@@ -601,7 +612,18 @@ export default function MainLayout() {
         </nav>
 
         {/* Content */}
-        <main className="flex-1 overflow-auto flex flex-col">
+        <main className="flex-1 overflow-auto flex flex-col relative">
+          {/* Floating expand button — only visible when sidebar is collapsed (desktop) */}
+          {!isMobile && sidebarHidden && (
+            <button
+              onClick={() => { setSidebarHidden(false); localStorage.setItem("dotbiz_sidebar", "visible"); }}
+              className="absolute top-3 left-3 z-40 h-8 w-8 rounded-md bg-card border shadow-sm flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+              aria-label="Expand sidebar"
+              title="Expand sidebar"
+            >
+              <PanelLeftOpen className="h-4 w-4" />
+            </button>
+          )}
           <div className="flex-1">
             <AnimatePresence mode="wait">
               <PageTransition key={location.pathname}>
