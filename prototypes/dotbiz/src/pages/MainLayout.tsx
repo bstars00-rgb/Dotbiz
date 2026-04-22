@@ -539,11 +539,10 @@ export default function MainLayout() {
 
       {/* Body */}
       <div className="flex flex-1 min-h-0">
-        {/* Collapsed rail — thin 40px sidebar showing just the expand button.
-         * VSCode-style. Keeps the toggle anchored to the sidebar visually
-         * and doesn't overlap page content. */}
+        {/* Sidebar — either full (w-60) or collapsed rail (w-10, expand button only).
+         * VSCode-style. Desktop only; mobile uses the Sheet overlay via hamburger. */}
         {!isMobile && sidebarHidden && (
-          <div className="w-10 border-r bg-card shrink-0 hidden md:flex flex-col items-center pt-3">
+          <div className="w-10 border-r bg-card shrink-0 flex flex-col items-center pt-3">
             <button
               onClick={() => { setSidebarHidden(false); localStorage.setItem("dotbiz_sidebar", "visible"); }}
               className="h-8 w-8 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
@@ -555,8 +554,8 @@ export default function MainLayout() {
           </div>
         )}
 
-        {/* Sidebar — hidden when collapsed (rail above takes its place) */}
-        <nav className={`w-60 border-r flex-col shrink-0 bg-card ${sidebarHidden ? "hidden" : "hidden md:flex"}`} role="navigation">
+        {!isMobile && !sidebarHidden && (
+        <nav className="w-60 border-r flex flex-col shrink-0 bg-card" role="navigation">
           {/* Logo + Collapse button */}
           <div className="p-3 flex items-center gap-2 whitespace-nowrap">
             <div className="flex items-center gap-3 flex-1 cursor-pointer" onClick={() => navigate("/app/dashboard")}>
@@ -626,6 +625,7 @@ export default function MainLayout() {
             </Button>
           </div>
         </nav>
+        )}
 
         {/* Content */}
         <main className="flex-1 overflow-auto flex flex-col">
