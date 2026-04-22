@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Search, Plus, Download, Upload, Users, Building2, CreditCard, FileText, ToggleLeft, ToggleRight, Pencil, Trash2 } from "lucide-react";
+import { Search, Plus, Upload, Users, Building2, FileText, ToggleLeft, ToggleRight, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -12,15 +12,30 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useAuth } from "@/contexts/AuthContext";
 import { useI18n } from "@/contexts/I18nContext";
 import { useTabParam } from "@/hooks/useTabParam";
-import { subAccounts, departments, balanceTransactions, creditSummary, voucherSettings } from "@/mocks/clientManagement";
+import { subAccounts, departments, voucherSettingsByCompany } from "@/mocks/clientManagement";
+import { companies, currentCompany } from "@/mocks/companies";
 import { toast } from "sonner";
 
 const statusColors: Record<string, string> = { Active: "default", Pending: "secondary", Deactivated: "destructive" };
 
 export default function ClientManagementPage() {
-  const { hasRole } = useAuth();
+  const { hasRole, user } = useAuth();
   const { t } = useI18n();
   const [clientTab, setClientTab] = useTabParam("subaccounts");
+
+  /* Tenant-scope: current user's company = the only team they can manage */
+  const activeCompany = companies.find(c => c.name === user?.company) || currentCompany;
+  const myCompanyId = activeCompany.id;
+
+  /* Team (sub-accounts) scoped to this customer only */
+  const companySubs = useMemo(
+    () => subAccounts.filter(s => s.customerCompanyId === myCompanyId),
+    [myCompanyId]
+  );
+  const companyDepts = useMemo(
+    () => departments.filter(d => d.customerCompanyId === myCompanyId),
+    [myCompanyId]
+  );
 
   /* ── Sub-account state ── */
   const [subSearch, setSubSearch] = useState("");
@@ -29,31 +44,34 @@ export default function ClientManagementPage() {
   const [addSubOpen, setAddSubOpen] = useState(false);
 
   const filteredSubs = useMemo(() => {
-    let result = [...subAccounts];
+    let result = [...companySubs];
     if (subStatusFilter !== "All") result = result.filter(s => s.status === subStatusFilter);
     if (subDeptFilter !== "All") result = result.filter(s => s.department === subDeptFilter);
     if (subSearch) { const q = subSearch.toLowerCase(); result = result.filter(s => s.name.toLowerCase().includes(q) || s.email.toLowerCase().includes(q)); }
     return result;
-  }, [subSearch, subStatusFilter, subDeptFilter]);
+  }, [companySubs, subSearch, subStatusFilter, subDeptFilter]);
 
   /* ── Department state ── */
   const [addDeptOpen, setAddDeptOpen] = useState(false);
 
-  /* ── Voucher state ── */
-  const [vEnabled, setVEnabled] = useState(voucherSettings.enabled);
-  const [vScope, setVScope] = useState(voucherSettings.applyScope);
+  /* ── Voucher state (per-company) ── */
+  const companyVoucher = voucherSettingsByCompany[myCompanyId] || voucherSettingsByCompany["comp-001"];
+  const [vEnabled, setVEnabled] = useState(companyVoucher.enabled);
+  const [vScope, setVScope] = useState(companyVoucher.applyScope);
 
-  if (!hasRole(["Master"])) return (<div className="p-6"><Alert><AlertTitle>Access Restricted</AlertTitle><AlertDescription>Client Management is only accessible to Master accounts.</AlertDescription></Alert></div>);
+  if (!hasRole(["Master"])) return (<div className="p-6"><Alert><AlertTitle>Access Restricted</AlertTitle><AlertDescription>Team management is only accessible to Master accounts.</AlertDescription></Alert></div>);
 
   return (
     <div className="p-6 space-y-4">
-      <h1 className="text-2xl font-bold">{t("page.clientMgmt")}</h1>
+      <div>
+        <h1 className="text-2xl font-bold">{t("page.team")}</h1>
+        <p className="text-sm text-muted-foreground mt-0.5">{activeCompany.name} · team members, departments, and voucher branding.</p>
+      </div>
 
       <Tabs value={clientTab} onValueChange={setClientTab}>
         <TabsList className="flex-wrap">
           <TabsTrigger value="subaccounts" className="gap-1.5"><Users className="h-3.5 w-3.5" />Sub-accounts</TabsTrigger>
           <TabsTrigger value="departments" className="gap-1.5"><Building2 className="h-3.5 w-3.5" />Departments</TabsTrigger>
-          <TabsTrigger value="balance" className="gap-1.5"><CreditCard className="h-3.5 w-3.5" />Balance Details</TabsTrigger>
           <TabsTrigger value="voucher" className="gap-1.5"><FileText className="h-3.5 w-3.5" />Voucher Setting</TabsTrigger>
         </TabsList>
 
@@ -69,7 +87,7 @@ export default function ClientManagementPage() {
             </select>
             <select value={subDeptFilter} onChange={e => setSubDeptFilter(e.target.value)} className="border rounded-md px-3 py-2 text-sm bg-card">
               <option value="All">All Departments</option>
-              {departments.map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
+              {companyDepts.map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
             </select>
             <Button onClick={() => setAddSubOpen(true)}><Plus className="h-4 w-4 mr-1" />Add Sub-account</Button>
           </div>
@@ -85,6 +103,7 @@ export default function ClientManagementPage() {
                 <TableHead>Role</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Created</TableHead>
+                <TableHead>Last Login</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -94,9 +113,10 @@ export default function ClientManagementPage() {
                   <TableCell className="font-medium">{s.name}</TableCell>
                   <TableCell className="text-sm">{s.email}</TableCell>
                   <TableCell className="text-sm">{s.department}</TableCell>
-                  <TableCell><Badge variant="outline" className="text-[10px]">{s.role}</Badge></TableCell>
+                  <TableCell><Badge variant={s.role === "Master" ? "default" : "outline"} className="text-[10px]">{s.role}</Badge></TableCell>
                   <TableCell><Badge variant={statusColors[s.status] as "default" | "secondary" | "destructive"} className="text-[10px]">{s.status}</Badge></TableCell>
                   <TableCell className="text-sm">{s.createdDate}</TableCell>
+                  <TableCell className="text-xs text-muted-foreground">{s.lastLogin || "—"}</TableCell>
                   <TableCell>
                     <div className="flex gap-1">
                       {s.status === "Active" ? (
@@ -117,7 +137,7 @@ export default function ClientManagementPage() {
         {/* ══════ Departments Tab ══════ */}
         <TabsContent value="departments" className="space-y-4 mt-4">
           <div className="flex items-center justify-between">
-            <p className="text-sm text-muted-foreground">{departments.length} departments</p>
+            <p className="text-sm text-muted-foreground">{companyDepts.length} departments</p>
             <Button onClick={() => setAddDeptOpen(true)}><Plus className="h-4 w-4 mr-1" />Add Department</Button>
           </div>
 
@@ -133,7 +153,7 @@ export default function ClientManagementPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {departments.map(d => (
+              {companyDepts.map(d => (
                 <TableRow key={d.id}>
                   <TableCell className="font-medium">{d.name}</TableCell>
                   <TableCell className="text-sm text-muted-foreground max-w-[250px] truncate">{d.description}</TableCell>
@@ -152,58 +172,7 @@ export default function ClientManagementPage() {
           </Table>
         </TabsContent>
 
-        {/* ══════ Balance Details Tab ══════ */}
-        <TabsContent value="balance" className="space-y-4 mt-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Card className="p-4">
-              <p className="text-sm text-muted-foreground">Credit Balance</p>
-              <p className="text-2xl font-bold mt-1" style={{ color: "#FF6000" }}>${creditSummary.creditBalance.toLocaleString()}</p>
-              <p className="text-xs text-muted-foreground mt-1">Available for hotel bookings</p>
-            </Card>
-            <Card className="p-4">
-              <p className="text-sm text-muted-foreground">Deferred Credit Balance</p>
-              <p className="text-2xl font-bold mt-1">${creditSummary.deferredCreditBalance.toLocaleString()}</p>
-              <p className="text-xs text-muted-foreground mt-1">Used: ${creditSummary.deferredCreditUsed.toLocaleString()} / Available: ${(creditSummary.deferredCreditBalance - creditSummary.deferredCreditUsed).toLocaleString()}</p>
-            </Card>
-            <Card className="p-4">
-              <p className="text-sm text-muted-foreground">Total Available</p>
-              <p className="text-2xl font-bold mt-1">${(creditSummary.creditBalance + creditSummary.deferredCreditBalance - creditSummary.deferredCreditUsed).toLocaleString()}</p>
-              <p className="text-xs text-muted-foreground mt-1">Credit + Deferred available</p>
-            </Card>
-          </div>
-
-          <div className="flex items-center justify-between">
-            <h3 className="font-semibold">Transaction History</h3>
-            <Button variant="outline" size="sm" onClick={() => toast.success("Exporting...")}><Download className="h-3 w-3 mr-1" />Export</Button>
-          </div>
-
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Date</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Product</TableHead>
-                <TableHead>Amount</TableHead>
-                <TableHead>Balance</TableHead>
-                <TableHead>User</TableHead>
-                <TableHead>Remarks</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {balanceTransactions.map(t => (
-                <TableRow key={t.id}>
-                  <TableCell className="text-sm">{t.date}</TableCell>
-                  <TableCell><Badge variant={t.amount > 0 ? "default" : "secondary"} className="text-[10px]">{t.type}</Badge></TableCell>
-                  <TableCell className="text-sm">{t.productType}</TableCell>
-                  <TableCell className={`text-sm font-medium ${t.amount > 0 ? "text-green-600" : "text-red-500"}`}>{t.amount > 0 ? "+" : ""}{t.amount.toLocaleString()}</TableCell>
-                  <TableCell className="text-sm font-medium">${t.balance.toLocaleString()}</TableCell>
-                  <TableCell className="text-sm">{t.user}</TableCell>
-                  <TableCell className="text-xs text-muted-foreground max-w-[200px] truncate">{t.remarks}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TabsContent>
+        {/* Balance Details tab removed — merged into Settlement > Credit Line card (single source of truth). */}
 
         {/* ══════ Voucher Setting Tab ══════ */}
         <TabsContent value="voucher" className="space-y-4 mt-4">
@@ -214,11 +183,11 @@ export default function ClientManagementPage() {
               <p className="text-xs text-muted-foreground">This information will be displayed on hotel vouchers sent to guests.</p>
               <Separator />
               <div className="space-y-3">
-                <div><label className="text-sm font-medium">Company Name</label><Input defaultValue={voucherSettings.companyName} className="mt-1" /></div>
-                <div><label className="text-sm font-medium">Phone</label><Input defaultValue={voucherSettings.phone} className="mt-1" /></div>
-                <div><label className="text-sm font-medium">Email</label><Input defaultValue={voucherSettings.email} className="mt-1" /></div>
-                <div><label className="text-sm font-medium">QQ (optional)</label><Input defaultValue={voucherSettings.qq} placeholder="QQ number" className="mt-1" /></div>
-                <div><label className="text-sm font-medium">Address</label><Input defaultValue={voucherSettings.address} className="mt-1" /></div>
+                <div><label className="text-sm font-medium">Company Name</label><Input defaultValue={companyVoucher.companyName} className="mt-1" /></div>
+                <div><label className="text-sm font-medium">Phone</label><Input defaultValue={companyVoucher.phone} className="mt-1" /></div>
+                <div><label className="text-sm font-medium">Email</label><Input defaultValue={companyVoucher.email} className="mt-1" /></div>
+                <div><label className="text-sm font-medium">QQ (optional)</label><Input defaultValue={companyVoucher.qq} placeholder="QQ number" className="mt-1" /></div>
+                <div><label className="text-sm font-medium">Address</label><Input defaultValue={companyVoucher.address} className="mt-1" /></div>
                 <div>
                   <label className="text-sm font-medium">Company Logo</label>
                   <div className="mt-1 border-2 border-dashed rounded-lg p-6 text-center cursor-pointer hover:bg-muted/50 transition-colors">
@@ -261,8 +230,8 @@ export default function ClientManagementPage() {
                     <div className="h-10 w-32 bg-muted rounded flex items-center justify-center text-xs text-muted-foreground">Company Logo</div>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm font-bold">{voucherSettings.companyName}</p>
-                    <p className="text-xs text-muted-foreground">{voucherSettings.phone}</p>
+                    <p className="text-sm font-bold">{companyVoucher.companyName}</p>
+                    <p className="text-xs text-muted-foreground">{companyVoucher.phone}</p>
                   </div>
                 </div>
                 <div className="text-center py-4">
@@ -277,8 +246,8 @@ export default function ClientManagementPage() {
                 </div>
                 <Separator />
                 <div className="text-xs text-muted-foreground text-center">
-                  <p>{voucherSettings.email} | {voucherSettings.phone}</p>
-                  <p>{voucherSettings.address}</p>
+                  <p>{companyVoucher.email} | {companyVoucher.phone}</p>
+                  <p>{companyVoucher.address}</p>
                 </div>
               </div>
               <div className="mt-3 flex items-center gap-2">
@@ -304,14 +273,15 @@ export default function ClientManagementPage() {
             <div>
               <label className="text-sm font-medium">Department</label>
               <select className="w-full border rounded px-3 py-2 text-sm bg-background mt-1">
-                {departments.map(d => <option key={d.id}>{d.name}</option>)}
+                {companyDepts.map(d => <option key={d.id}>{d.name}</option>)}
               </select>
             </div>
             <div>
               <label className="text-sm font-medium">Role</label>
               <select className="w-full border rounded px-3 py-2 text-sm bg-background mt-1">
-                {["OP", "Manager", "Viewer"].map(r => <option key={r}>{r}</option>)}
+                {(["OP", "Master"] as const).map(r => <option key={r}>{r}</option>)}
               </select>
+              <p className="text-[10px] text-muted-foreground mt-1">OP = standard booking operator · Master = full admin (can manage team)</p>
             </div>
           </div>
           <DialogFooter>
@@ -331,7 +301,7 @@ export default function ClientManagementPage() {
             <div>
               <label className="text-sm font-medium">Department Manager</label>
               <select className="w-full border rounded px-3 py-2 text-sm bg-background mt-1">
-                {subAccounts.filter(s => s.status === "Active").map(s => <option key={s.id}>{s.name}</option>)}
+                {companySubs.filter(s => s.status === "Active").map(s => <option key={s.id}>{s.name}</option>)}
               </select>
             </div>
           </div>

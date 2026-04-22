@@ -18,7 +18,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useI18n } from "@/contexts/I18nContext";
 import { currentUser } from "@/mocks/users";
 import { currentCompany } from "@/mocks/companies";
-import { operatingPartners } from "@/mocks/operatingPartners";
 import { getSavedCards, removeCard, type SavedCard } from "@/components/PaymentDialog";
 import { AlertPreferencesPanel } from "@/components/AlertPreferencesPanel";
 import { toast } from "sonner";
@@ -41,8 +40,6 @@ export default function MyAccountPage() {
   const { t } = useI18n();
   const { hasRole } = useAuth();
   const [accountTab, setAccountTab] = useTabParam("profile");
-  const [addOpOpen, setAddOpOpen] = useState(false);
-  const [deactivateOpen, setDeactivateOpen] = useState(false);
   const [changePassOpen, setChangePassOpen] = useState(false);
 
   /* Notification settings */
@@ -68,7 +65,6 @@ export default function MyAccountPage() {
           <TabsTrigger value="notifications">Notification Settings</TabsTrigger>
           <TabsTrigger value="cards"><CreditCard className="h-3.5 w-3.5 mr-1" />Card Management</TabsTrigger>
           <TabsTrigger value="coupons">My Coupons</TabsTrigger>
-          {hasRole(["Master"]) && <TabsTrigger value="ops">OP Management</TabsTrigger>}
         </TabsList>
 
         {/* ══════ Profile Tab ══════ */}
@@ -219,47 +215,12 @@ export default function MyAccountPage() {
           </Card>
         </TabsContent>
 
-        {/* ══════ OP Management Tab ══════ */}
-        {hasRole(["Master"]) && (
-          <TabsContent value="ops" className="space-y-5 mt-4">
-            <Card className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold">OP Management</h2>
-                <Button onClick={() => setAddOpOpen(true)}><Plus className="h-4 w-4 mr-1" />Add OP</Button>
-              </div>
-              <Table>
-                <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Email</TableHead><TableHead>Status</TableHead><TableHead>Share %</TableHead><TableHead>Actions</TableHead></TableRow></TableHeader>
-                <TableBody>
-                  {operatingPartners.map(op => (
-                    <TableRow key={op.id}>
-                      <TableCell className="font-medium">{op.name}</TableCell>
-                      <TableCell className="text-sm">{op.email}</TableCell>
-                      <TableCell><Badge variant={op.status === "Active" ? "default" : op.status === "Deactivated" ? "destructive" : "secondary"}>{op.status}</Badge></TableCell>
-                      <TableCell>{op.shareRatio}%</TableCell>
-                      <TableCell>{op.status === "Active" && <Button variant="outline" size="sm" onClick={() => setDeactivateOpen(true)}>Deactivate</Button>}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </Card>
-          </TabsContent>
-        )}
+        {/* OP Management tab removed — team management moved to /app/client (Team page).
+         * My Account is for personal settings only; sub-account administration is a
+         * company-level concern and lives in the Team section. */}
       </Tabs>
 
       {/* ── Dialogs ── */}
-      <Dialog open={addOpOpen} onOpenChange={setAddOpOpen}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Add Operating Partner</DialogTitle></DialogHeader>
-          <div className="space-y-3">
-            <div><label className="text-sm font-medium">Full Name</label><Input className="mt-1" /></div>
-            <div><label className="text-sm font-medium">Email</label><Input type="email" className="mt-1" /></div>
-            <div><label className="text-sm font-medium">Password</label><Input type="password" className="mt-1" /></div>
-            <div><label className="text-sm font-medium">Share Ratio (%)</label><Input type="number" className="mt-1" /></div>
-          </div>
-          <DialogFooter><Button onClick={() => { setAddOpOpen(false); toast.success("OP Added"); }}>Add</Button></DialogFooter>
-        </DialogContent>
-      </Dialog>
-
       <Dialog open={changePassOpen} onOpenChange={setChangePassOpen}>
         <DialogContent>
           <DialogHeader><DialogTitle>Change Password</DialogTitle></DialogHeader>
@@ -272,13 +233,6 @@ export default function MyAccountPage() {
           <DialogFooter><Button onClick={() => { setChangePassOpen(false); toast.success("Password changed!"); }}>Update Password</Button></DialogFooter>
         </DialogContent>
       </Dialog>
-
-      <AlertDialog open={deactivateOpen} onOpenChange={setDeactivateOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader><AlertDialogTitle>Deactivate OP</AlertDialogTitle><AlertDialogDescription>Are you sure? Existing bookings will be preserved.</AlertDialogDescription></AlertDialogHeader>
-          <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction className="bg-destructive text-destructive-foreground" onClick={() => toast.success("OP Deactivated")}>Deactivate</AlertDialogAction></AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
 
       <StateToolbar state={state} setState={setState} />
     </div>

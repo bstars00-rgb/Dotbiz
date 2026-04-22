@@ -60,7 +60,7 @@ const navSections: NavSection[] = [
     i18nKey: "nav.section.admin",
     label: "Admin",
     items: [
-      { i18nKey: "nav.clientMgmt",    label: "Client Mgmt",   icon: Users, path: "/app/client", roles: ["Master"] },
+      { i18nKey: "nav.team",          label: "Team",          icon: Users, path: "/app/client", roles: ["Master"] },
       { i18nKey: "nav.notifications", label: "Notifications", icon: Bell,  path: "/app/notifications" },
       { i18nKey: "nav.myAccount",     label: "My Account",    icon: User,  path: "/app/my-account" },
     ],
