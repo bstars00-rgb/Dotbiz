@@ -137,3 +137,32 @@ export const creditSummary = {
   deferredCreditBalance: 50000,
   deferredCreditUsed: 18600,
 };
+
+/* ── Company Coupons ──
+ * Promotions earned by the customer company as a whole (not per-user).
+ * Master manages these on Team > Coupons. */
+export interface CompanyCoupon {
+  id: string;
+  customerCompanyId: string;
+  name: string;
+  discount: string;
+  status: "Unused" | "Used" | "Expired";
+  validUntil?: string;
+  minOrder?: string;
+  applicable?: string;
+  usedDate?: string;
+  booking?: string;
+  expiredDate?: string;
+}
+export const companyCoupons: CompanyCoupon[] = [
+  /* TravelCo */
+  { id: "cp-001", customerCompanyId: "comp-001", name: "Spring Welcome 5% Off", discount: "5%",  status: "Unused",  validUntil: "2026-06-30", minOrder: "$200", applicable: "All Hotels" },
+  { id: "cp-002", customerCompanyId: "comp-001", name: "New User $20 Off",      discount: "$20", status: "Unused",  validUntil: "2026-05-15", minOrder: "$300", applicable: "Featured Hotels" },
+  { id: "cp-003", customerCompanyId: "comp-001", name: "Winter Sale 10% Off",   discount: "10%", status: "Used",    usedDate: "2026-02-15", booking: "ELS-2026-00128" },
+  { id: "cp-004", customerCompanyId: "comp-001", name: "Holiday $15 Off",      discount: "$15", status: "Expired", expiredDate: "2026-01-31" },
+
+  /* GOTADI */
+  { id: "cp-010", customerCompanyId: "comp-010", name: "Multi-Entity Welcome 8% Off",    discount: "8%",  status: "Unused", validUntil: "2026-07-31", minOrder: "$500", applicable: "SG + VN contracts" },
+  { id: "cp-011", customerCompanyId: "comp-010", name: "VN Domestic 200K VND Off",       discount: "VND 200,000", status: "Unused", validUntil: "2026-06-30", minOrder: "VND 5M", applicable: "VN hotels only" },
+];
+

@@ -1,5 +1,5 @@
-import { useState, useMemo } from "react";
-import { Search, Plus, Upload, Users, Building2, FileText, ToggleLeft, ToggleRight, Pencil, Trash2 } from "lucide-react";
+import { useState, useMemo, useEffect } from "react";
+import { Search, Plus, Upload, Users, Building2, FileText, ToggleLeft, ToggleRight, Pencil, Trash2, CreditCard, Ticket as TicketIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -8,12 +8,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useAuth } from "@/contexts/AuthContext";
 import { useI18n } from "@/contexts/I18nContext";
 import { useTabParam } from "@/hooks/useTabParam";
-import { subAccounts, departments, voucherSettingsByCompany } from "@/mocks/clientManagement";
+import { subAccounts, departments, voucherSettingsByCompany, companyCoupons } from "@/mocks/clientManagement";
 import { companies, currentCompany } from "@/mocks/companies";
+import { getSavedCards, removeCard, type SavedCard } from "@/components/PaymentDialog";
 import { toast } from "sonner";
 
 const statusColors: Record<string, string> = { Active: "default", Pending: "secondary", Deactivated: "destructive" };
@@ -72,6 +74,8 @@ export default function ClientManagementPage() {
         <TabsList className="flex-wrap">
           <TabsTrigger value="subaccounts" className="gap-1.5"><Users className="h-3.5 w-3.5" />Sub-accounts</TabsTrigger>
           <TabsTrigger value="departments" className="gap-1.5"><Building2 className="h-3.5 w-3.5" />Departments</TabsTrigger>
+          <TabsTrigger value="cards" className="gap-1.5"><CreditCard className="h-3.5 w-3.5" />Payment Cards</TabsTrigger>
+          <TabsTrigger value="coupons" className="gap-1.5"><TicketIcon className="h-3.5 w-3.5" />Coupons</TabsTrigger>
           <TabsTrigger value="voucher" className="gap-1.5"><FileText className="h-3.5 w-3.5" />Voucher Setting</TabsTrigger>
         </TabsList>
 
@@ -173,6 +177,107 @@ export default function ClientManagementPage() {
         </TabsContent>
 
         {/* Balance Details tab removed — merged into Settlement > Credit Line card (single source of truth). */}
+
+        {/* ══════ Payment Cards Tab ══════ */}
+        <TabsContent value="cards" className="space-y-4 mt-4">
+          <Card className="p-6">
+            <h2 className="text-lg font-semibold mb-2 flex items-center gap-2">
+              <CreditCard className="h-5 w-5 text-[#FF6000]" />Company Payment Cards
+            </h2>
+            <p className="text-sm text-muted-foreground mb-4">
+              Cards saved when your team pays for PREPAY bookings. These cards belong to
+              {activeCompany.name} (the company), not an individual user — any team member
+              making a PREPAY booking can reuse them.
+            </p>
+            <CardManagementSection />
+          </Card>
+          <Alert>
+            <AlertTitle>Security Notice</AlertTitle>
+            <AlertDescription>
+              Card details are stored locally in your browser for demo purposes. In production,
+              card tokens are securely stored via PG gateway (PCI-DSS compliant). Only the last 4
+              digits are visible.
+            </AlertDescription>
+          </Alert>
+        </TabsContent>
+
+        {/* ══════ Coupons Tab ══════ */}
+        <TabsContent value="coupons" className="space-y-4 mt-4">
+          <Card className="p-6">
+            <h2 className="text-lg font-semibold mb-2 flex items-center gap-2">
+              <TicketIcon className="h-5 w-5 text-[#FF6000]" />Company Coupons
+            </h2>
+            <p className="text-sm text-muted-foreground mb-4">
+              Promotions earned by {activeCompany.name} as a whole. Any team member making a
+              booking can apply them at checkout.
+            </p>
+            {(() => {
+              const myCoupons = companyCoupons.filter(c => c.customerCompanyId === myCompanyId);
+              if (myCoupons.length === 0) {
+                return <p className="text-sm text-muted-foreground text-center py-8">No coupons available for this company.</p>;
+              }
+              return (
+                <Tabs defaultValue="unused">
+                  <TabsList>
+                    <TabsTrigger value="unused">Unused ({myCoupons.filter(c => c.status === "Unused").length})</TabsTrigger>
+                    <TabsTrigger value="used">Used ({myCoupons.filter(c => c.status === "Used").length})</TabsTrigger>
+                    <TabsTrigger value="expired">Expired ({myCoupons.filter(c => c.status === "Expired").length})</TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="unused" className="mt-3 space-y-3">
+                    {myCoupons.filter(c => c.status === "Unused").map(c => (
+                      <div key={c.id} className="border rounded-lg p-4 flex items-center justify-between flex-wrap gap-3">
+                        <div>
+                          <p className="font-semibold text-sm">{c.name}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            Discount <strong className="text-[#FF6000]">{c.discount}</strong>
+                            {c.minOrder && <> · Min order {c.minOrder}</>}
+                            {c.applicable && <> · {c.applicable}</>}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <Badge variant="outline" className="text-[10px]">Valid until {c.validUntil}</Badge>
+                        </div>
+                      </div>
+                    ))}
+                    {myCoupons.filter(c => c.status === "Unused").length === 0 && (
+                      <p className="text-sm text-muted-foreground text-center py-8">No unused coupons.</p>
+                    )}
+                  </TabsContent>
+                  <TabsContent value="used" className="mt-3 space-y-3">
+                    {myCoupons.filter(c => c.status === "Used").map(c => (
+                      <div key={c.id} className="border rounded-lg p-4 flex items-center justify-between gap-3 opacity-75">
+                        <div>
+                          <p className="font-semibold text-sm">{c.name}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            Used on {c.usedDate}{c.booking && <> · Booking {c.booking}</>}
+                          </p>
+                        </div>
+                        <Badge variant="secondary" className="text-[10px]">{c.discount}</Badge>
+                      </div>
+                    ))}
+                    {myCoupons.filter(c => c.status === "Used").length === 0 && (
+                      <p className="text-sm text-muted-foreground text-center py-8">No used coupons.</p>
+                    )}
+                  </TabsContent>
+                  <TabsContent value="expired" className="mt-3 space-y-3">
+                    {myCoupons.filter(c => c.status === "Expired").map(c => (
+                      <div key={c.id} className="border rounded-lg p-4 flex items-center justify-between gap-3 opacity-50">
+                        <div>
+                          <p className="font-semibold text-sm line-through">{c.name}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">Expired on {c.expiredDate}</p>
+                        </div>
+                        <Badge variant="destructive" className="text-[10px]">{c.discount}</Badge>
+                      </div>
+                    ))}
+                    {myCoupons.filter(c => c.status === "Expired").length === 0 && (
+                      <p className="text-sm text-muted-foreground text-center py-8">No expired coupons.</p>
+                    )}
+                  </TabsContent>
+                </Tabs>
+              );
+            })()}
+          </Card>
+        </TabsContent>
 
         {/* ══════ Voucher Setting Tab ══════ */}
         <TabsContent value="voucher" className="space-y-4 mt-4">
@@ -312,5 +417,87 @@ export default function ClientManagementPage() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+/* ── Card Management Sub-component ──
+ * Reads saved payment cards from local storage (PaymentDialog writes them
+ * when a PREPAY booking is paid). Master can remove cards here.
+ * Production: company-scoped PG tokens via ELLIS. */
+function CardManagementSection() {
+  const [cards, setCards] = useState<SavedCard[]>(getSavedCards());
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+
+  useEffect(() => {
+    /* Refresh on mount + when a new card might have been saved */
+    setCards(getSavedCards());
+  }, []);
+
+  const handleDelete = (id: string) => {
+    removeCard(id);
+    setCards(getSavedCards());
+    toast.success("Card removed successfully.");
+    setDeleteConfirm(null);
+  };
+
+  if (cards.length === 0) {
+    return (
+      <div className="text-center py-10 border-2 border-dashed rounded-lg">
+        <CreditCard className="h-10 w-10 text-muted-foreground mx-auto mb-2 opacity-40" />
+        <p className="text-sm text-muted-foreground">No saved payment cards yet.</p>
+        <p className="text-[11px] text-muted-foreground mt-1">Cards are saved when your team pays for PREPAY bookings with "Save card for future use" checked.</p>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <div className="space-y-2">
+        {cards.map(card => (
+          <div key={card.id} className="flex items-center justify-between border rounded-lg p-3 hover:bg-muted/40 transition-colors">
+            <div className="flex items-center gap-3">
+              <div className="h-8 w-12 rounded bg-slate-800 text-white flex items-center justify-center text-[10px] font-bold font-mono">
+                {card.brand}
+              </div>
+              <div>
+                <p className="text-sm font-medium font-mono">•••• •••• •••• {card.last4}</p>
+                <p className="text-[11px] text-muted-foreground">
+                  {card.holderName} · Exp {card.expiryMonth}/{card.expiryYear}
+                </p>
+              </div>
+            </div>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 text-xs text-destructive"
+              onClick={() => setDeleteConfirm(card.id)}
+            >
+              <Trash2 className="h-3 w-3 mr-1" />Remove
+            </Button>
+          </div>
+        ))}
+      </div>
+
+      <AlertDialog open={!!deleteConfirm} onOpenChange={(o) => !o && setDeleteConfirm(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove payment card?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This card will no longer be available for future bookings. You can always add it
+              again when making a new PREPAY booking.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground"
+              onClick={() => deleteConfirm && handleDelete(deleteConfirm)}
+            >
+              Remove
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }

@@ -60,30 +60,60 @@ export default function TutorialOverlay({ open, steps, onClose, onComplete }: Pr
     step.onBefore?.();
   }, [open, step]);
 
-  /* Find and measure target element when step changes (and on resize/scroll) */
+  /* Find and measure target element when step changes (and on resize/scroll).
+   *
+   * Performance notes:
+   *  - rAF polling (not setTimeout) so we grab the element the instant it
+   *    mounts after a route transition — typically 1-3 frames (16-48ms).
+   *  - Instant scroll (behavior:"auto") avoids the 400-600ms smooth-scroll
+   *    animation, which the user perceived as lag.
+   *  - We only scroll if the element is off-screen to avoid unnecessary
+   *    jumps when it's already visible.
+   *  - Previous rect is preserved until the new one is ready (steps without
+   *    targets explicitly clear it) — this avoids a momentary full-dim flash
+   *    between consecutive targeted steps.
+   */
   useLayoutEffect(() => {
     if (!open || !step) { setRect(null); return; }
     if (!step.targetSelector) { setRect(null); return; }
 
+    let rafId = 0;
+    let tries = 0;
+    const MAX_TRIES = 30; /* ~500ms at 60fps */
+
     const measure = () => {
       const el = document.querySelector(step.targetSelector!) as HTMLElement | null;
-      if (!el) { setRect(null); return; }
-      /* Ensure it's in view */
-      el.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "smooth" });
-      /* Small delay to let scroll settle before measuring */
-      requestAnimationFrame(() => {
-        setRect(el.getBoundingClientRect());
-      });
+      if (!el) {
+        /* Element not in DOM yet (route still mounting) — keep polling */
+        if (tries++ < MAX_TRIES) {
+          rafId = requestAnimationFrame(measure);
+        }
+        return;
+      }
+      const r = el.getBoundingClientRect();
+      const inView = r.top >= 0 && r.bottom <= window.innerHeight && r.right <= window.innerWidth && r.left >= 0;
+      if (!inView) {
+        el.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "auto" });
+        /* Re-measure after layout settles one frame */
+        rafId = requestAnimationFrame(() => setRect(el.getBoundingClientRect()));
+      } else {
+        setRect(r);
+      }
     };
 
-    /* Slight delay after onBefore to let layout settle (e.g. route navigation) */
-    const timer = setTimeout(measure, step.onBefore ? 300 : 0);
-    window.addEventListener("resize", measure);
-    window.addEventListener("scroll", measure, true);
+    rafId = requestAnimationFrame(measure);
+
+    /* Keep spotlight in sync with layout changes */
+    const onLayoutChange = () => {
+      const el = document.querySelector(step.targetSelector!) as HTMLElement | null;
+      if (el) setRect(el.getBoundingClientRect());
+    };
+    window.addEventListener("resize", onLayoutChange);
+    window.addEventListener("scroll", onLayoutChange, true);
     return () => {
-      clearTimeout(timer);
-      window.removeEventListener("resize", measure);
-      window.removeEventListener("scroll", measure, true);
+      cancelAnimationFrame(rafId);
+      window.removeEventListener("resize", onLayoutChange);
+      window.removeEventListener("scroll", onLayoutChange, true);
     };
   }, [open, step, stepIdx]);
 
