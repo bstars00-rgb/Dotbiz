@@ -31,7 +31,10 @@ export default function MyAccountPage() {
 
       {/* ─── Personal Information + Password ─── */}
       <Card className="p-6">
-        <h2 className="text-lg font-semibold mb-4">Personal Information</h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold">Personal Information</h2>
+          <Badge variant="outline" className="text-[10px]">Editable</Badge>
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="text-sm font-medium">Full Name <span className="text-destructive">*</span></label>
@@ -68,30 +71,42 @@ export default function MyAccountPage() {
             <p className="text-[10px] text-muted-foreground mt-1">Last changed 2025-11-22 · 145 days ago</p>
           </div>
         </div>
+
+        {/* Save scope is clearly limited to this card */}
+        <div className="flex justify-end mt-5 pt-4 border-t">
+          <Button onClick={() => toast.success("Profile saved")}>
+            <Save className="h-4 w-4 mr-2" />Save Profile
+          </Button>
+        </div>
       </Card>
 
-      {/* ─── Company Info (read-only) ─── */}
+      {/* ─── Company Info (read-only, contract-bound) ─── */}
       <Card className="p-6">
-        <h2 className="text-lg font-semibold mb-4">Company Information</h2>
-        {[
-          { label: "Company Name", value: currentCompany.name },
-          { label: "Business Reg. No", value: currentCompany.businessRegNo },
-          { label: "Business Type", value: <Badge key="bt">{currentCompany.businessType}</Badge> },
-          { label: "Address", value: currentCompany.address },
-          { label: "Contract Date", value: currentCompany.contractDate },
-        ].map(item => (
-          <div key={String(item.label)} className="flex justify-between py-2 border-b last:border-0">
-            <span className="text-sm text-muted-foreground">{item.label}</span>
-            <span className="text-sm">{item.value}</span>
-          </div>
-        ))}
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="text-lg font-semibold">Company Information</h2>
+          <Badge variant="secondary" className="text-[10px] gap-1">
+            <Lock className="h-2.5 w-2.5" /> Read-only
+          </Badge>
+        </div>
+        <p className="text-xs text-muted-foreground mb-4">
+          Company details are tied to your signed contract. To update any field below, please contact
+          your OhMyHotel account manager — changes require a contract amendment.
+        </p>
+        <div>
+          {[
+            { label: "Company Name", value: currentCompany.name },
+            { label: "Business Reg. No", value: currentCompany.businessRegNo },
+            { label: "Business Type", value: <Badge key="bt">{currentCompany.businessType}</Badge> },
+            { label: "Address", value: currentCompany.address },
+            { label: "Contract Date", value: currentCompany.contractDate },
+          ].map(item => (
+            <div key={String(item.label)} className="flex justify-between py-2 border-b last:border-0">
+              <span className="text-sm text-muted-foreground">{item.label}</span>
+              <span className="text-sm">{item.value}</span>
+            </div>
+          ))}
+        </div>
       </Card>
-
-      <div className="flex justify-end">
-        <Button onClick={() => toast.success("Changes Saved")}>
-          <Save className="h-4 w-4 mr-2" />Save Changes
-        </Button>
-      </div>
 
       {/* ─── Change Password Dialog ─── */}
       <Dialog open={changePassOpen} onOpenChange={setChangePassOpen}>
