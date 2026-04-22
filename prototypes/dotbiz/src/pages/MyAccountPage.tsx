@@ -18,7 +18,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useI18n } from "@/contexts/I18nContext";
 import { currentUser } from "@/mocks/users";
 import { currentCompany } from "@/mocks/companies";
-import { AlertPreferencesPanel } from "@/components/AlertPreferencesPanel";
 import { toast } from "sonner";
 
 /* mockCoupons moved to clientManagement mock as companyCoupons */
@@ -50,7 +49,6 @@ export default function MyAccountPage() {
         <TabsList className="flex-wrap">
           <TabsTrigger value="profile">Profile</TabsTrigger>
           <TabsTrigger value="security">Security</TabsTrigger>
-          <TabsTrigger value="notifications">Notification Settings</TabsTrigger>
         </TabsList>
 
         {/* ══════ Profile Tab ══════ */}
@@ -131,17 +129,18 @@ export default function MyAccountPage() {
           </Card>
         </TabsContent>
 
-        {/* ══════ Notification Settings Tab — Alert preferences per type/channel ══════ */}
-        <TabsContent value="notifications" className="space-y-5 mt-4">
-          <AlertPreferencesPanel />
-        </TabsContent>
-
-        {/* Card Management + My Coupons tabs removed — moved to Team page.
+        {/* Notification Settings tab removed.
+         * Alert rules (which types are on, which channels they use, quiet hours)
+         * are controlled by OhMyHotel from ELLIS admin — NOT exposed to customers.
+         * If users could turn off critical alerts (credit_critical, payment deadline,
+         * hotel cancellation), the entire alert system loses its risk-mitigation
+         * value. Channel preferences (Email/SMS/Slack) are managed by AM during
+         * onboarding based on the customer's operational setup.
+         *
+         * Card Management + My Coupons tabs removed — moved to Team page.
          * Cards and Coupons are company-level assets (saved cards work for the
          * whole company's PREPAY bookings, coupons earned by the company as a
-         * whole), so they belong in Master's Team management, not individual
-         * personal settings. My Account now focuses purely on PER-USER state:
-         * profile, password/security, notification preferences.
+         * whole), so they belong in Master's Team management.
          *
          * OP Management tab also removed earlier (moved to Team > Sub-accounts).
          * My Account is for personal settings only; sub-account administration is a

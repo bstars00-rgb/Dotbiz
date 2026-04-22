@@ -180,8 +180,8 @@ export default function MainLayout() {
     }] : []),
     {
       targetSelector: '[data-tutorial="nav-my-account"]',
-      title: "Your personal settings",
-      description: "Profile, security, notification preferences, saved cards, and coupons live here.\n\nEach team member has their own.",
+      title: "Your account settings",
+      description: "Edit your own profile (name / phone) and change your password here.\n\nSaved payment cards, coupons, and team settings now live under Team (Master only).",
       placement: "right",
     },
     {
