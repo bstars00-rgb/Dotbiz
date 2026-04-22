@@ -12,6 +12,7 @@ import { bookings as allBookings, type Booking } from "@/mocks/bookings";
 import { companies, currentCompany } from "@/mocks/companies";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+import InvoicePreviewDialog from "@/components/InvoicePreviewDialog";
 
 /* Settlement Invoice Detail Page — customer-facing view.
  *
@@ -35,6 +36,7 @@ export default function SettlementDetailPage() {
   const { hasRole } = useAuth();
 
   const [invoice] = useState<InvoiceWithMatch | null>(() => invoices.find(i => i.invoiceNo === invoiceNo) || null);
+  const [previewOpen, setPreviewOpen] = useState(false);
 
   /* Contract-currency aware formatter */
   const curr = invoice?.contractCurrency || "USD";
@@ -109,7 +111,7 @@ export default function SettlementDetailPage() {
             )}
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => toast.success("Invoice PDF exported")}>
+            <Button variant="outline" size="sm" onClick={() => setPreviewOpen(true)}>
               <Download className="h-3.5 w-3.5 mr-1" />Export PDF
             </Button>
           </div>
@@ -271,6 +273,15 @@ export default function SettlementDetailPage() {
           </Button>
         </div>
       </Card>
+
+      {/* Invoice PDF preview — entity-aware (uses invoice.ohmyhotelEntityId + contractCurrency).
+       * Users Print/Save PDF from the dialog's print button. */}
+      <InvoicePreviewDialog
+        open={previewOpen}
+        onOpenChange={setPreviewOpen}
+        invoice={invoice}
+        customer={invoiceCustomer}
+      />
     </div>
   );
 }
