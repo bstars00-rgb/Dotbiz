@@ -384,7 +384,7 @@ export default function SettlementPage() {
           "Floating Deposit": {
             ctaLabel: "Top Up Deposit",
             ctaToast: { title: "Top-up request sent", description: "Our finance team will share wire instructions within 1 business day." },
-            collateralLabel: (amt) => `Pre-funded cash · ${amt} deposited (1:1)`,
+            collateralLabel: (amt) => `Pre-funded cash · ${amt} deposited`,
           },
           "Credit by Company": {
             ctaLabel: "Request Credit Increase",
@@ -478,7 +478,6 @@ export default function SettlementPage() {
                     <h2 className="text-lg font-bold flex items-center gap-2 flex-wrap">
                       Credit Line
                       {hasLeverage && <Badge variant="outline" className="text-[10px]">{multiplier}× leverage</Badge>}
-                      {!hasLeverage && !isCreditByCo && <Badge variant="outline" className="text-[10px]">1:1</Badge>}
                       {isCreditByCo && <Badge variant="outline" className="text-[10px]">Credit by Company</Badge>}
                     </h2>
                     <p className="text-xs text-muted-foreground">{collateralSubtitle}</p>
