@@ -3,10 +3,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Printer, Download } from "lucide-react";
-import { toast } from "sonner";
 import { bookings } from "@/mocks/bookings";
 import { currentCompany, type Company } from "@/mocks/companies";
 import { getEntity, type EntityId } from "@/mocks/ohMyHotelEntities";
+import InvoiceEmailDialog, { getLastInvoiceEmail } from "@/components/InvoiceEmailDialog";
+import type { InvoiceWithMatch } from "@/mocks/settlement";
 
 export interface InvoiceData {
   invoiceNo: string;
@@ -91,6 +92,10 @@ export default function InvoicePreviewDialog({ open, onOpenChange, invoice, cust
   const [lang, setLang] = useState<Lang>("EN");
   const [showLogo, setShowLogo] = useState(true);
   const [showBankInfo, setShowBankInfo] = useState(true);
+  const [emailOpen, setEmailOpen] = useState(false);
+
+  /* Last-sent info (in-memory log for prototype) */
+  const lastSent = invoice ? getLastInvoiceEmail(invoice.invoiceNo) : undefined;
 
   const t = (k: string) => L[k]?.[lang] || L[k]?.EN || k;
 
@@ -301,16 +306,36 @@ export default function InvoicePreviewDialog({ open, onOpenChange, invoice, cust
         </div>
 
         {/* Footer actions */}
-        <div className="flex justify-end gap-2 px-6 py-3 border-t bg-muted/30 sticky bottom-0 no-print">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
-          <Button variant="outline" onClick={() => toast.success("Invoice sent to client's email")}>
-            <Download className="h-4 w-4 mr-1" />Email Invoice
-          </Button>
-          <Button style={{ background: "#FF6000" }} onClick={() => window.print()}>
-            <Printer className="h-4 w-4 mr-1" />Print / Save PDF
-          </Button>
+        <div className="flex items-center justify-between gap-2 px-6 py-3 border-t bg-muted/30 sticky bottom-0 no-print">
+          {/* Last-sent indicator (audit visibility) */}
+          <div className="text-[10px] text-muted-foreground">
+            {lastSent ? (
+              <>Last emailed <strong>{lastSent.sentAt}</strong> by {lastSent.sentBy} → {lastSent.to.length} recipient{lastSent.to.length > 1 ? "s" : ""}</>
+            ) : (
+              <>Not yet emailed</>
+            )}
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
+            <Button variant="outline" onClick={() => setEmailOpen(true)}>
+              <Download className="h-4 w-4 mr-1" />Email Invoice
+            </Button>
+            <Button style={{ background: "#FF6000" }} onClick={() => window.print()}>
+              <Printer className="h-4 w-4 mr-1" />Print / Save PDF
+            </Button>
+          </div>
         </div>
       </DialogContent>
+
+      {/* Email dialog — only render when invoice has full InvoiceWithMatch shape */}
+      {invoice && (invoice as InvoiceWithMatch).contractCurrency && (
+        <InvoiceEmailDialog
+          open={emailOpen}
+          onOpenChange={setEmailOpen}
+          invoice={invoice as InvoiceWithMatch}
+          customer={activeCustomer}
+        />
+      )}
     </Dialog>
   );
 }
