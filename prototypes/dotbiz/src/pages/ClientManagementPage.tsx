@@ -61,13 +61,13 @@ export default function ClientManagementPage() {
   const [vEnabled, setVEnabled] = useState(companyVoucher.enabled);
   const [vScope, setVScope] = useState(companyVoucher.applyScope);
 
-  if (!hasRole(["Master"])) return (<div className="p-6"><Alert><AlertTitle>Access Restricted</AlertTitle><AlertDescription>Team management is only accessible to Master accounts.</AlertDescription></Alert></div>);
+  if (!hasRole(["Master"])) return (<div className="p-6"><Alert><AlertTitle>Access Restricted</AlertTitle><AlertDescription>Master Account management is only accessible to Master users.</AlertDescription></Alert></div>);
 
   return (
     <div className="p-6 space-y-4">
       <div>
         <h1 className="text-2xl font-bold">{t("page.team")}</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">{activeCompany.name} · team members, departments, and voucher branding.</p>
+        <p className="text-sm text-muted-foreground mt-0.5">{activeCompany.name} · sub-accounts, departments, permissions, and voucher branding.</p>
       </div>
 
       <Tabs value={clientTab} onValueChange={setClientTab}>
@@ -81,6 +81,17 @@ export default function ClientManagementPage() {
 
         {/* ══════ Sub-accounts Tab ══════ */}
         <TabsContent value="subaccounts" className="space-y-4 mt-4">
+          <Alert className="border-blue-200 bg-blue-50 dark:bg-blue-950/20">
+            <AlertTitle className="text-sm">Role & permission defaults are set by your OhMyHotel AM</AlertTitle>
+            <AlertDescription className="text-xs">
+              At onboarding, your Account Manager configures initial roles
+              (Master / Accounting / OP), booking scope (own vs all), and
+              notification routing. As Master you can adjust these here — but
+              the opening defaults come from ELLIS so you don't have to set
+              them from scratch.
+            </AlertDescription>
+          </Alert>
+
           <div className="flex items-center gap-3 flex-wrap">
             <div className="relative flex-1 min-w-[200px]">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -105,8 +116,9 @@ export default function ClientManagementPage() {
                 <TableHead>Email</TableHead>
                 <TableHead>Department</TableHead>
                 <TableHead>Role</TableHead>
+                <TableHead title="Which bookings this user can see">Booking Scope</TableHead>
+                <TableHead title="Which notifications this user receives">Notif. Scope</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Created</TableHead>
                 <TableHead>Last Login</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
@@ -117,9 +129,25 @@ export default function ClientManagementPage() {
                   <TableCell className="font-medium">{s.name}</TableCell>
                   <TableCell className="text-sm">{s.email}</TableCell>
                   <TableCell className="text-sm">{s.department}</TableCell>
-                  <TableCell><Badge variant={s.role === "Master" ? "default" : "outline"} className="text-[10px]">{s.role}</Badge></TableCell>
+                  <TableCell>
+                    <Badge
+                      variant={s.role === "Master" ? "default" : s.role === "Accounting" ? "secondary" : "outline"}
+                      className="text-[10px]"
+                    >
+                      {s.role}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <span className={`text-[11px] px-2 py-0.5 rounded-md ${s.bookingScope === "all" ? "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300" : "bg-slate-100 dark:bg-slate-800/50 text-slate-700 dark:text-slate-300"}`}>
+                      {s.bookingScope === "all" ? "All bookings" : "Own only"}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <span className="text-[11px] px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800/50 text-slate-700 dark:text-slate-300">
+                      {s.notificationScope === "all-company" ? "All company" : s.notificationScope === "accounting-only" ? "Accounting" : "Own only"}
+                    </span>
+                  </TableCell>
                   <TableCell><Badge variant={statusColors[s.status] as "default" | "secondary" | "destructive"} className="text-[10px]">{s.status}</Badge></TableCell>
-                  <TableCell className="text-sm">{s.createdDate}</TableCell>
                   <TableCell className="text-xs text-muted-foreground">{s.lastLogin || "—"}</TableCell>
                   <TableCell>
                     <div className="flex gap-1">
@@ -370,11 +398,15 @@ export default function ClientManagementPage() {
 
       {/* ── Add Sub-account Dialog ── */}
       <Dialog open={addSubOpen} onOpenChange={setAddSubOpen}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Add Sub-account</DialogTitle></DialogHeader>
+        <DialogContent style={{ maxWidth: 520 }}>
+          <DialogHeader>
+            <DialogTitle>Add Sub-account</DialogTitle>
+          </DialogHeader>
           <div className="space-y-3">
-            <div><label className="text-sm font-medium">Full Name</label><Input placeholder="Enter name" className="mt-1" /></div>
-            <div><label className="text-sm font-medium">Email</label><Input type="email" placeholder="user@company.com" className="mt-1" /></div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><label className="text-sm font-medium">Full Name</label><Input placeholder="Enter name" className="mt-1" /></div>
+              <div><label className="text-sm font-medium">Email</label><Input type="email" placeholder="user@company.com" className="mt-1" /></div>
+            </div>
             <div>
               <label className="text-sm font-medium">Department</label>
               <select className="w-full border rounded px-3 py-2 text-sm bg-background mt-1">
@@ -384,9 +416,29 @@ export default function ClientManagementPage() {
             <div>
               <label className="text-sm font-medium">Role</label>
               <select className="w-full border rounded px-3 py-2 text-sm bg-background mt-1">
-                {(["OP", "Master"] as const).map(r => <option key={r}>{r}</option>)}
+                {(["OP", "Accounting", "Master"] as const).map(r => <option key={r}>{r}</option>)}
               </select>
-              <p className="text-[10px] text-muted-foreground mt-1">OP = standard booking operator · Master = full admin (can manage team)</p>
+              <p className="text-[10px] text-muted-foreground mt-1">
+                <strong>OP</strong> = booking operator · <strong>Accounting</strong> = settlement/invoices (opened by Master) · <strong>Master</strong> = full admin
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-sm font-medium">Booking Scope</label>
+                <select className="w-full border rounded px-3 py-2 text-sm bg-background mt-1">
+                  <option value="own">Own bookings only</option>
+                  <option value="all">All company bookings</option>
+                </select>
+                <p className="text-[10px] text-muted-foreground mt-1">Default: Own for OP, All for Accounting/Master</p>
+              </div>
+              <div>
+                <label className="text-sm font-medium">Notification Scope</label>
+                <select className="w-full border rounded px-3 py-2 text-sm bg-background mt-1">
+                  <option value="own">Own notifications only</option>
+                  <option value="all-company">All company notifications</option>
+                  <option value="accounting-only">Accounting/settlement only</option>
+                </select>
+              </div>
             </div>
           </div>
           <DialogFooter>

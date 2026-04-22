@@ -3,7 +3,7 @@ import { createContext, useContext, useState, useCallback, type ReactNode } from
 interface User {
   email: string;
   name: string;
-  role: "Master" | "OP";
+  role: "Master" | "OP" | "Accounting";
   company: string;
   billingType: "PREPAY" | "POSTPAY";
 }
@@ -20,13 +20,14 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-export const ALL_ROLES = ["Master", "OP"] as const;
+export const ALL_ROLES = ["Master", "Accounting", "OP"] as const;
 
 /* ── Mock Users ── */
 const MOCK_USERS: { email: string; password: string; user: User }[] = [
   /* POSTPAY 고객사 (TravelCo International) — Master/OP 권한 분리 */
   { email: "master@dotbiz.com", password: "master123", user: { email: "master@dotbiz.com", name: "James Park", role: "Master", company: "TravelCo International", billingType: "POSTPAY" } },
   { email: "op@dotbiz.com", password: "op123", user: { email: "op@dotbiz.com", name: "Sarah Kim", role: "OP", company: "TravelCo International", billingType: "POSTPAY" } },
+  { email: "accounting@dotbiz.com", password: "accounting123", user: { email: "accounting@dotbiz.com", name: "Daniel Choi", role: "Accounting", company: "TravelCo International", billingType: "POSTPAY" } },
   { email: "postpay@dotbiz.com", password: "postpay123", user: { email: "postpay@dotbiz.com", name: "Demo User", role: "Master", company: "TravelCo International", billingType: "POSTPAY" } },
   /* PREPAY 고객사 (Asia Tours Ltd.) */
   { email: "prepay@dotbiz.com", password: "prepay123", user: { email: "prepay@dotbiz.com", name: "Kevin Lee", role: "Master", company: "Asia Tours Ltd.", billingType: "PREPAY" } },

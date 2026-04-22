@@ -61,9 +61,9 @@ const navSections: NavSection[] = [
     i18nKey: "nav.section.admin",
     label: "Admin",
     items: [
-      { i18nKey: "nav.team",          label: "Team",          icon: Users, path: "/app/client", roles: ["Master"] },
+      { i18nKey: "nav.team",          label: "Master Account", icon: Users, path: "/app/client", roles: ["Master"] },
       { i18nKey: "nav.notifications", label: "Notifications", icon: Bell,  path: "/app/notifications" },
-      { i18nKey: "nav.myAccount",     label: "My Account",    icon: User,  path: "/app/my-account" },
+      { i18nKey: "nav.myAccount",     label: "My Account",     icon: User,  path: "/app/my-account" },
     ],
   },
   {
@@ -174,14 +174,14 @@ export default function MainLayout() {
     },
     ...(hasRole(["Master"]) ? [{
       targetSelector: '[data-tutorial="nav-team"]',
-      title: "7. Team — Manage your staff",
-      description: "Invite OPs, organize by department, and configure voucher branding.\n\nOnly Master accounts can access Team settings.",
+      title: "7. Master Account — Company-level settings",
+      description: "Invite sub-accounts, organize by department, manage company payment cards, coupons, and voucher branding.\n\nMaster-only.",
       placement: "right" as const,
     }] : []),
     {
       targetSelector: '[data-tutorial="nav-my-account"]',
-      title: "Your account settings",
-      description: "Edit your own profile (name / phone) and change your password here.\n\nSaved payment cards, coupons, and team settings now live under Team (Master only).",
+      title: "Your personal account",
+      description: "Edit your own profile (name / phone) and change your password here.\n\nEach team member has their own — OPs use this too.",
       placement: "right",
     },
     {

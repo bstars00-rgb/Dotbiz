@@ -1,48 +1,67 @@
 /* ── Sub-accounts ──
- * Per-customer team members (Master + OP roles).
- * Each sub-account belongs to one customerCompanyId — the Team page filters by
- * the currently logged-in user's company so a TravelCo Master only sees
- * TravelCo's own team, not OhMyHotel internal staff or other customers.
+ * Per-customer team members with role + permission scoping.
  *
- * Role taxonomy matches AuthContext: Master | OP. Previously this mock had
- * Manager/Viewer too, but those don't exist elsewhere in the codebase. */
+ * Roles (3 types):
+ *   Master      — full admin. All pages + Master Account + can create any
+ *                 sub-account + can change permissions.
+ *   Accounting  — financial role. Sees Settlement (invoices, credit, aging)
+ *                 but not Team management. Master must explicitly open this
+ *                 role during onboarding.
+ *   OP          — booking operator. Default: own-bookings-only scope.
+ *                 Master can widen to all-bookings scope per OP.
+ *
+ * Permission fields (set by ELLIS at onboarding, tunable by Master thereafter):
+ *   bookingScope       — what bookings this user can see/edit
+ *   notificationScope  — whose notifications this user receives
+ *
+ * The Master is intentionally empowered to create and adjust sub-accounts
+ * directly in the portal — requesting this through OhMyHotel AM is too
+ * slow for real operations.
+ */
+export type UserRole = "Master" | "Accounting" | "OP";
+export type BookingScope = "own" | "all";
+export type NotificationScope = "own" | "all-company" | "accounting-only";
+
 export interface SubAccount {
   id: string;
   customerCompanyId: string;
   name: string;
   email: string;
   department: string;
-  role: "Master" | "OP";
+  role: UserRole;
   status: "Active" | "Pending" | "Deactivated";
   createdDate: string;
   lastLogin?: string;
+  /* Permission scopes — defaults applied by ELLIS at onboarding. */
+  bookingScope: BookingScope;       /* "all" for Master/Accounting, "own" default for OP */
+  notificationScope: NotificationScope; /* "own" default; Master may set to "all-company" for oversight or "accounting-only" for Accounting */
 }
 
 export const subAccounts: SubAccount[] = [
   /* ── TravelCo International (comp-001) ── */
-  { id: "sub-001", customerCompanyId: "comp-001", name: "James Park",    email: "master@dotbiz.com",      department: "Management",   role: "Master", status: "Active",      createdDate: "2024-03-15", lastLogin: "2026-04-22 08:30:14" },
-  { id: "sub-002", customerCompanyId: "comp-001", name: "Sarah Kim",     email: "op@dotbiz.com",          department: "Sales",        role: "OP",     status: "Active",      createdDate: "2024-04-02", lastLogin: "2026-04-22 09:12:05" },
-  { id: "sub-003", customerCompanyId: "comp-001", name: "Kevin Lee",     email: "kevin@travelco.com",     department: "Sales",        role: "OP",     status: "Active",      createdDate: "2025-06-10", lastLogin: "2026-04-21 17:44:22" },
-  { id: "sub-004", customerCompanyId: "comp-001", name: "Emma Wilson",   email: "emma@travelco.com",      department: "Operations",   role: "OP",     status: "Active",      createdDate: "2025-09-08", lastLogin: "2026-04-22 10:02:11" },
-  { id: "sub-005", customerCompanyId: "comp-001", name: "Daniel Choi",   email: "daniel@travelco.com",    department: "Finance",      role: "OP",     status: "Active",      createdDate: "2025-11-20", lastLogin: "2026-04-19 14:30:00" },
-  { id: "sub-006", customerCompanyId: "comp-001", name: "Rachel Park",   email: "rachel@travelco.com",    department: "Sales",        role: "OP",     status: "Pending",     createdDate: "2026-04-18" },
-  { id: "sub-007", customerCompanyId: "comp-001", name: "Tom Wilson",    email: "tom.old@travelco.com",   department: "Finance",      role: "OP",     status: "Deactivated", createdDate: "2024-11-05", lastLogin: "2025-12-15 09:00:22" },
+  { id: "sub-001", customerCompanyId: "comp-001", name: "James Park",    email: "master@dotbiz.com",      department: "Management",   role: "Master",     status: "Active",      createdDate: "2024-03-15", lastLogin: "2026-04-22 08:30:14", bookingScope: "all", notificationScope: "all-company" },
+  { id: "sub-002", customerCompanyId: "comp-001", name: "Sarah Kim",     email: "op@dotbiz.com",          department: "Sales",        role: "OP",         status: "Active",      createdDate: "2024-04-02", lastLogin: "2026-04-22 09:12:05", bookingScope: "own", notificationScope: "own" },
+  { id: "sub-003", customerCompanyId: "comp-001", name: "Kevin Lee",     email: "kevin@travelco.com",     department: "Sales",        role: "OP",         status: "Active",      createdDate: "2025-06-10", lastLogin: "2026-04-21 17:44:22", bookingScope: "own", notificationScope: "own" },
+  { id: "sub-004", customerCompanyId: "comp-001", name: "Emma Wilson",   email: "emma@travelco.com",      department: "Operations",   role: "OP",         status: "Active",      createdDate: "2025-09-08", lastLogin: "2026-04-22 10:02:11", bookingScope: "all", notificationScope: "own" },
+  { id: "sub-005", customerCompanyId: "comp-001", name: "Daniel Choi",   email: "daniel@travelco.com",    department: "Finance",      role: "Accounting", status: "Active",      createdDate: "2025-11-20", lastLogin: "2026-04-19 14:30:00", bookingScope: "all", notificationScope: "accounting-only" },
+  { id: "sub-006", customerCompanyId: "comp-001", name: "Rachel Park",   email: "rachel@travelco.com",    department: "Sales",        role: "OP",         status: "Pending",     createdDate: "2026-04-18",                                 bookingScope: "own", notificationScope: "own" },
+  { id: "sub-007", customerCompanyId: "comp-001", name: "Tom Wilson",    email: "tom.old@travelco.com",   department: "Finance",      role: "Accounting", status: "Deactivated", createdDate: "2024-11-05", lastLogin: "2025-12-15 09:00:22", bookingScope: "all", notificationScope: "accounting-only" },
 
   /* ── Asia Tours Ltd. (comp-002, PREPAY) ── */
-  { id: "sub-101", customerCompanyId: "comp-002", name: "Jennifer Wu",   email: "prepay@dotbiz.com",      department: "Management",   role: "Master", status: "Active",      createdDate: "2024-06-01", lastLogin: "2026-04-22 07:55:00" },
-  { id: "sub-102", customerCompanyId: "comp-002", name: "Hiroshi Sato",  email: "hiroshi@asiatours.com",  department: "Bookings",     role: "OP",     status: "Active",      createdDate: "2024-08-12", lastLogin: "2026-04-21 22:10:55" },
-  { id: "sub-103", customerCompanyId: "comp-002", name: "Alex Chen",     email: "alex@asiatours.com",     department: "Bookings",     role: "OP",     status: "Active",      createdDate: "2025-03-30", lastLogin: "2026-04-22 11:18:40" },
+  { id: "sub-101", customerCompanyId: "comp-002", name: "Jennifer Wu",   email: "prepay@dotbiz.com",      department: "Management",   role: "Master",     status: "Active",      createdDate: "2024-06-01", lastLogin: "2026-04-22 07:55:00", bookingScope: "all", notificationScope: "all-company" },
+  { id: "sub-102", customerCompanyId: "comp-002", name: "Hiroshi Sato",  email: "hiroshi@asiatours.com",  department: "Bookings",     role: "OP",         status: "Active",      createdDate: "2024-08-12", lastLogin: "2026-04-21 22:10:55", bookingScope: "own", notificationScope: "own" },
+  { id: "sub-103", customerCompanyId: "comp-002", name: "Alex Chen",     email: "alex@asiatours.com",     department: "Bookings",     role: "OP",         status: "Active",      createdDate: "2025-03-30", lastLogin: "2026-04-22 11:18:40", bookingScope: "own", notificationScope: "own" },
 
   /* ── GOTADI (comp-010, multi-entity POSTPAY) ── */
-  { id: "sub-201", customerCompanyId: "comp-010", name: "Nguyen Van An", email: "gotadi@dotbiz.com",      department: "Management",   role: "Master", status: "Active",      createdDate: "2024-09-15", lastLogin: "2026-04-22 08:00:00" },
-  { id: "sub-202", customerCompanyId: "comp-010", name: "Tran Thi Mai",  email: "mai@gotadi.com",         department: "Bookings SG",  role: "OP",     status: "Active",      createdDate: "2024-10-01", lastLogin: "2026-04-22 10:30:12" },
-  { id: "sub-203", customerCompanyId: "comp-010", name: "Le Quoc Phong", email: "phong@gotadi.com",       department: "Bookings VN",  role: "OP",     status: "Active",      createdDate: "2024-10-01", lastLogin: "2026-04-22 09:45:22" },
-  { id: "sub-204", customerCompanyId: "comp-010", name: "Pham Thuy Linh",email: "linh@gotadi.com",        department: "Finance",      role: "OP",     status: "Active",      createdDate: "2025-02-14", lastLogin: "2026-04-19 15:12:08" },
-  { id: "sub-205", customerCompanyId: "comp-010", name: "Hoang Minh Duc",email: "duc@gotadi.com",         department: "Bookings SG",  role: "OP",     status: "Pending",     createdDate: "2026-04-15" },
+  { id: "sub-201", customerCompanyId: "comp-010", name: "Nguyen Van An", email: "gotadi@dotbiz.com",      department: "Management",   role: "Master",     status: "Active",      createdDate: "2024-09-15", lastLogin: "2026-04-22 08:00:00", bookingScope: "all", notificationScope: "all-company" },
+  { id: "sub-202", customerCompanyId: "comp-010", name: "Tran Thi Mai",  email: "mai@gotadi.com",         department: "Bookings SG",  role: "OP",         status: "Active",      createdDate: "2024-10-01", lastLogin: "2026-04-22 10:30:12", bookingScope: "all", notificationScope: "own" },
+  { id: "sub-203", customerCompanyId: "comp-010", name: "Le Quoc Phong", email: "phong@gotadi.com",       department: "Bookings VN",  role: "OP",         status: "Active",      createdDate: "2024-10-01", lastLogin: "2026-04-22 09:45:22", bookingScope: "own", notificationScope: "own" },
+  { id: "sub-204", customerCompanyId: "comp-010", name: "Pham Thuy Linh",email: "linh@gotadi.com",        department: "Finance",      role: "Accounting", status: "Active",      createdDate: "2025-02-14", lastLogin: "2026-04-19 15:12:08", bookingScope: "all", notificationScope: "accounting-only" },
+  { id: "sub-205", customerCompanyId: "comp-010", name: "Hoang Minh Duc",email: "duc@gotadi.com",         department: "Bookings SG",  role: "OP",         status: "Pending",     createdDate: "2026-04-15",                                 bookingScope: "own", notificationScope: "own" },
 
   /* ── Vietnam Vacation Co. (comp-011, multi-entity PREPAY) ── */
-  { id: "sub-301", customerCompanyId: "comp-011", name: "Vu Thi Hoa",    email: "vvc@dotbiz.com",         department: "Management",   role: "Master", status: "Active",      createdDate: "2025-01-20", lastLogin: "2026-04-22 08:15:30" },
-  { id: "sub-302", customerCompanyId: "comp-011", name: "Dang Minh Anh", email: "anh@vietnamvacation.vn", department: "Bookings",     role: "OP",     status: "Active",      createdDate: "2025-03-10", lastLogin: "2026-04-21 19:22:44" },
+  { id: "sub-301", customerCompanyId: "comp-011", name: "Vu Thi Hoa",    email: "vvc@dotbiz.com",         department: "Management",   role: "Master",     status: "Active",      createdDate: "2025-01-20", lastLogin: "2026-04-22 08:15:30", bookingScope: "all", notificationScope: "all-company" },
+  { id: "sub-302", customerCompanyId: "comp-011", name: "Dang Minh Anh", email: "anh@vietnamvacation.vn", department: "Bookings",     role: "OP",         status: "Active",      createdDate: "2025-03-10", lastLogin: "2026-04-21 19:22:44", bookingScope: "own", notificationScope: "own" },
 ];
 
 /* ── Departments ──
