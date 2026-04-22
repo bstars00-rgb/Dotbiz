@@ -20,6 +20,26 @@ export default function MyAccountPage() {
   const { t } = useI18n();
   const [changePassOpen, setChangePassOpen] = useState(false);
 
+  /* Controlled form state with simple required-field validation.
+   * Save button is disabled when any required field is blank, and we
+   * surface a per-field error message so the user knows why. */
+  const [fullName, setFullName] = useState<string>(currentUser.fullName);
+  const [phone, setPhone] = useState<string>(currentUser.phone);
+  const [showErrors, setShowErrors] = useState(false);
+
+  const nameError = fullName.trim().length === 0 ? "Full name is required." : "";
+  const hasErrors = !!nameError;
+
+  const handleSave = () => {
+    if (hasErrors) {
+      setShowErrors(true);
+      toast.error("Please fix the highlighted fields before saving.");
+      return;
+    }
+    setShowErrors(false);
+    toast.success("Profile saved");
+  };
+
   if (state === "loading") return (<div className="p-6 space-y-4"><Skeleton className="h-48 w-full" /><Skeleton className="h-32 w-full" /><StateToolbar state={state} setState={setState} /></div>);
   if (state === "empty") return (<div className="p-6"><Card className="max-w-md mx-auto mt-20 p-6 text-center"><h2 className="text-xl font-semibold">Account Not Found</h2></Card><StateToolbar state={state} setState={setState} /></div>);
   if (state === "error") return (<div className="p-6"><Alert variant="destructive" className="max-w-md mx-auto"><AlertTitle>Account Error</AlertTitle><AlertDescription>Failed to load account data.</AlertDescription><Button className="mt-3" onClick={() => setState("success")}><RefreshCw className="h-4 w-4 mr-2" />Retry</Button></Alert><StateToolbar state={state} setState={setState} /></div>);
@@ -40,8 +60,21 @@ export default function MyAccountPage() {
             <label className="text-sm font-medium">Full Name <span className="text-destructive">*</span></label>
             <div className="relative mt-1">
               <User className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input defaultValue={currentUser.fullName} className="pl-9" />
+              <Input
+                value={fullName}
+                onChange={e => setFullName(e.target.value)}
+                onBlur={() => setShowErrors(true)}
+                className={`pl-9 ${showErrors && nameError ? "border-destructive focus-visible:ring-destructive" : ""}`}
+                aria-invalid={showErrors && !!nameError}
+                aria-describedby="fullname-error"
+                placeholder="Enter your full name"
+              />
             </div>
+            {showErrors && nameError && (
+              <p id="fullname-error" className="text-[11px] text-destructive mt-1">
+                {nameError}
+              </p>
+            )}
           </div>
           <div>
             <label className="text-sm font-medium">Email</label>
@@ -55,7 +88,12 @@ export default function MyAccountPage() {
             <label className="text-sm font-medium">Phone</label>
             <div className="relative mt-1">
               <Phone className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input defaultValue={currentUser.phone} className="pl-9" />
+              <Input
+                value={phone}
+                onChange={e => setPhone(e.target.value)}
+                className="pl-9"
+                placeholder="+82-10-0000-0000"
+              />
             </div>
           </div>
           <div>
@@ -72,9 +110,15 @@ export default function MyAccountPage() {
           </div>
         </div>
 
-        {/* Save scope is clearly limited to this card */}
-        <div className="flex justify-end mt-5 pt-4 border-t">
-          <Button onClick={() => toast.success("Profile saved")}>
+        {/* Save scope is clearly limited to this card.
+         * Button is disabled when required fields are invalid so the user
+         * can't even submit a broken state — belt + suspenders with the
+         * client-side error messaging above. */}
+        <div className="flex items-center justify-between mt-5 pt-4 border-t gap-3">
+          <p className="text-[11px] text-muted-foreground">
+            <span className="text-destructive">*</span> Required
+          </p>
+          <Button onClick={handleSave} disabled={hasErrors}>
             <Save className="h-4 w-4 mr-2" />Save Profile
           </Button>
         </div>
