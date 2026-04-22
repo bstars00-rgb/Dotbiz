@@ -134,15 +134,48 @@ export default function SettlementPage() {
     refresh();
   };
 
-  /* ── Billing Details filters ── */
-  const [billDateType, setBillDateType] = useState<"Created Date" | "Due Date" | "Settlement Date">("Created Date");
-  const [billType, setBillType] = useState("All");
-  const [billSearch, setBillSearch] = useState("");
-  const [billInvoiceSearch, setBillInvoiceSearch] = useState("");
-  const [billDateFrom, setBillDateFrom] = useState("");
-  const [billDateTo, setBillDateTo] = useState("");
+  /* ── Billing Details filters ──
+   * Two-tier state: the user edits a "draft" freely in the form; the table only
+   * re-queries when they press Search (or when tenant/contract scope changes).
+   * This matches the expectation of a form-based search flow and avoids the
+   * table flickering on every keystroke.
+   */
+  type BillDateKind = "Booking Date" | "Due Date" | "Settlement Date";
+  interface BillFilters {
+    dateType: BillDateKind;
+    type: string;
+    search: string;
+    invoiceSearch: string;
+    dateFrom: string;
+    dateTo: string;
+  }
+  const defaultBillFilters: BillFilters = {
+    dateType: "Booking Date",
+    type: "All",
+    search: "",
+    invoiceSearch: "",
+    dateFrom: "",
+    dateTo: "",
+  };
+  /* Draft — what the form shows the user is currently editing */
+  const [billDraft, setBillDraft] = useState<BillFilters>(defaultBillFilters);
+  /* Applied — what actually filters the table (snapshot at last Search click) */
+  const [billApplied, setBillApplied] = useState<BillFilters>(defaultBillFilters);
 
-  /* Tenant-scope: only this customer's bills */
+  const applyBillFilters = () => setBillApplied(billDraft);
+  const resetBillFilters = () => {
+    setBillDraft(defaultBillFilters);
+    setBillApplied(defaultBillFilters);
+  };
+  const hasDraftChanges =
+    billDraft.dateType !== billApplied.dateType ||
+    billDraft.type !== billApplied.type ||
+    billDraft.search !== billApplied.search ||
+    billDraft.invoiceSearch !== billApplied.invoiceSearch ||
+    billDraft.dateFrom !== billApplied.dateFrom ||
+    billDraft.dateTo !== billApplied.dateTo;
+
+  /* Tenant-scope: only this customer's bills (always applied, not part of search form) */
   const myBills = useMemo(() => billingDetails.filter(b => {
     if (b.customerCompanyId !== activeCompany.id) return false;
     if (selectedContractId !== "all" && b.contractId !== selectedContractId) return false;
@@ -151,28 +184,28 @@ export default function SettlementPage() {
 
   const filteredBills = useMemo(() => {
     let result = [...myBills];
-    if (billType !== "All") result = result.filter(b => b.billType === billType);
-    if (billSearch) {
-      const q = billSearch.toLowerCase();
+    if (billApplied.type !== "All") result = result.filter(b => b.billType === billApplied.type);
+    if (billApplied.search) {
+      const q = billApplied.search.toLowerCase();
       result = result.filter(b => b.billId.toLowerCase().includes(q) || b.bookingId.toLowerCase().includes(q));
     }
-    if (billInvoiceSearch) {
-      const q = billInvoiceSearch.toLowerCase();
+    if (billApplied.invoiceSearch) {
+      const q = billApplied.invoiceSearch.toLowerCase();
       result = result.filter(b => b.invoiceNo.toLowerCase().includes(q));
     }
-    if (billDateFrom || billDateTo) {
+    if (billApplied.dateFrom || billApplied.dateTo) {
       result = result.filter(b => {
-        const target = billDateType === "Created Date" ? b.createdDate
-          : billDateType === "Due Date" ? b.dueDate
+        const target = billApplied.dateType === "Booking Date" ? b.createdDate
+          : billApplied.dateType === "Due Date" ? b.dueDate
           : b.settlementDate;
         if (!target) return false;
-        if (billDateFrom && target < billDateFrom) return false;
-        if (billDateTo && target > billDateTo) return false;
+        if (billApplied.dateFrom && target < billApplied.dateFrom) return false;
+        if (billApplied.dateTo && target > billApplied.dateTo) return false;
         return true;
       });
     }
     return result;
-  }, [myBills, billType, billSearch, billInvoiceSearch, billDateType, billDateFrom, billDateTo]);
+  }, [myBills, billApplied]);
 
   /* Excel export — for customer accounting team */
   const exportBillsCsv = () => {
@@ -185,7 +218,7 @@ export default function SettlementPage() {
       "Bill Type": b.billType,
       "Currency": b.currency,
       "Amount": b.amount,
-      "Created Date": b.createdDate,
+      "Booking Date": b.createdDate,
       "Due Date": b.dueDate,
       "Settlement Date": b.settlementDate || "",
       "Status": b.status,
@@ -751,49 +784,103 @@ export default function SettlementPage() {
         {/* ══════ Billing Details Tab ══════ */}
         <TabsContent value="billing" className="space-y-4 mt-4">
           <Card className="p-4 space-y-3">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <div>
-                <label className="text-sm font-medium">Date Type</label>
-                <select value={billDateType} onChange={e => setBillDateType(e.target.value as typeof billDateType)} className="w-full border rounded px-2 py-1.5 text-sm bg-background mt-1">
-                  {["Created Date", "Due Date", "Settlement Date"].map(o => <option key={o}>{o}</option>)}
-                </select>
+            <form
+              onSubmit={e => { e.preventDefault(); applyBillFilters(); }}
+              className="space-y-3"
+            >
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div>
+                  <label className="text-sm font-medium">Date Type</label>
+                  <select
+                    value={billDraft.dateType}
+                    onChange={e => setBillDraft(d => ({ ...d, dateType: e.target.value as BillDateKind }))}
+                    className="w-full border rounded px-2 py-1.5 text-sm bg-background mt-1"
+                  >
+                    {(["Booking Date", "Due Date", "Settlement Date"] as const).map(o => <option key={o}>{o}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-sm font-medium">From</label>
+                  <input
+                    type="date"
+                    value={billDraft.dateFrom}
+                    onChange={e => setBillDraft(d => ({ ...d, dateFrom: e.target.value }))}
+                    className="w-full border rounded px-2 py-1.5 text-sm bg-background mt-1"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">To</label>
+                  <input
+                    type="date"
+                    value={billDraft.dateTo}
+                    onChange={e => setBillDraft(d => ({ ...d, dateTo: e.target.value }))}
+                    className="w-full border rounded px-2 py-1.5 text-sm bg-background mt-1"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Bill Type</label>
+                  <select
+                    value={billDraft.type}
+                    onChange={e => setBillDraft(d => ({ ...d, type: e.target.value }))}
+                    className="w-full border rounded px-2 py-1.5 text-sm bg-background mt-1"
+                  >
+                    {["All", "Hotel Booking", "Cancellation Fee", "Adjustment"].map(o => <option key={o}>{o}</option>)}
+                  </select>
+                </div>
               </div>
-              <div>
-                <label className="text-sm font-medium">From</label>
-                <input type="date" value={billDateFrom} onChange={e => setBillDateFrom(e.target.value)} className="w-full border rounded px-2 py-1.5 text-sm bg-background mt-1" />
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div>
+                  <label className="text-sm font-medium">Bill ID / Booking ID</label>
+                  <Input
+                    placeholder="BILL-… or ELLIS code"
+                    value={billDraft.search}
+                    onChange={e => setBillDraft(d => ({ ...d, search: e.target.value }))}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Invoice No</label>
+                  <Input
+                    placeholder="e.g. INV-2026-0089"
+                    value={billDraft.invoiceSearch}
+                    onChange={e => setBillDraft(d => ({ ...d, invoiceSearch: e.target.value }))}
+                    className="mt-1"
+                  />
+                </div>
+                <div className="md:col-span-2 flex items-end gap-2">
+                  <Button
+                    type="submit"
+                    size="sm"
+                    style={{ background: hasDraftChanges ? "#FF6000" : undefined }}
+                    className={hasDraftChanges ? "text-white" : ""}
+                  >
+                    <Search className="h-3 w-3 mr-1" />Search
+                  </Button>
+                  <Button type="button" variant="outline" size="sm" onClick={resetBillFilters}>
+                    <X className="h-3 w-3 mr-1" />Reset
+                  </Button>
+                  <Button type="button" size="sm" variant="outline" className="ml-auto" onClick={exportBillsCsv}>
+                    <Download className="h-3 w-3 mr-1" />Export Excel (CSV)
+                  </Button>
+                </div>
               </div>
-              <div>
-                <label className="text-sm font-medium">To</label>
-                <input type="date" value={billDateTo} onChange={e => setBillDateTo(e.target.value)} className="w-full border rounded px-2 py-1.5 text-sm bg-background mt-1" />
-              </div>
-              <div>
-                <label className="text-sm font-medium">Bill Type</label>
-                <select value={billType} onChange={e => setBillType(e.target.value)} className="w-full border rounded px-2 py-1.5 text-sm bg-background mt-1">
-                  {["All", "Hotel Booking", "Cancellation Fee", "Adjustment"].map(o => <option key={o}>{o}</option>)}
-                </select>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <div>
-                <label className="text-sm font-medium">Bill ID / Booking ID</label>
-                <Input placeholder="BILL-… or ELLIS code" value={billSearch} onChange={e => setBillSearch(e.target.value)} className="mt-1" />
-              </div>
-              <div>
-                <label className="text-sm font-medium">Invoice No</label>
-                <Input placeholder="e.g. INV-2026-0089" value={billInvoiceSearch} onChange={e => setBillInvoiceSearch(e.target.value)} className="mt-1" />
-              </div>
-              <div className="md:col-span-2 flex items-end gap-2">
-                <Button size="sm" onClick={() => toast.success(`${filteredBills.length} records found`)}><Search className="h-3 w-3 mr-1" />Search</Button>
-                <Button variant="outline" size="sm" onClick={() => { setBillType("All"); setBillSearch(""); setBillInvoiceSearch(""); setBillDateFrom(""); setBillDateTo(""); setBillDateType("Created Date"); }}><X className="h-3 w-3 mr-1" />Reset</Button>
-                <Button size="sm" variant="outline" className="ml-auto" onClick={exportBillsCsv}>
-                  <Download className="h-3 w-3 mr-1" />Export Excel (CSV)
-                </Button>
-              </div>
-            </div>
+              {hasDraftChanges && (
+                <p className="text-[11px] text-orange-600 dark:text-orange-400">
+                  Filter edits pending — press <strong>Search</strong> to apply.
+                </p>
+              )}
+            </form>
           </Card>
 
           <div className="flex items-center justify-between">
-            <p className="text-sm text-muted-foreground">{filteredBills.length} billing records {billInvoiceSearch && <span className="ml-1 text-[10px] bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 px-1.5 py-0.5 rounded">filtered by invoice {billInvoiceSearch}</span>}</p>
+            <p className="text-sm text-muted-foreground">
+              {filteredBills.length} billing records
+              {billApplied.invoiceSearch && (
+                <span className="ml-1 text-[10px] bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 px-1.5 py-0.5 rounded">
+                  filtered by invoice {billApplied.invoiceSearch}
+                </span>
+              )}
+            </p>
           </div>
 
           <Table>
@@ -805,7 +892,7 @@ export default function SettlementPage() {
                 <TableHead>Booking ID</TableHead>
                 <TableHead>Hotel</TableHead>
                 <TableHead className="text-right">Amount</TableHead>
-                <TableHead>Created</TableHead>
+                <TableHead>Booking Date</TableHead>
                 <TableHead>Due</TableHead>
                 <TableHead>Settled</TableHead>
                 <TableHead>Status</TableHead>
