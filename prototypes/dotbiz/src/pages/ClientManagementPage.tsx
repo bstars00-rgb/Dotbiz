@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useAuth } from "@/contexts/AuthContext";
 import { useI18n } from "@/contexts/I18nContext";
+import { useTabParam } from "@/hooks/useTabParam";
 import { subAccounts, departments, balanceTransactions, creditSummary, voucherSettings } from "@/mocks/clientManagement";
 import { toast } from "sonner";
 
@@ -19,6 +20,7 @@ const statusColors: Record<string, string> = { Active: "default", Pending: "seco
 export default function ClientManagementPage() {
   const { hasRole } = useAuth();
   const { t } = useI18n();
+  const [clientTab, setClientTab] = useTabParam("subaccounts");
 
   /* ── Sub-account state ── */
   const [subSearch, setSubSearch] = useState("");
@@ -47,7 +49,7 @@ export default function ClientManagementPage() {
     <div className="p-6 space-y-4">
       <h1 className="text-2xl font-bold">{t("page.clientMgmt")}</h1>
 
-      <Tabs defaultValue="subaccounts">
+      <Tabs value={clientTab} onValueChange={setClientTab}>
         <TabsList className="flex-wrap">
           <TabsTrigger value="subaccounts" className="gap-1.5"><Users className="h-3.5 w-3.5" />Sub-accounts</TabsTrigger>
           <TabsTrigger value="departments" className="gap-1.5"><Building2 className="h-3.5 w-3.5" />Departments</TabsTrigger>

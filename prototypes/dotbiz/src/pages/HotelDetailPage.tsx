@@ -26,6 +26,7 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useScreenState } from "@/hooks/useScreenState";
+import { useTabParam } from "@/hooks/useTabParam";
 import { StateToolbar } from "@/components/StateToolbar";
 import { hotels } from "@/mocks/hotels";
 import { addRecentSearch } from "@/pages/FindHotelPage";
@@ -66,6 +67,7 @@ export default function HotelDetailPage() {
   const { hotelId } = useParams();
   const hotel = hotels.find(h => h.id === hotelId) || hotels[0];
   const allRooms = getRoomsByHotel(hotel.id);
+  const [hotelTab, setHotelTab] = useTabParam("rooms");
   const [expandedRooms, setExpandedRooms] = useState<Record<string, boolean>>({});
 
   /* ── Search Bar state (editing) vs Applied state (for pricing) ── */
@@ -334,7 +336,7 @@ export default function HotelDetailPage() {
 
       {/* Tabs */}
       <div className="px-6 pt-6">
-        <Tabs defaultValue="rooms">
+        <Tabs value={hotelTab} onValueChange={setHotelTab}>
           <TabsList className="w-full justify-start">
             <TabsTrigger value="rooms">Rooms</TabsTrigger>
             <TabsTrigger value="overview">Overview</TabsTrigger>

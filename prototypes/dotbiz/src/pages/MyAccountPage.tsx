@@ -12,6 +12,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useScreenState } from "@/hooks/useScreenState";
+import { useTabParam } from "@/hooks/useTabParam";
 import { StateToolbar } from "@/components/StateToolbar";
 import { useAuth } from "@/contexts/AuthContext";
 import { useI18n } from "@/contexts/I18nContext";
@@ -39,6 +40,7 @@ export default function MyAccountPage() {
   const { state, setState } = useScreenState("success");
   const { t } = useI18n();
   const { hasRole } = useAuth();
+  const [accountTab, setAccountTab] = useTabParam("profile");
   const [addOpOpen, setAddOpOpen] = useState(false);
   const [deactivateOpen, setDeactivateOpen] = useState(false);
   const [changePassOpen, setChangePassOpen] = useState(false);
@@ -59,7 +61,7 @@ export default function MyAccountPage() {
     <div className="p-6 space-y-6 max-w-4xl">
       <h1 className="text-2xl font-bold">{t("page.myAccount")}</h1>
 
-      <Tabs defaultValue="profile">
+      <Tabs value={accountTab} onValueChange={setAccountTab}>
         <TabsList className="flex-wrap">
           <TabsTrigger value="profile">Profile</TabsTrigger>
           <TabsTrigger value="security">Security</TabsTrigger>

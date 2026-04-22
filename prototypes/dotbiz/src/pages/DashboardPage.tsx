@@ -11,6 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useScreenState } from "@/hooks/useScreenState";
+import { useTabParam } from "@/hooks/useTabParam";
 import { StateToolbar } from "@/components/StateToolbar";
 import { Star } from "lucide-react";
 import { kpi, points, ttvTrend, dailyBookingStats, destinationStats, bestsellingHotels, bestsellingByCountry } from "@/mocks/dashboard";
@@ -27,6 +28,7 @@ export default function DashboardPage() {
   const { state, setState } = useScreenState("success");
   const { t } = useI18n();
   const navigate = useNavigate();
+  const [dashTab, setDashTab] = useTabParam("overview");
   const [dateBase, setDateBase] = useState<string>("Booking Date");
   const [period, setPeriod] = useState<string>("This Month");
   const today = new Date().toISOString().slice(0, 10);
@@ -121,7 +123,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <Tabs defaultValue="overview">
+      <Tabs value={dashTab} onValueChange={setDashTab}>
         <TabsList className="flex-wrap">
           <TabsTrigger value="overview">{t("dashboard.overview")}</TabsTrigger>
           <TabsTrigger value="dc-booking">{t("dashboard.bookingStats")}</TabsTrigger>

@@ -13,6 +13,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useScreenState } from "@/hooks/useScreenState";
+import { useTabParam } from "@/hooks/useTabParam";
 import { StateToolbar } from "@/components/StateToolbar";
 import { useAuth } from "@/contexts/AuthContext";
 import { useI18n } from "@/contexts/I18nContext";
@@ -55,6 +56,9 @@ export default function SettlementPage() {
   const effectiveDepositAmount = selectedContract?.depositAmount ?? activeCompany.depositAmount;
 
   const isPrepay = effectiveBilling === "PREPAY";
+
+  /* Active tab — URL-synced so browser Back returns to the same tab the user was on */
+  const [settlementTab, setSettlementTab] = useTabParam(isPrepay ? "pending" : "invoices");
 
   /* PREPAY: 미결제 예약 (TL 미도래 + 데드라인 임박) */
   const pendingPayments = useMemo(() => {
@@ -643,7 +647,7 @@ export default function SettlementPage() {
       })()}
 
 
-      <Tabs defaultValue={isPrepay ? "pending" : "invoices"}>
+      <Tabs value={settlementTab} onValueChange={setSettlementTab}>
         <TabsList className="!h-auto flex-wrap justify-start gap-1">
           {isPrepay && <TabsTrigger value="pending">Pending Payment {visiblePending.length > 0 && <span className="ml-1 text-[10px] bg-red-500 text-white rounded-full px-1.5">{visiblePending.length}</span>}</TabsTrigger>}
           <TabsTrigger value="invoices">Invoices</TabsTrigger>
