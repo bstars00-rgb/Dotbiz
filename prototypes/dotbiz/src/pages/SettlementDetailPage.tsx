@@ -178,7 +178,7 @@ export default function SettlementDetailPage() {
               <TableHead title="Booking Item Code (ELLIS)">Booking Item Code</TableHead>
               <TableHead>Booking Status</TableHead>
               <TableHead title="Customer Payment Status">C. Pmt Status</TableHead>
-              <TableHead title="Hotel (seller) booking code">Seller BKG Code</TableHead>
+              <TableHead title="Hotel (seller) booking code">Hotel Confirm No.</TableHead>
               <TableHead>Hotel Country</TableHead>
               <TableHead>Hotel Name</TableHead>
               <TableHead>Traveler</TableHead>

@@ -146,8 +146,8 @@ export default function BookingFormPage() {
             </div>
           </div>
           <div>
-            <label className="text-sm font-medium">Seller Booking Code</label>
-            <Input value={bookerCode} onChange={e => setBookerCode(e.target.value)} className="mt-1" placeholder="Seller Booking Code" />
+            <label className="text-sm font-medium">Hotel Confirmation No.</label>
+            <Input value={bookerCode} onChange={e => setBookerCode(e.target.value)} className="mt-1" placeholder="Hotel Confirmation No." />
           </div>
         </div>
       </Card>

@@ -61,6 +61,11 @@ export default function BookingCompletePage() {
         <h1 className="text-2xl font-bold text-green-600">Booking Confirmed!</h1>
         <p className="text-lg font-mono font-semibold">ELLIS Code: {ellisCode}</p>
         <Badge variant="default" className="text-sm">Confirmed</Badge>
+        <p className="text-xs text-muted-foreground max-w-md mx-auto">
+          The hotel's confirmation number (e.g. <span className="font-mono">HC-xxx</span>) will be
+          added to your booking once the hotel acknowledges. You'll be notified — check the
+          Bookings page to see it.
+        </p>
       </div>
 
       {/* Booking Details */}
@@ -72,6 +77,7 @@ export default function BookingCompletePage() {
           { label: "Check-out", value: `${checkOut} (${nights} night${nights > 1 ? "s" : ""})` },
           { label: "Room", value: room?.name || "Standard Room" },
           { label: "Guest", value: guestName },
+          { label: "Hotel Confirmation No.", value: <Badge variant="outline" className="text-[10px] text-amber-600 border-amber-300">Pending</Badge> },
         ].map(item => (
           <div key={item.label} className="flex justify-between py-1">
             <span className="text-muted-foreground">{item.label}</span>

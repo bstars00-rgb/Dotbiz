@@ -437,8 +437,9 @@ export default function ClientManagementPage() {
                       <p className="font-semibold text-sm">John Smith</p>
                     </div>
                     <div>
-                      <p className="text-[9px] uppercase tracking-wide text-slate-500">Confirmation No.</p>
+                      <p className="text-[9px] uppercase tracking-wide text-slate-500">Hotel Confirmation No.</p>
                       <p className="font-semibold text-sm font-mono">HC-GHS-9821</p>
+                      <p className="text-[8px] text-slate-400 mt-0.5">(issued by hotel after accepting booking)</p>
                     </div>
                     <div>
                       <p className="text-[9px] uppercase tracking-wide text-slate-500 flex items-center gap-1"><Calendar className="h-2.5 w-2.5" />Check-in</p>

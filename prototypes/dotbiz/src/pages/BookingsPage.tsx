@@ -305,7 +305,7 @@ export default function BookingsPage() {
 
     if (op === "export_bookings") {
       const rows = selected.map(b => ({
-        "Booking Date": b.bookingDate, "ELLIS Code": b.ellisCode, "Seller Code": b.hotelConfirmCode,
+        "Booking Date": b.bookingDate, "ELLIS Code": b.ellisCode, "Hotel Confirmation No.": b.hotelConfirmCode,
         "Booking Status": b.bookingStatus, "Payment Status": b.paymentStatus, "Hotel": b.hotelName,
         "Cancel DL": b.cancelDeadline, "Check-in": b.checkIn, "Nights": b.nights,
         "Room Type": b.roomType, "Rooms": b.roomCount, "Traveler": b.traveler,
@@ -530,10 +530,10 @@ export default function BookingsPage() {
                 <Input placeholder="" value={filterHotelName} onChange={e => setFilterHotelName(e.target.value)} className="text-xs h-8 w-44" />
               </div>
             </div>
-            {/* Row 3: Seller Code */}
+            {/* Row 3: Hotel Confirmation No. */}
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-1.5">
-                <label className="text-xs text-muted-foreground">Seller BKG Code</label>
+                <label className="text-xs text-muted-foreground">Hotel Confirm No.</label>
                 <Input placeholder="" value={filterHotelConfirm} onChange={e => setFilterHotelConfirm(e.target.value)} className="text-xs h-8 w-40" />
               </div>
             </div>
@@ -561,7 +561,7 @@ export default function BookingsPage() {
             <div className="flex items-center gap-2">
               <Button variant="outline" size="sm" onClick={() => {
                 const rows = filtered.map(b => ({
-                  "Booking Date": b.bookingDate, "ELLIS Code": b.ellisCode, "Seller Code": b.hotelConfirmCode,
+                  "Booking Date": b.bookingDate, "ELLIS Code": b.ellisCode, "Hotel Confirmation No.": b.hotelConfirmCode,
                   "Booking Status": b.bookingStatus, "Payment Status": b.paymentStatus, "Hotel": b.hotelName,
                   "Cancel DL": b.cancelDeadline, "Check-in": b.checkIn, "Nights": b.nights,
                   "Room Type": b.roomType, "Rooms": b.roomCount, "Traveler": b.traveler,
@@ -590,7 +590,7 @@ export default function BookingsPage() {
                     <TableHead className="w-8"><Checkbox checked={selectedIds.size === filtered.length && filtered.length > 0} onCheckedChange={selectAll} /></TableHead>
                     <TableHead className="whitespace-nowrap">Booking Date</TableHead>
                     <TableHead className="whitespace-nowrap">ELLIS Booking Code</TableHead>
-                    <TableHead className="whitespace-nowrap">Seller Booking Code</TableHead>
+                    <TableHead className="whitespace-nowrap">Hotel Confirmation No.</TableHead>
                     <TableHead className="whitespace-nowrap">Booking Status</TableHead>
                     <TableHead className="whitespace-nowrap">Payment Status</TableHead>
                     <TableHead className="whitespace-nowrap">Hotel Name</TableHead>
@@ -619,7 +619,13 @@ export default function BookingsPage() {
                           <Copy className="h-3 w-3 inline" />
                         </button>
                       </TableCell>
-                      <TableCell className="whitespace-nowrap">{b.hotelConfirmCode || ""}</TableCell>
+                      <TableCell className="whitespace-nowrap">
+                        {b.hotelConfirmCode ? (
+                          <span className="font-mono text-[11px]">{b.hotelConfirmCode}</span>
+                        ) : (
+                          <Badge variant="outline" className="text-[9px] text-amber-600 border-amber-300">Pending</Badge>
+                        )}
+                      </TableCell>
                       <TableCell><Badge variant={statusColors[b.bookingStatus] as "default" | "destructive" | "secondary"} className="text-[10px]">{b.bookingStatus}</Badge></TableCell>
                       <TableCell><Badge variant={statusColors[b.paymentStatus] as "default" | "destructive" | "secondary"} className="text-[10px]">{b.paymentStatus}</Badge></TableCell>
                       <TableCell className="truncate max-w-[150px]">{b.hotelName}</TableCell>
@@ -746,12 +752,12 @@ export default function BookingsPage() {
                     <TableRow><TableCell className="text-sm font-medium">Email</TableCell><TableCell className="text-sm text-primary">{selectedBooking.guestEmail}</TableCell></TableRow>
                     <TableRow><TableCell className="text-sm font-medium">Tel</TableCell><TableCell className="text-sm">{selectedBooking.guestMobile}</TableCell></TableRow>
                     <TableRow>
-                      <TableCell className="text-sm font-medium">Seller Booking Code</TableCell>
+                      <TableCell className="text-sm font-medium">Hotel Confirmation No.</TableCell>
                       <TableCell className="text-sm">
                         {editingSellerCode ? (
                           <div className="flex items-center gap-2">
-                            <Input value={sellerCodeDraft} onChange={e => setSellerCodeDraft(e.target.value)} className="h-7 text-xs max-w-[220px]" placeholder="Enter seller code" autoFocus />
-                            <Button size="sm" className="h-7 text-xs" style={{ background: "#FF6000" }} onClick={() => { setLocalBookings(prev => prev.map(b => b.id === selectedBooking.id ? { ...b, hotelConfirmCode: sellerCodeDraft.trim() } : b)); toast.success("Seller Booking Code saved"); setEditingSellerCode(false); }}>Save</Button>
+                            <Input value={sellerCodeDraft} onChange={e => setSellerCodeDraft(e.target.value)} className="h-7 text-xs max-w-[220px]" placeholder="Enter hotel confirmation no" autoFocus />
+                            <Button size="sm" className="h-7 text-xs" style={{ background: "#FF6000" }} onClick={() => { setLocalBookings(prev => prev.map(b => b.id === selectedBooking.id ? { ...b, hotelConfirmCode: sellerCodeDraft.trim() } : b)); toast.success("Hotel Confirmation No. saved"); setEditingSellerCode(false); }}>Save</Button>
                             <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setEditingSellerCode(false)}>Cancel</Button>
                           </div>
                         ) : (

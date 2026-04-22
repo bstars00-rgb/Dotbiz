@@ -102,7 +102,7 @@ export default function BookingConfirmPage() {
             <TableRow><TableCell className="font-medium text-[#FF6000] w-48">Name</TableCell><TableCell>{bookerName}</TableCell></TableRow>
             <TableRow><TableCell className="font-medium text-[#FF6000]">Email</TableCell><TableCell>{bookerEmail}</TableCell></TableRow>
             {bookerMobile && <TableRow><TableCell className="font-medium text-[#FF6000]">Mobile</TableCell><TableCell>+{mobileCountry} {bookerMobile}</TableCell></TableRow>}
-            {bookerCode && <TableRow><TableCell className="font-medium text-[#FF6000]">Seller Booking Code</TableCell><TableCell>{bookerCode}</TableCell></TableRow>}
+            {bookerCode && <TableRow><TableCell className="font-medium text-[#FF6000]">Hotel Confirmation No.</TableCell><TableCell>{bookerCode}</TableCell></TableRow>}
           </TableBody>
         </Table>
       </Card>
