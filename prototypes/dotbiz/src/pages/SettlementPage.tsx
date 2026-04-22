@@ -11,13 +11,12 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useScreenState } from "@/hooks/useScreenState";
 import { useTabParam } from "@/hooks/useTabParam";
 import { StateToolbar } from "@/components/StateToolbar";
 import { useAuth } from "@/contexts/AuthContext";
 import { useI18n } from "@/contexts/I18nContext";
-import { billingDetails, invoices, accountsReceivable, disputeSummary } from "@/mocks/settlement";
+import { billingDetails, invoices, disputeSummary } from "@/mocks/settlement";
 import { companies, currentCompany } from "@/mocks/companies";
 import { bookings as allBookings, type Booking } from "@/mocks/bookings";
 import { downloadCSV, timestamp } from "@/lib/download";
@@ -231,48 +230,69 @@ export default function SettlementPage() {
     toast.success(`${rows.length} bills exported`, { description: "CSV ready for your accounting team (Excel-compatible)" });
   };
 
-  /* ── Invoices filter ── */
-  const [invStatus, setInvStatus] = useState("All");
-  const [previewInvoice, setPreviewInvoice] = useState<InvoiceData | null>(null);
-  /* 인보이스는 로그인한 고객사 것만 표시.
-   * PREPAY 고객 → 자기 예약별 인보이스
-   * POSTPAY 고객 → 자기 월별 집계 인보이스
+  /* ── Invoices filter + aging ──
+   * POSTPAY payment unit = invoice (not per-booking). Aging is computed from
+   * invoice.dueDate so "overdue 31-60 days" means "invoice's dueDate is 31-60
+   * days in the past and the balance is still unpaid." This replaces the
+   * previous per-booking Accounts Receivable tab (payment never happens per
+   * booking in POSTPAY — customer wires the full invoice total).
    */
+  type AgingBucket = "all" | "current" | "1-30" | "31-60" | "60+";
+  const [invStatus, setInvStatus] = useState("All");
+  const [invAging, setInvAging] = useState<AgingBucket>("all");
+  const [previewInvoice, setPreviewInvoice] = useState<InvoiceData | null>(null);
+
+  /* Pinned demo "today" — aligns with CLAUDE.md currentDate so mock aging
+   * is stable regardless of real system clock. */
+  const DEMO_TODAY_ISO = "2026-04-22";
+  const daysBetween = (from: string, to: string) => {
+    const ms = new Date(to).getTime() - new Date(from).getTime();
+    return Math.floor(ms / 86400000);
+  };
+  const agingBucketOf = (invoice: { dueDate: string; matchStatus: string }): AgingBucket => {
+    if (invoice.matchStatus === "Full" || invoice.matchStatus === "Reconciled") return "all"; /* paid → not in any overdue bucket */
+    const overdueDays = daysBetween(invoice.dueDate, DEMO_TODAY_ISO);
+    if (overdueDays <= 0) return "current";
+    if (overdueDays <= 30) return "1-30";
+    if (overdueDays <= 60) return "31-60";
+    return "60+";
+  };
+
   const myInvoices = useMemo(() => invoices.filter(i => {
     if (i.customerCompanyId !== activeCompany.id) return false;
     if (selectedContractId !== "all" && i.contractId !== selectedContractId) return false;
     return true;
   }), [activeCompany.id, selectedContractId]);
   const myTopUps = useMemo(() => topUpRequests.filter(t => t.customerCompanyId === activeCompany.id), [activeCompany.id, topUpOpen]);
+
+  /* Outstanding (unpaid balance) per invoice — used for aging totals */
+  const outstanding = (i: typeof myInvoices[number]) => Math.max(0, i.total - i.receivedAmount);
+
+  /* Aging totals — aggregated by bucket, in each invoice's own currency.
+   * For multi-contract aggregate view, we keep it simple and sum by bucket
+   * per-currency, then show the dominant currency. Single-contract view gets
+   * a single-currency pure sum. */
+  const myUnpaidInvoices = useMemo(
+    () => myInvoices.filter(i => i.matchStatus !== "Full" && i.matchStatus !== "Reconciled"),
+    [myInvoices]
+  );
+  const agingTotal = (bucket: AgingBucket) =>
+    myUnpaidInvoices.filter(i => agingBucketOf(i) === bucket).reduce((s, i) => s + outstanding(i), 0);
+  const agingCount = (bucket: AgingBucket) =>
+    myUnpaidInvoices.filter(i => agingBucketOf(i) === bucket).length;
+
+  /* Currency for aging card display (single contract → its currency; "all" → fall back to company default) */
+  const agingCurrency = selectedContract?.contractCurrency || effectiveCurrency || "USD";
+  const agingFracDigits = agingCurrency === "VND" || agingCurrency === "JPY" ? 0 : 2;
+  const agingFmt = (n: number) =>
+    `${agingCurrency} ${n.toLocaleString(undefined, { minimumFractionDigits: agingFracDigits, maximumFractionDigits: agingFracDigits })}`;
+
   const filteredInvoices = useMemo(() => {
-    if (invStatus === "All") return myInvoices;
-    return myInvoices.filter(i => i.status === invStatus);
-  }, [invStatus, myInvoices]);
-
-  /* ── AR state ── */
-  const [arSelected, setArSelected] = useState<Set<string>>(new Set());
-  const toggleAr = (id: string) => setArSelected(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
-  const [payDialogOpen, setPayDialogOpen] = useState(false);
-
-  /* AR — filtered by current customer + selected contract (unified structure regardless of contract count) */
-  const myAR = useMemo(() => accountsReceivable.filter(a => {
-    if (a.customerCompanyId !== activeCompany.id) return false;
-    if (selectedContractId !== "all" && a.contractId !== selectedContractId) return false;
-    return true;
-  }), [activeCompany.id, selectedContractId]);
-
-  const arSelectedTotal = myAR.filter(a => arSelected.has(a.id)).reduce((s, a) => s + a.amount, 0);
-
-  /* AR Aging — scoped to filtered AR only */
-  const arCurrent = myAR.filter(a => a.agingDays <= 0).reduce((s, a) => s + a.amount, 0);
-  const ar30 = myAR.filter(a => a.agingDays > 0 && a.agingDays <= 30).reduce((s, a) => s + a.amount, 0);
-  const ar60 = myAR.filter(a => a.agingDays > 30 && a.agingDays <= 60).reduce((s, a) => s + a.amount, 0);
-  const ar90 = myAR.filter(a => a.agingDays > 60).reduce((s, a) => s + a.amount, 0);
-
-  /* AR currency — derive from selected contract (single-contract uses its currency; "all" falls back to company default) */
-  const arCurrency = selectedContract?.contractCurrency || effectiveCurrency || "USD";
-  const arFracDigits = arCurrency === "VND" || arCurrency === "JPY" ? 0 : 2;
-  const arFmt = (n: number) => `${arCurrency} ${n.toLocaleString(undefined, { minimumFractionDigits: arFracDigits, maximumFractionDigits: arFracDigits })}`;
+    let res = myInvoices;
+    if (invStatus !== "All") res = res.filter(i => i.status === invStatus);
+    if (invAging !== "all") res = res.filter(i => agingBucketOf(i) === invAging);
+    return res;
+  }, [invStatus, invAging, myInvoices]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!hasRole(["Master"])) return (<div className="p-6"><Alert><AlertTitle>Access Restricted</AlertTitle><AlertDescription>Settlement page is only accessible to Master accounts.</AlertDescription></Alert></div>);
   if (state === "loading") return (<div className="p-6 space-y-4"><Skeleton className="h-10 w-full" /><div className="grid grid-cols-1 md:grid-cols-3 gap-4">{[1, 2, 3].map(i => <Skeleton key={i} className="h-24" />)}</div><Skeleton className="h-64 w-full" /><StateToolbar state={state} setState={setState} /></div>);
@@ -652,7 +672,6 @@ export default function SettlementPage() {
           {isPrepay && <TabsTrigger value="pending">Pending Payment {visiblePending.length > 0 && <span className="ml-1 text-[10px] bg-red-500 text-white rounded-full px-1.5">{visiblePending.length}</span>}</TabsTrigger>}
           <TabsTrigger value="invoices">Invoices</TabsTrigger>
           <TabsTrigger value="billing">Billing Details</TabsTrigger>
-          {!isPrepay && <TabsTrigger value="ar">Accounts Receivable</TabsTrigger>}
         </TabsList>
 
         {/* ══════ PREPAY Pending Payment Tab ══════ */}
@@ -934,10 +953,50 @@ export default function SettlementPage() {
 
         {/* ══════ Invoices Tab ══════ */}
         <TabsContent value="invoices" className="space-y-4 mt-4">
-          <div className="flex items-center gap-3">
+          {/* Aging cards (POSTPAY-style AR breakdown, by invoice dueDate).
+           * Only shown for POSTPAY contracts since PREPAY has per-booking
+           * deadlines handled in the Pending Payment tab. Clicking a card
+           * filters the invoice list to that bucket. */}
+          {!isPrepay && (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {([
+                { key: "current" as const, label: "Current",       icon: CheckCircle2,  color: "#009505" },
+                { key: "1-30" as const,    label: "1-30 Days",     icon: Clock,         color: "#FF8C00" },
+                { key: "31-60" as const,   label: "31-60 Days",    icon: AlertTriangle, color: "#ea580c" },
+                { key: "60+" as const,     label: "60+ Days",      icon: AlertTriangle, color: "#DC2626" },
+              ]).map(a => {
+                const active = invAging === a.key;
+                const total = agingTotal(a.key);
+                const count = agingCount(a.key);
+                return (
+                  <Card
+                    key={a.key}
+                    onClick={() => setInvAging(active ? "all" : a.key)}
+                    className={`p-3 cursor-pointer transition-colors ${active ? "border-2 ring-2 ring-offset-1" : "border hover:bg-muted/40"}`}
+                    style={active ? { borderColor: a.color, boxShadow: `0 0 0 2px ${a.color}33` } : undefined}
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <a.icon className="h-4 w-4" style={{ color: a.color }} />
+                      <p className="text-xs text-muted-foreground">{a.label}</p>
+                      {count > 0 && <span className="ml-auto text-[10px] text-muted-foreground">{count} inv</span>}
+                    </div>
+                    <p className="text-lg font-bold font-mono">{agingFmt(total)}</p>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+
+          <div className="flex items-center gap-3 flex-wrap">
             <select aria-label="Invoice status filter" value={invStatus} onChange={e => setInvStatus(e.target.value)} className="border rounded px-2 py-1.5 text-sm bg-background">
               {["All", "Issued", "Paid", "Overdue"].map(o => <option key={o}>{o}</option>)}
             </select>
+            {invAging !== "all" && (
+              <span className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300">
+                Aging: {invAging === "current" ? "Current" : `${invAging} Days`}
+                <button onClick={() => setInvAging("all")} className="ml-1 hover:text-orange-900 dark:hover:text-orange-100" aria-label="Clear aging filter">✕</button>
+              </span>
+            )}
             <span className="text-sm text-muted-foreground">{filteredInvoices.length} invoices</span>
           </div>
           <Alert className="border-blue-200 bg-blue-50 dark:bg-blue-900/10">
@@ -1020,103 +1079,7 @@ export default function SettlementPage() {
           </Table>
         </TabsContent>
 
-        {/* ══════ Accounts Receivable Tab (POSTPAY only) ══════ */}
-        {!isPrepay && <TabsContent value="ar" className="space-y-4 mt-4">
-          {/* AR Aging Cards */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {[
-              { label: "Current", value: arCurrent, icon: CheckCircle2, color: "#009505" },
-              { label: "1-30 Days", value: ar30, icon: Clock, color: "#FF8C00" },
-              { label: "31-60 Days", value: ar60, icon: AlertTriangle, color: "#ea580c" },
-              { label: "60+ Days", value: ar90, icon: AlertTriangle, color: "#DC2626" },
-            ].map(a => (
-              <Card key={a.label} className="p-3">
-                <div className="flex items-center gap-2 mb-1">
-                  <a.icon className="h-4 w-4" style={{ color: a.color }} />
-                  <p className="text-xs text-muted-foreground">{a.label}</p>
-                </div>
-                <p className="text-lg font-bold">{arFmt(a.value)}</p>
-              </Card>
-            ))}
-          </div>
-
-          {selectedContractId === "all" && isMultiContract && (
-            <div className="text-[11px] text-muted-foreground italic px-1">
-              Showing aggregate across all contracts (mixed currencies displayed per row). Select a specific contract to see it in one currency.
-            </div>
-          )}
-
-          {arSelected.size > 0 && (
-            <div className="flex items-center gap-3 p-3 bg-primary/5 border border-primary/20 rounded-lg">
-              <span className="text-sm font-medium">{arSelected.size} selected</span>
-              <span className="text-sm font-bold" style={{ color: "#FF6000" }}>Total: {arFmt(arSelectedTotal)}</span>
-              <Button size="sm" onClick={() => setPayDialogOpen(true)}><CreditCard className="h-3 w-3 mr-1" />Pay Selected</Button>
-              <Button size="sm" variant="outline" onClick={() => toast.success("Processing bulk payment...")}>Bulk Pay</Button>
-              <Button size="sm" variant="ghost" className="ml-auto" onClick={() => setArSelected(new Set())}>Clear</Button>
-            </div>
-          )}
-
-          {myAR.length === 0 ? (
-            <Card className="p-8 text-center text-muted-foreground text-sm">
-              No outstanding receivables for this contract.
-            </Card>
-          ) : (
-            <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-10"><Checkbox checked={arSelected.size === myAR.length && myAR.length > 0} onCheckedChange={() => { if (arSelected.size === myAR.length) setArSelected(new Set()); else setArSelected(new Set(myAR.map(a => a.id))); }} /></TableHead>
-                <TableHead>ELLIS Code</TableHead>
-                <TableHead>Hotel</TableHead>
-                <TableHead className="text-right">Amount</TableHead>
-                <TableHead>Cancel Deadline</TableHead>
-                <TableHead>Aging</TableHead>
-                <TableHead>Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {myAR.map(ar => {
-                const rowFracDigits = ar.currency === "VND" || ar.currency === "JPY" ? 0 : 2;
-                const rowFmt = `${ar.currency} ${ar.amount.toLocaleString(undefined, { minimumFractionDigits: rowFracDigits, maximumFractionDigits: rowFracDigits })}`;
-                return (
-                  <TableRow key={ar.id}>
-                    <TableCell><Checkbox checked={arSelected.has(ar.id)} onCheckedChange={() => toggleAr(ar.id)} /></TableCell>
-                    <TableCell className="font-mono text-sm">{ar.ellisCode}</TableCell>
-                    <TableCell>{ar.hotelName}</TableCell>
-                    <TableCell className="font-medium text-right font-mono">{rowFmt}</TableCell>
-                    <TableCell>{ar.cancelDeadline}</TableCell>
-                    <TableCell>
-                      <Badge variant={ar.agingDays > 60 ? "destructive" : ar.agingDays > 30 ? "secondary" : "default"} className="text-[10px]">
-                        {ar.agingDays > 0 ? `${ar.agingDays} days` : "Current"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell><Badge variant="destructive" className="text-[10px]">{ar.paymentStatus}</Badge></TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-          )}
-        </TabsContent>}
-
       </Tabs>
-
-      {/* Pay Confirmation Dialog */}
-      <AlertDialog open={payDialogOpen} onOpenChange={setPayDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Confirm Payment</AlertDialogTitle>
-            <AlertDialogDescription>
-              You are about to pay <strong>{arSelected.size} items</strong> totaling <strong>{arFmt(arSelectedTotal)}</strong>. This action will be processed via your default payment method.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => { toast.success("Payment processed", { description: `${arFmt(arSelectedTotal)} has been paid.` }); setArSelected(new Set()); }}>
-              <CreditCard className="h-4 w-4 mr-1" />Confirm Payment
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
 
       {/* Invoice Preview (A4 + 5 languages) */}
       <InvoicePreviewDialog open={!!previewInvoice} onOpenChange={(o) => !o && setPreviewInvoice(null)} invoice={previewInvoice} />
