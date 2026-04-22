@@ -1,5 +1,5 @@
-import { useState, useMemo, useEffect } from "react";
-import { Search, Plus, Upload, Users, Building2, FileText, ToggleLeft, ToggleRight, Pencil, Trash2, CreditCard, Ticket as TicketIcon } from "lucide-react";
+import { useState, useMemo, useEffect, useRef } from "react";
+import { Search, Plus, Upload, Users, Building2, FileText, ToggleLeft, ToggleRight, Pencil, Trash2, CreditCard, Lock, Info, Calendar, MapPin, Phone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -13,10 +13,14 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useAuth } from "@/contexts/AuthContext";
 import { useI18n } from "@/contexts/I18nContext";
 import { useTabParam } from "@/hooks/useTabParam";
-import { subAccounts, departments, voucherSettingsByCompany, companyCoupons } from "@/mocks/clientManagement";
+import { subAccounts, departments, voucherSettingsByCompany } from "@/mocks/clientManagement";
 import { companies, currentCompany } from "@/mocks/companies";
-import { getSavedCards, removeCard, type SavedCard } from "@/components/PaymentDialog";
+import { getSavedCards, saveCard, removeCard, type SavedCard } from "@/components/PaymentDialog";
 import { toast } from "sonner";
+
+/* Maximum number of saved payment cards per company. PREPAY customers
+ * typically rotate 2-3 corporate cards across team members. */
+const MAX_SAVED_CARDS = 3;
 
 const statusColors: Record<string, string> = { Active: "default", Pending: "secondary", Deactivated: "destructive" };
 
@@ -28,6 +32,7 @@ export default function ClientManagementPage() {
   /* Tenant-scope: current user's company = the only team they can manage */
   const activeCompany = companies.find(c => c.name === user?.company) || currentCompany;
   const myCompanyId = activeCompany.id;
+  const isPrepay = activeCompany.billingType === "PREPAY";
 
   /* Team (sub-accounts) scoped to this customer only */
   const companySubs = useMemo(
@@ -54,12 +59,35 @@ export default function ClientManagementPage() {
   }, [companySubs, subSearch, subStatusFilter, subDeptFilter]);
 
   /* ── Department state ── */
-  const [addDeptOpen, setAddDeptOpen] = useState(false);
+  /* Departments are ELLIS-managed — customer sees them as read-only. */
 
-  /* ── Voucher state (per-company) ── */
+  /* ── Voucher state (per-company) — controlled form so preview updates live ── */
   const companyVoucher = voucherSettingsByCompany[myCompanyId] || voucherSettingsByCompany["comp-001"];
   const [vEnabled, setVEnabled] = useState(companyVoucher.enabled);
   const [vScope, setVScope] = useState(companyVoucher.applyScope);
+  const [vCompanyName, setVCompanyName] = useState(companyVoucher.companyName);
+  const [vPhone, setVPhone] = useState(companyVoucher.phone);
+  const [vEmail, setVEmail] = useState(companyVoucher.email);
+  const [vAddress, setVAddress] = useState(companyVoucher.address);
+  const [vLogoDataUrl, setVLogoDataUrl] = useState<string | null>(null);
+  const vLogoInputRef = useRef<HTMLInputElement>(null);
+
+  const handleLogoUpload = (file: File) => {
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please upload an image file (PNG or JPG).");
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("File too large. Maximum 2MB.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setVLogoDataUrl(e.target?.result as string);
+      toast.success(`Logo uploaded: ${file.name}`);
+    };
+    reader.readAsDataURL(file);
+  };
 
   if (!hasRole(["Master"])) return (<div className="p-6"><Alert><AlertTitle>Access Restricted</AlertTitle><AlertDescription>Master Account management is only accessible to Master users.</AlertDescription></Alert></div>);
 
@@ -74,8 +102,10 @@ export default function ClientManagementPage() {
         <TabsList className="flex-wrap">
           <TabsTrigger value="subaccounts" className="gap-1.5"><Users className="h-3.5 w-3.5" />Sub-accounts</TabsTrigger>
           <TabsTrigger value="departments" className="gap-1.5"><Building2 className="h-3.5 w-3.5" />Departments</TabsTrigger>
-          <TabsTrigger value="cards" className="gap-1.5"><CreditCard className="h-3.5 w-3.5" />Payment Cards</TabsTrigger>
-          <TabsTrigger value="coupons" className="gap-1.5"><TicketIcon className="h-3.5 w-3.5" />Coupons</TabsTrigger>
+          {/* Payment Cards — PREPAY only. POSTPAY settles via invoice wires, no card needed. */}
+          {isPrepay && (
+            <TabsTrigger value="cards" className="gap-1.5"><CreditCard className="h-3.5 w-3.5" />Payment Cards</TabsTrigger>
+          )}
           <TabsTrigger value="voucher" className="gap-1.5"><FileText className="h-3.5 w-3.5" />Voucher Setting</TabsTrigger>
         </TabsList>
 
@@ -168,10 +198,18 @@ export default function ClientManagementPage() {
 
         {/* ══════ Departments Tab ══════ */}
         <TabsContent value="departments" className="space-y-4 mt-4">
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-muted-foreground">{companyDepts.length} departments</p>
-            <Button onClick={() => setAddDeptOpen(true)}><Plus className="h-4 w-4 mr-1" />Add Department</Button>
-          </div>
+          <Alert className="border-blue-200 bg-blue-50 dark:bg-blue-950/20">
+            <Info className="h-4 w-4 text-blue-600" />
+            <AlertTitle className="text-sm">Departments are pre-configured at onboarding</AlertTitle>
+            <AlertDescription className="text-xs">
+              Your OhMyHotel account manager sets up your company's departments during onboarding
+              based on your team structure. To add, rename, or remove a department, please contact
+              your AM — this avoids accidental structural changes that would affect sub-account
+              assignments.
+            </AlertDescription>
+          </Alert>
+
+          <p className="text-sm text-muted-foreground">{companyDepts.length} departments</p>
 
           <Table>
             <TableHeader>
@@ -181,7 +219,6 @@ export default function ClientManagementPage() {
                 <TableHead>Manager</TableHead>
                 <TableHead>Members</TableHead>
                 <TableHead>Created</TableHead>
-                <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -192,12 +229,6 @@ export default function ClientManagementPage() {
                   <TableCell className="text-sm">{d.manager}</TableCell>
                   <TableCell><Badge variant="secondary" className="text-[10px]">{d.memberCount}</Badge></TableCell>
                   <TableCell className="text-sm">{d.createdDate}</TableCell>
-                  <TableCell>
-                    <div className="flex gap-1">
-                      <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => toast.success("Department updated")}><Pencil className="h-3 w-3" /></Button>
-                      <Button size="sm" variant="ghost" className="h-7 text-xs text-destructive" onClick={() => toast.success("Department deleted")}><Trash2 className="h-3 w-3" /></Button>
-                    </div>
-                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -206,190 +237,270 @@ export default function ClientManagementPage() {
 
         {/* Balance Details tab removed — merged into Settlement > Credit Line card (single source of truth). */}
 
-        {/* ══════ Payment Cards Tab ══════ */}
-        <TabsContent value="cards" className="space-y-4 mt-4">
-          <Card className="p-6">
-            <h2 className="text-lg font-semibold mb-2 flex items-center gap-2">
-              <CreditCard className="h-5 w-5 text-[#FF6000]" />Company Payment Cards
-            </h2>
-            <p className="text-sm text-muted-foreground mb-4">
-              Cards saved when your team pays for PREPAY bookings. These cards belong to
-              {activeCompany.name} (the company), not an individual user — any team member
-              making a PREPAY booking can reuse them.
-            </p>
-            <CardManagementSection />
-          </Card>
-          <Alert>
-            <AlertTitle>Security Notice</AlertTitle>
-            <AlertDescription>
-              Card details are stored locally in your browser for demo purposes. In production,
-              card tokens are securely stored via PG gateway (PCI-DSS compliant). Only the last 4
-              digits are visible.
-            </AlertDescription>
-          </Alert>
-        </TabsContent>
+        {/* ══════ Payment Cards Tab (PREPAY only) ══════ */}
+        {isPrepay && (
+          <TabsContent value="cards" className="space-y-4 mt-4">
+            <Card className="p-6">
+              <div className="flex items-center justify-between mb-2">
+                <h2 className="text-lg font-semibold flex items-center gap-2">
+                  <CreditCard className="h-5 w-5 text-[#FF6000]" />Company Payment Cards
+                </h2>
+                <Badge variant="outline" className="text-[10px]">PREPAY</Badge>
+              </div>
+              <p className="text-sm text-muted-foreground mb-4">
+                Cards registered here are reusable by any team member when paying for PREPAY
+                bookings. Up to {MAX_SAVED_CARDS} cards can be saved.
+              </p>
+              <CardManagementSection />
+            </Card>
+            <Alert>
+              <AlertTitle>Security Notice</AlertTitle>
+              <AlertDescription>
+                Card details are stored locally in your browser for demo purposes. In production,
+                card tokens are securely stored via PG gateway (PCI-DSS compliant). Only the last
+                4 digits are visible.
+              </AlertDescription>
+            </Alert>
+          </TabsContent>
+        )}
 
-        {/* ══════ Coupons Tab ══════ */}
-        <TabsContent value="coupons" className="space-y-4 mt-4">
-          <Card className="p-6">
-            <h2 className="text-lg font-semibold mb-2 flex items-center gap-2">
-              <TicketIcon className="h-5 w-5 text-[#FF6000]" />Company Coupons
-            </h2>
-            <p className="text-sm text-muted-foreground mb-4">
-              Promotions earned by {activeCompany.name} as a whole. Any team member making a
-              booking can apply them at checkout.
-            </p>
-            {(() => {
-              const myCoupons = companyCoupons.filter(c => c.customerCompanyId === myCompanyId);
-              if (myCoupons.length === 0) {
-                return <p className="text-sm text-muted-foreground text-center py-8">No coupons available for this company.</p>;
-              }
-              return (
-                <Tabs defaultValue="unused">
-                  <TabsList>
-                    <TabsTrigger value="unused">Unused ({myCoupons.filter(c => c.status === "Unused").length})</TabsTrigger>
-                    <TabsTrigger value="used">Used ({myCoupons.filter(c => c.status === "Used").length})</TabsTrigger>
-                    <TabsTrigger value="expired">Expired ({myCoupons.filter(c => c.status === "Expired").length})</TabsTrigger>
-                  </TabsList>
-                  <TabsContent value="unused" className="mt-3 space-y-3">
-                    {myCoupons.filter(c => c.status === "Unused").map(c => (
-                      <div key={c.id} className="border rounded-lg p-4 flex items-center justify-between flex-wrap gap-3">
-                        <div>
-                          <p className="font-semibold text-sm">{c.name}</p>
-                          <p className="text-xs text-muted-foreground mt-0.5">
-                            Discount <strong className="text-[#FF6000]">{c.discount}</strong>
-                            {c.minOrder && <> · Min order {c.minOrder}</>}
-                            {c.applicable && <> · {c.applicable}</>}
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <Badge variant="outline" className="text-[10px]">Valid until {c.validUntil}</Badge>
-                        </div>
-                      </div>
-                    ))}
-                    {myCoupons.filter(c => c.status === "Unused").length === 0 && (
-                      <p className="text-sm text-muted-foreground text-center py-8">No unused coupons.</p>
-                    )}
-                  </TabsContent>
-                  <TabsContent value="used" className="mt-3 space-y-3">
-                    {myCoupons.filter(c => c.status === "Used").map(c => (
-                      <div key={c.id} className="border rounded-lg p-4 flex items-center justify-between gap-3 opacity-75">
-                        <div>
-                          <p className="font-semibold text-sm">{c.name}</p>
-                          <p className="text-xs text-muted-foreground mt-0.5">
-                            Used on {c.usedDate}{c.booking && <> · Booking {c.booking}</>}
-                          </p>
-                        </div>
-                        <Badge variant="secondary" className="text-[10px]">{c.discount}</Badge>
-                      </div>
-                    ))}
-                    {myCoupons.filter(c => c.status === "Used").length === 0 && (
-                      <p className="text-sm text-muted-foreground text-center py-8">No used coupons.</p>
-                    )}
-                  </TabsContent>
-                  <TabsContent value="expired" className="mt-3 space-y-3">
-                    {myCoupons.filter(c => c.status === "Expired").map(c => (
-                      <div key={c.id} className="border rounded-lg p-4 flex items-center justify-between gap-3 opacity-50">
-                        <div>
-                          <p className="font-semibold text-sm line-through">{c.name}</p>
-                          <p className="text-xs text-muted-foreground mt-0.5">Expired on {c.expiredDate}</p>
-                        </div>
-                        <Badge variant="destructive" className="text-[10px]">{c.discount}</Badge>
-                      </div>
-                    ))}
-                    {myCoupons.filter(c => c.status === "Expired").length === 0 && (
-                      <p className="text-sm text-muted-foreground text-center py-8">No expired coupons.</p>
-                    )}
-                  </TabsContent>
-                </Tabs>
-              );
-            })()}
-          </Card>
-        </TabsContent>
+        {/* Coupons tab removed — per review, not part of DOTBIZ MVP. */}
 
         {/* ══════ Voucher Setting Tab ══════ */}
         <TabsContent value="voucher" className="space-y-4 mt-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Form */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* ── Form ── */}
             <Card className="p-5 space-y-4">
               <h3 className="font-semibold">Voucher Company Information</h3>
-              <p className="text-xs text-muted-foreground">This information will be displayed on hotel vouchers sent to guests.</p>
+              <p className="text-xs text-muted-foreground">
+                Displayed on hotel vouchers sent to guests. The preview on the right updates live.
+              </p>
               <Separator />
               <div className="space-y-3">
-                <div><label className="text-sm font-medium">Company Name</label><Input defaultValue={companyVoucher.companyName} className="mt-1" /></div>
-                <div><label className="text-sm font-medium">Phone</label><Input defaultValue={companyVoucher.phone} className="mt-1" /></div>
-                <div><label className="text-sm font-medium">Email</label><Input defaultValue={companyVoucher.email} className="mt-1" /></div>
-                <div><label className="text-sm font-medium">QQ (optional)</label><Input defaultValue={companyVoucher.qq} placeholder="QQ number" className="mt-1" /></div>
-                <div><label className="text-sm font-medium">Address</label><Input defaultValue={companyVoucher.address} className="mt-1" /></div>
                 <div>
-                  <label className="text-sm font-medium">Company Logo</label>
-                  <div className="mt-1 border-2 border-dashed rounded-lg p-6 text-center cursor-pointer hover:bg-muted/50 transition-colors">
-                    <Upload className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-                    <p className="text-sm text-muted-foreground">Click to upload logo</p>
-                    <p className="text-[10px] text-muted-foreground">PNG, JPG up to 2MB</p>
+                  <label className="text-sm font-medium">Company Name</label>
+                  <Input value={vCompanyName} onChange={e => setVCompanyName(e.target.value)} className="mt-1" />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-sm font-medium">Phone</label>
+                    <Input value={vPhone} onChange={e => setVPhone(e.target.value)} className="mt-1" />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">Email</label>
+                    <Input value={vEmail} onChange={e => setVEmail(e.target.value)} className="mt-1" />
                   </div>
                 </div>
+                <div>
+                  <label className="text-sm font-medium">Address</label>
+                  <Input value={vAddress} onChange={e => setVAddress(e.target.value)} className="mt-1" />
+                </div>
+
+                {/* Logo upload — real file input + data URL preview */}
+                <div>
+                  <label className="text-sm font-medium">Company Logo</label>
+                  <input
+                    ref={vLogoInputRef}
+                    type="file"
+                    accept="image/png,image/jpeg"
+                    className="hidden"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) handleLogoUpload(f);
+                    }}
+                  />
+                  <div
+                    onClick={() => vLogoInputRef.current?.click()}
+                    className="mt-1 border-2 border-dashed rounded-lg p-4 text-center cursor-pointer hover:bg-muted/50 transition-colors"
+                  >
+                    {vLogoDataUrl ? (
+                      <div className="flex items-center justify-center gap-3">
+                        <img src={vLogoDataUrl} alt="Logo preview" className="h-12 object-contain" />
+                        <div className="text-left">
+                          <p className="text-xs text-green-600 font-medium">Logo uploaded</p>
+                          <p className="text-[10px] text-muted-foreground">Click to replace</p>
+                        </div>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setVLogoDataUrl(null); toast.info("Logo removed"); }}
+                          className="ml-auto text-[11px] text-destructive hover:underline"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <Upload className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+                        <p className="text-sm text-muted-foreground">Click to upload logo</p>
+                        <p className="text-[10px] text-muted-foreground">PNG or JPG · up to 2MB</p>
+                      </>
+                    )}
+                  </div>
+                </div>
+
                 <Separator />
+
+                {/* Enable toggle */}
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium">Enable Voucher Branding</p>
                     <p className="text-xs text-muted-foreground">Show company info on hotel vouchers</p>
                   </div>
-                  <button onClick={() => setVEnabled(!vEnabled)} className={`w-11 h-6 rounded-full transition-colors ${vEnabled ? "bg-primary" : "bg-muted"}`}>
-                    <div className={`h-5 w-5 bg-white rounded-full shadow transition-transform ${vEnabled ? "translate-x-5.5" : "translate-x-0.5"}`} />
+                  <button
+                    onClick={() => setVEnabled(!vEnabled)}
+                    className={`w-11 h-6 rounded-full transition-colors relative ${vEnabled ? "bg-[#FF6000]" : "bg-muted"}`}
+                    aria-pressed={vEnabled}
+                  >
+                    <div
+                      className={`absolute top-0.5 h-5 w-5 bg-white rounded-full shadow transition-transform ${vEnabled ? "translate-x-[22px]" : "translate-x-0.5"}`}
+                    />
                   </button>
                 </div>
+
+                {/* Apply Scope with inline help */}
                 <div>
-                  <p className="text-sm font-medium mb-1">Apply Scope</p>
-                  <div className="flex gap-3">
-                    {(["all", "manual"] as const).map(scope => (
-                      <label key={scope} className="flex items-center gap-2 cursor-pointer">
-                        <input type="radio" name="scope" checked={vScope === scope} onChange={() => setVScope(scope)} className="accent-[#FF6000]" />
-                        <span className="text-sm">{scope === "all" ? "All Bookings" : "Manual Selection"}</span>
-                      </label>
-                    ))}
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <p className="text-sm font-medium">Apply Scope</p>
+                    <Info className="h-3 w-3 text-muted-foreground" />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label className="flex items-start gap-2 cursor-pointer border rounded-md p-2.5 hover:bg-muted/40 transition-colors" style={vScope === "all" ? { borderColor: "#FF6000" } : undefined}>
+                      <input type="radio" name="scope" checked={vScope === "all"} onChange={() => setVScope("all")} className="mt-0.5 accent-[#FF6000]" />
+                      <div>
+                        <p className="text-sm font-medium">All Bookings</p>
+                        <p className="text-[11px] text-muted-foreground">
+                          Your branding appears on every voucher automatically. Best for customers who always want consistent branding.
+                        </p>
+                      </div>
+                    </label>
+                    <label className="flex items-start gap-2 cursor-pointer border rounded-md p-2.5 hover:bg-muted/40 transition-colors" style={vScope === "manual" ? { borderColor: "#FF6000" } : undefined}>
+                      <input type="radio" name="scope" checked={vScope === "manual"} onChange={() => setVScope("manual")} className="mt-0.5 accent-[#FF6000]" />
+                      <div>
+                        <p className="text-sm font-medium">Manual Selection</p>
+                        <p className="text-[11px] text-muted-foreground">
+                          At the time of each booking, your OP chooses whether to apply branding.
+                          Useful when some bookings are for internal staff (no branding) and others
+                          are for resold / client-facing trips (branded).
+                        </p>
+                      </div>
+                    </label>
                   </div>
                 </div>
-                <Button className="w-full" onClick={() => toast.success("Voucher settings saved!")}>Save Settings</Button>
+
+                <Button className="w-full" onClick={() => toast.success("Voucher settings saved!")}>
+                  Save Settings
+                </Button>
               </div>
             </Card>
 
-            {/* Preview */}
+            {/* ── Preview — real-voucher-looking A4 ── */}
             <Card className="p-5">
               <h3 className="font-semibold mb-3">Voucher Preview</h3>
-              <div className="border rounded-lg p-5 space-y-3 bg-white dark:bg-slate-900">
-                <div className="flex items-center justify-between border-b pb-3">
-                  <div>
-                    <div className="h-10 w-32 bg-muted rounded flex items-center justify-center text-xs text-muted-foreground">Company Logo</div>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-bold">{companyVoucher.companyName}</p>
-                    <p className="text-xs text-muted-foreground">{companyVoucher.phone}</p>
-                  </div>
-                </div>
-                <div className="text-center py-4">
-                  <h2 className="text-lg font-bold">Hotel Booking Voucher</h2>
-                  <p className="text-xs text-muted-foreground">Confirmation Number: HC-GHS-9821</p>
-                </div>
-                <div className="grid grid-cols-2 gap-3 text-sm">
-                  <div><p className="text-xs text-muted-foreground">Hotel</p><p className="font-medium">Grand Hyatt Seoul</p></div>
-                  <div><p className="text-xs text-muted-foreground">Check-in</p><p className="font-medium">Apr 10, 2026</p></div>
-                  <div><p className="text-xs text-muted-foreground">Room</p><p className="font-medium">Deluxe King x 1</p></div>
-                  <div><p className="text-xs text-muted-foreground">Guest</p><p className="font-medium">John Smith</p></div>
-                </div>
-                <Separator />
-                <div className="text-xs text-muted-foreground text-center">
-                  <p>{companyVoucher.email} | {companyVoucher.phone}</p>
-                  <p>{companyVoucher.address}</p>
-                </div>
-              </div>
-              <div className="mt-3 flex items-center gap-2">
+              <div className="mt-3 flex items-center gap-2 mb-3">
                 {vEnabled ? (
-                  <Badge variant="default" className="text-xs">Branding Enabled</Badge>
+                  <Badge className="text-[10px]" style={{ background: "#FF6000", color: "white" }}>Branding Enabled</Badge>
                 ) : (
-                  <Badge variant="secondary" className="text-xs">Branding Disabled</Badge>
+                  <Badge variant="secondary" className="text-[10px]">Branding Disabled</Badge>
                 )}
-                <Badge variant="outline" className="text-xs">{vScope === "all" ? "Applied to All" : "Manual Selection"}</Badge>
+                <Badge variant="outline" className="text-[10px]">{vScope === "all" ? "Applied to all bookings" : "Per-booking opt-in"}</Badge>
+              </div>
+
+              {/* A4-ish voucher — white background, serif-leaning, real hotel doc look */}
+              <div className="bg-white text-slate-900 rounded-md shadow-sm border overflow-hidden" style={{ fontFamily: "Georgia, 'Times New Roman', serif" }}>
+                {/* Letterhead */}
+                <div className="px-5 py-4 border-b-2 flex items-center justify-between gap-3" style={{ borderColor: vEnabled ? "#FF6000" : "#e5e7eb" }}>
+                  <div className="flex items-center gap-3">
+                    {vEnabled && vLogoDataUrl ? (
+                      <img src={vLogoDataUrl} alt="" className="h-12 max-w-[120px] object-contain" />
+                    ) : vEnabled ? (
+                      <div className="h-12 w-24 bg-slate-100 rounded flex items-center justify-center text-[10px] text-slate-400">
+                        [LOGO]
+                      </div>
+                    ) : null}
+                    <div>
+                      <p className="text-base font-bold" style={{ color: vEnabled ? "#FF6000" : "#9ca3af" }}>
+                        {vEnabled ? vCompanyName : "OhMyHotel"}
+                      </p>
+                      <p className="text-[10px] text-slate-500">Hotel Booking Voucher</p>
+                    </div>
+                  </div>
+                  <div className="text-right text-[10px] text-slate-500">
+                    <p>Voucher #VCH-2026-0428-001</p>
+                    <p>Issued: 2026-04-28</p>
+                  </div>
+                </div>
+
+                {/* Guest + booking summary */}
+                <div className="px-5 py-4 space-y-3">
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-[11px]">
+                    <div>
+                      <p className="text-[9px] uppercase tracking-wide text-slate-500">Guest Name</p>
+                      <p className="font-semibold text-sm">John Smith</p>
+                    </div>
+                    <div>
+                      <p className="text-[9px] uppercase tracking-wide text-slate-500">Confirmation No.</p>
+                      <p className="font-semibold text-sm font-mono">HC-GHS-9821</p>
+                    </div>
+                    <div>
+                      <p className="text-[9px] uppercase tracking-wide text-slate-500 flex items-center gap-1"><Calendar className="h-2.5 w-2.5" />Check-in</p>
+                      <p className="font-semibold text-sm">Fri, Apr 10, 2026</p>
+                    </div>
+                    <div>
+                      <p className="text-[9px] uppercase tracking-wide text-slate-500 flex items-center gap-1"><Calendar className="h-2.5 w-2.5" />Check-out</p>
+                      <p className="font-semibold text-sm">Mon, Apr 13, 2026 <span className="text-slate-400 font-normal">(3 nights)</span></p>
+                    </div>
+                  </div>
+
+                  <div className="bg-slate-50 rounded-md px-3 py-2.5 mt-2">
+                    <p className="text-[9px] uppercase tracking-wide text-slate-500 mb-0.5">Hotel</p>
+                    <p className="font-semibold text-sm">Grand Hyatt Seoul</p>
+                    <p className="text-[11px] text-slate-500 mt-0.5 flex items-start gap-1">
+                      <MapPin className="h-2.5 w-2.5 mt-0.5" />322 Sowol-ro, Yongsan-gu, Seoul 04347, Korea
+                    </p>
+                    <p className="text-[11px] text-slate-500 mt-0.5 flex items-center gap-1">
+                      <Phone className="h-2.5 w-2.5" />+82-2-797-1234
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2 text-[11px]">
+                    <div>
+                      <p className="text-[9px] uppercase tracking-wide text-slate-500">Room</p>
+                      <p className="font-medium">Deluxe King</p>
+                    </div>
+                    <div>
+                      <p className="text-[9px] uppercase tracking-wide text-slate-500">Rooms</p>
+                      <p className="font-medium">1</p>
+                    </div>
+                    <div>
+                      <p className="text-[9px] uppercase tracking-wide text-slate-500">Guests</p>
+                      <p className="font-medium">1 adult</p>
+                    </div>
+                  </div>
+
+                  <div className="border-t pt-2 mt-2 text-[10px] text-slate-500 leading-relaxed">
+                    <p className="font-semibold text-slate-700 mb-1">Important</p>
+                    <p>• Present this voucher + photo ID at check-in.</p>
+                    <p>• Check-in from 15:00 · Check-out by 11:00.</p>
+                    <p>• Cancellation and special requests follow the confirmed rate terms.</p>
+                  </div>
+                </div>
+
+                {/* Footer — the branding bit */}
+                <div className="px-5 py-3 border-t bg-slate-50/60 text-[10px] text-slate-600">
+                  {vEnabled ? (
+                    <>
+                      <p className="font-semibold text-slate-800 mb-0.5">{vCompanyName}</p>
+                      <p>{vAddress}</p>
+                      <p className="mt-0.5">
+                        <span className="text-slate-400">Tel </span>{vPhone}
+                        <span className="text-slate-400 ml-2">· Email </span>{vEmail}
+                      </p>
+                    </>
+                  ) : (
+                    <div className="text-center text-slate-400">
+                      <p className="text-[9px]">Voucher branding is disabled — vouchers show OhMyHotel default footer.</p>
+                    </div>
+                  )}
+                </div>
               </div>
             </Card>
           </div>
@@ -448,42 +559,32 @@ export default function ClientManagementPage() {
         </DialogContent>
       </Dialog>
 
-      {/* ── Add Department Dialog ── */}
-      <Dialog open={addDeptOpen} onOpenChange={setAddDeptOpen}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Add Department</DialogTitle></DialogHeader>
-          <div className="space-y-3">
-            <div><label className="text-sm font-medium">Department Name</label><Input placeholder="e.g. Sales - Europe" className="mt-1" /></div>
-            <div><label className="text-sm font-medium">Description</label><Input placeholder="Department description" className="mt-1" /></div>
-            <div>
-              <label className="text-sm font-medium">Department Manager</label>
-              <select className="w-full border rounded px-3 py-2 text-sm bg-background mt-1">
-                {companySubs.filter(s => s.status === "Active").map(s => <option key={s.id}>{s.name}</option>)}
-              </select>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setAddDeptOpen(false)}>Cancel</Button>
-            <Button onClick={() => { toast.success("Department created!"); setAddDeptOpen(false); }}>Create</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Add Department dialog removed — departments are ELLIS-managed (see onboarding flow). */}
     </div>
   );
 }
 
 /* ── Card Management Sub-component ──
- * Reads saved payment cards from local storage (PaymentDialog writes them
- * when a PREPAY booking is paid). Master can remove cards here.
+ * Company-level saved cards. Master can add (up to MAX_SAVED_CARDS) and
+ * remove cards directly, or cards get saved automatically when a team
+ * member uses "Save card" during a PREPAY booking payment.
  * Production: company-scoped PG tokens via ELLIS. */
 function CardManagementSection() {
   const [cards, setCards] = useState<SavedCard[]>(getSavedCards());
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [addOpen, setAddOpen] = useState(false);
+
+  /* Add-card form state */
+  const [cardNumber, setCardNumber] = useState("");
+  const [expiry, setExpiry] = useState("");
+  const [cvc, setCvc] = useState("");
+  const [holder, setHolder] = useState("");
 
   useEffect(() => {
-    /* Refresh on mount + when a new card might have been saved */
     setCards(getSavedCards());
   }, []);
+
+  const reachedLimit = cards.length >= MAX_SAVED_CARDS;
 
   const handleDelete = (id: string) => {
     removeCard(id);
@@ -492,51 +593,109 @@ function CardManagementSection() {
     setDeleteConfirm(null);
   };
 
-  if (cards.length === 0) {
-    return (
-      <div className="text-center py-10 border-2 border-dashed rounded-lg">
-        <CreditCard className="h-10 w-10 text-muted-foreground mx-auto mb-2 opacity-40" />
-        <p className="text-sm text-muted-foreground">No saved payment cards yet.</p>
-        <p className="text-[11px] text-muted-foreground mt-1">Cards are saved when your team pays for PREPAY bookings with "Save card for future use" checked.</p>
-      </div>
-    );
-  }
+  const detectBrand = (num: string) => {
+    const d = num.replace(/\s/g, "");
+    if (d.startsWith("4")) return "Visa";
+    if (d.startsWith("5") || d.startsWith("2")) return "Mastercard";
+    if (d.startsWith("3")) return "Amex";
+    if (d.startsWith("6")) return "Discover";
+    return "Card";
+  };
+
+  const addValid =
+    cardNumber.replace(/\s/g, "").length >= 13 &&
+    /^\d{2}\/\d{2}$/.test(expiry) &&
+    cvc.length >= 3 &&
+    holder.trim().length > 0;
+
+  const handleAdd = () => {
+    if (!addValid) { toast.error("Please complete all card fields."); return; }
+    if (reachedLimit) { toast.error(`Maximum ${MAX_SAVED_CARDS} cards already saved.`); return; }
+    const d = cardNumber.replace(/\s/g, "");
+    saveCard({
+      id: `card-${Date.now()}`,
+      last4: d.slice(-4),
+      brand: detectBrand(d),
+      expiry,
+      holderName: holder.trim(),
+    });
+    setCards(getSavedCards());
+    setCardNumber(""); setExpiry(""); setCvc(""); setHolder("");
+    setAddOpen(false);
+    toast.success("Card added successfully.");
+  };
 
   return (
     <>
-      <div className="space-y-2">
-        {cards.map(card => (
-          <div key={card.id} className="flex items-center justify-between border rounded-lg p-3 hover:bg-muted/40 transition-colors">
-            <div className="flex items-center gap-3">
-              <div className="h-8 w-12 rounded bg-slate-800 text-white flex items-center justify-center text-[10px] font-bold font-mono">
-                {card.brand}
-              </div>
-              <div>
-                <p className="text-sm font-medium font-mono">•••• •••• •••• {card.last4}</p>
-                <p className="text-[11px] text-muted-foreground">
-                  {card.holderName} · Exp {card.expiryMonth}/{card.expiryYear}
-                </p>
-              </div>
-            </div>
-            <Button
-              size="sm"
-              variant="ghost"
-              className="h-7 text-xs text-destructive"
-              onClick={() => setDeleteConfirm(card.id)}
-            >
-              <Trash2 className="h-3 w-3 mr-1" />Remove
-            </Button>
-          </div>
-        ))}
+      {/* Header row: count + Add button */}
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-xs text-muted-foreground">
+          <strong>{cards.length}</strong> of {MAX_SAVED_CARDS} cards saved
+        </p>
+        <Button
+          size="sm"
+          onClick={() => setAddOpen(true)}
+          disabled={reachedLimit}
+          style={!reachedLimit ? { background: "#FF6000" } : undefined}
+          className={!reachedLimit ? "text-white" : ""}
+        >
+          <Plus className="h-3 w-3 mr-1" />Add Card
+        </Button>
       </div>
 
+      {reachedLimit && (
+        <Alert className="mb-3 border-amber-200 bg-amber-50 dark:bg-amber-950/20 py-2">
+          <AlertDescription className="text-[11px]">
+            Maximum {MAX_SAVED_CARDS} cards reached. Remove an existing card to add a new one.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {cards.length === 0 ? (
+        <div className="text-center py-10 border-2 border-dashed rounded-lg">
+          <CreditCard className="h-10 w-10 text-muted-foreground mx-auto mb-2 opacity-40" />
+          <p className="text-sm text-muted-foreground">No saved payment cards yet.</p>
+          <p className="text-[11px] text-muted-foreground mt-1">
+            Click <strong>Add Card</strong> above, or cards will be saved automatically
+            when your team checks "Save card for future use" during a PREPAY booking.
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {cards.map(card => (
+            <div key={card.id} className="flex items-center justify-between border rounded-lg p-3 hover:bg-muted/40 transition-colors">
+              <div className="flex items-center gap-3">
+                <div className="h-8 w-12 rounded bg-slate-800 text-white flex items-center justify-center text-[10px] font-bold font-mono">
+                  {card.brand}
+                </div>
+                <div>
+                  <p className="text-sm font-medium font-mono">•••• •••• •••• {card.last4}</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    {card.holderName} · Exp {card.expiry}
+                  </p>
+                </div>
+              </div>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 text-xs text-destructive"
+                onClick={() => setDeleteConfirm(card.id)}
+              >
+                <Trash2 className="h-3 w-3 mr-1" />Remove
+              </Button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Remove confirmation */}
       <AlertDialog open={!!deleteConfirm} onOpenChange={(o) => !o && setDeleteConfirm(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Remove payment card?</AlertDialogTitle>
             <AlertDialogDescription>
               This card will no longer be available for future bookings. You can always add it
-              again when making a new PREPAY booking.
+              again from here or during a PREPAY booking.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -550,6 +709,87 @@ function CardManagementSection() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Add card dialog */}
+      <Dialog open={addOpen} onOpenChange={setAddOpen}>
+        <DialogContent style={{ maxWidth: 480 }}>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CreditCard className="h-5 w-5 text-[#FF6000]" />Add Payment Card
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Alert className="py-2">
+              <Lock className="h-3.5 w-3.5" />
+              <AlertDescription className="text-[11px]">
+                Card details will be tokenized via PG gateway (PCI-DSS compliant). Only the
+                last 4 digits remain visible.
+              </AlertDescription>
+            </Alert>
+            <div>
+              <label className="text-sm font-medium">Card Number</label>
+              <Input
+                value={cardNumber}
+                onChange={e => {
+                  const digits = e.target.value.replace(/\D/g, "").slice(0, 16);
+                  const formatted = digits.replace(/(.{4})/g, "$1 ").trim();
+                  setCardNumber(formatted);
+                }}
+                placeholder="4242 4242 4242 4242"
+                className="mt-1 font-mono"
+                maxLength={19}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-sm font-medium">Expiry (MM/YY)</label>
+                <Input
+                  value={expiry}
+                  onChange={e => {
+                    let v = e.target.value.replace(/\D/g, "").slice(0, 4);
+                    if (v.length >= 3) v = v.slice(0, 2) + "/" + v.slice(2);
+                    setExpiry(v);
+                  }}
+                  placeholder="12/28"
+                  className="mt-1 font-mono"
+                  maxLength={5}
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium">CVC</label>
+                <Input
+                  type="password"
+                  value={cvc}
+                  onChange={e => setCvc(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                  placeholder="•••"
+                  className="mt-1 font-mono"
+                  maxLength={4}
+                />
+              </div>
+            </div>
+            <div>
+              <label className="text-sm font-medium">Cardholder Name</label>
+              <Input
+                value={holder}
+                onChange={e => setHolder(e.target.value)}
+                placeholder="JOHN SMITH"
+                className="mt-1 uppercase"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAddOpen(false)}>Cancel</Button>
+            <Button
+              onClick={handleAdd}
+              disabled={!addValid}
+              style={addValid ? { background: "#FF6000" } : undefined}
+              className={addValid ? "text-white" : ""}
+            >
+              <Plus className="h-3.5 w-3.5 mr-1" />Add Card
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

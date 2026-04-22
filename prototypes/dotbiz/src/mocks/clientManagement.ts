@@ -107,7 +107,6 @@ export interface VoucherSettings {
   companyName: string;
   phone: string;
   email: string;
-  qq: string;
   address: string;
   logoUrl: string;
   enabled: boolean;
@@ -118,28 +117,28 @@ export const voucherSettingsByCompany: Record<string, VoucherSettings> = {
   "comp-001": {
     customerCompanyId: "comp-001",
     companyName: "TravelCo International",
-    phone: "+82-2-1234-5678", email: "info@travelco.com", qq: "",
+    phone: "+82-2-1234-5678", email: "info@travelco.com",
     address: "123 Gangnam-daero, Seoul",
     logoUrl: "", enabled: true, applyScope: "all",
   },
   "comp-002": {
     customerCompanyId: "comp-002",
     companyName: "Asia Tours Ltd.",
-    phone: "+82-2-2345-6789", email: "info@asiatours.com", qq: "",
+    phone: "+82-2-2345-6789", email: "info@asiatours.com",
     address: "456 Teheran-ro, Seoul",
     logoUrl: "", enabled: true, applyScope: "manual",
   },
   "comp-010": {
     customerCompanyId: "comp-010",
     companyName: "GOTADI Vietnam Co., Ltd.",
-    phone: "+84-28-3555-1234", email: "support@gotadi.com", qq: "",
+    phone: "+84-28-3555-1234", email: "support@gotadi.com",
     address: "123 Nguyen Hue, District 1, HCMC, Vietnam",
     logoUrl: "", enabled: true, applyScope: "all",
   },
   "comp-011": {
     customerCompanyId: "comp-011",
     companyName: "Vietnam Vacation Co.",
-    phone: "+84-24-3555-9876", email: "info@vietnamvacation.vn", qq: "",
+    phone: "+84-24-3555-9876", email: "info@vietnamvacation.vn",
     address: "88 Ba Trieu, Hanoi, Vietnam",
     logoUrl: "", enabled: false, applyScope: "manual",
   },
