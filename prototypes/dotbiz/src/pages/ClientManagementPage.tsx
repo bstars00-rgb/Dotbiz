@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from "react";
-import { Search, Plus, Upload, Users, FileText, ToggleLeft, ToggleRight, Trash2, CreditCard, Lock, Calendar, MapPin, Phone } from "lucide-react";
+import { Search, Plus, Upload, Users, FileText, ToggleLeft, ToggleRight, Trash2, CreditCard, Lock, Calendar, MapPin, Phone, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
