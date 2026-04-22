@@ -65,8 +65,10 @@ export const subAccounts: SubAccount[] = [
 ];
 
 /* ── Departments ──
- * Customer-defined internal structure (Sales / Bookings / Finance / etc).
- * Also scoped per customerCompanyId so each team sees only their own departments. */
+ * DEPRECATED — customer team structure is flat in the current product. Role +
+ * Booking Scope + Notification Scope are the only organizational primitives.
+ * This mock is kept only for import-path compatibility; no UI references it.
+ */
 export interface Department {
   id: string;
   customerCompanyId: string;

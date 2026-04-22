@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from "react";
-import { Search, Plus, Upload, Users, Building2, FileText, ToggleLeft, ToggleRight, Pencil, Trash2, CreditCard, Lock, Info, Calendar, MapPin, Phone } from "lucide-react";
+import { Search, Plus, Upload, Users, FileText, ToggleLeft, ToggleRight, Trash2, CreditCard, Lock, Calendar, MapPin, Phone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -13,7 +13,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useAuth } from "@/contexts/AuthContext";
 import { useI18n } from "@/contexts/I18nContext";
 import { useTabParam } from "@/hooks/useTabParam";
-import { subAccounts, departments, voucherSettingsByCompany } from "@/mocks/clientManagement";
+import { subAccounts as seedSubAccounts, voucherSettingsByCompany, type SubAccount } from "@/mocks/clientManagement";
 import { companies, currentCompany } from "@/mocks/companies";
 import { getSavedCards, saveCard, removeCard, type SavedCard } from "@/components/PaymentDialog";
 import { toast } from "sonner";
@@ -34,32 +34,29 @@ export default function ClientManagementPage() {
   const myCompanyId = activeCompany.id;
   const isPrepay = activeCompany.billingType === "PREPAY";
 
-  /* Team (sub-accounts) scoped to this customer only */
+  /* Team (sub-accounts) — local mutable state so Activate / Deactivate /
+   * Resend actually affect the UI. Seeded from the mock, filtered to
+   * this customer only.
+   * Production: backed by ELLIS users table; actions call /api/users/:id. */
+  const [allSubs, setAllSubs] = useState<SubAccount[]>(seedSubAccounts);
   const companySubs = useMemo(
-    () => subAccounts.filter(s => s.customerCompanyId === myCompanyId),
-    [myCompanyId]
-  );
-  const companyDepts = useMemo(
-    () => departments.filter(d => d.customerCompanyId === myCompanyId),
-    [myCompanyId]
+    () => allSubs.filter(s => s.customerCompanyId === myCompanyId),
+    [allSubs, myCompanyId]
   );
 
   /* ── Sub-account state ── */
   const [subSearch, setSubSearch] = useState("");
   const [subStatusFilter, setSubStatusFilter] = useState("All");
-  const [subDeptFilter, setSubDeptFilter] = useState("All");
   const [addSubOpen, setAddSubOpen] = useState(false);
+  const [deactivateTarget, setDeactivateTarget] = useState<SubAccount | null>(null);
 
   const filteredSubs = useMemo(() => {
     let result = [...companySubs];
     if (subStatusFilter !== "All") result = result.filter(s => s.status === subStatusFilter);
-    if (subDeptFilter !== "All") result = result.filter(s => s.department === subDeptFilter);
     if (subSearch) { const q = subSearch.toLowerCase(); result = result.filter(s => s.name.toLowerCase().includes(q) || s.email.toLowerCase().includes(q)); }
     return result;
-  }, [companySubs, subSearch, subStatusFilter, subDeptFilter]);
+  }, [companySubs, subSearch, subStatusFilter]);
 
-  /* ── Department state ── */
-  /* Departments are ELLIS-managed — customer sees them as read-only. */
 
   /* ── Voucher state (per-company) — controlled form so preview updates live ── */
   const companyVoucher = voucherSettingsByCompany[myCompanyId] || voucherSettingsByCompany["comp-001"];
@@ -95,13 +92,12 @@ export default function ClientManagementPage() {
     <div className="p-6 space-y-4">
       <div>
         <h1 className="text-2xl font-bold">{t("page.team")}</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">{activeCompany.name} · sub-accounts, departments, permissions, and voucher branding.</p>
+        <p className="text-sm text-muted-foreground mt-0.5">{activeCompany.name} · sub-accounts, permissions, and voucher branding.</p>
       </div>
 
       <Tabs value={clientTab} onValueChange={setClientTab}>
         <TabsList className="flex-wrap">
           <TabsTrigger value="subaccounts" className="gap-1.5"><Users className="h-3.5 w-3.5" />Sub-accounts</TabsTrigger>
-          <TabsTrigger value="departments" className="gap-1.5"><Building2 className="h-3.5 w-3.5" />Departments</TabsTrigger>
           {/* Payment Cards — PREPAY only. POSTPAY settles via invoice wires, no card needed. */}
           {isPrepay && (
             <TabsTrigger value="cards" className="gap-1.5"><CreditCard className="h-3.5 w-3.5" />Payment Cards</TabsTrigger>
@@ -130,10 +126,6 @@ export default function ClientManagementPage() {
             <select value={subStatusFilter} onChange={e => setSubStatusFilter(e.target.value)} className="border rounded-md px-3 py-2 text-sm bg-card">
               {["All", "Active", "Pending", "Deactivated"].map(s => <option key={s}>{s}</option>)}
             </select>
-            <select value={subDeptFilter} onChange={e => setSubDeptFilter(e.target.value)} className="border rounded-md px-3 py-2 text-sm bg-card">
-              <option value="All">All Departments</option>
-              {companyDepts.map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
-            </select>
             <Button onClick={() => setAddSubOpen(true)}><Plus className="h-4 w-4 mr-1" />Add Sub-account</Button>
           </div>
 
@@ -144,7 +136,6 @@ export default function ClientManagementPage() {
               <TableRow>
                 <TableHead>Name</TableHead>
                 <TableHead>Email</TableHead>
-                <TableHead>Department</TableHead>
                 <TableHead>Role</TableHead>
                 <TableHead title="Which bookings this user can see">Booking Scope</TableHead>
                 <TableHead title="Which notifications this user receives">Notif. Scope</TableHead>
@@ -158,7 +149,6 @@ export default function ClientManagementPage() {
                 <TableRow key={s.id}>
                   <TableCell className="font-medium">{s.name}</TableCell>
                   <TableCell className="text-sm">{s.email}</TableCell>
-                  <TableCell className="text-sm">{s.department}</TableCell>
                   <TableCell>
                     <Badge
                       variant={s.role === "Master" ? "default" : s.role === "Accounting" ? "secondary" : "outline"}
@@ -182,11 +172,35 @@ export default function ClientManagementPage() {
                   <TableCell>
                     <div className="flex gap-1">
                       {s.status === "Active" ? (
-                        <Button size="sm" variant="ghost" className="h-7 text-xs text-destructive" onClick={() => toast.success(`${s.name} deactivated`)}><ToggleLeft className="h-3 w-3 mr-1" />Deactivate</Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 text-xs text-destructive"
+                          onClick={() => setDeactivateTarget(s)}
+                        >
+                          <ToggleLeft className="h-3 w-3 mr-1" />Deactivate
+                        </Button>
                       ) : s.status === "Deactivated" ? (
-                        <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => toast.success(`${s.name} activated`)}><ToggleRight className="h-3 w-3 mr-1" />Activate</Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 text-xs"
+                          onClick={() => {
+                            setAllSubs(prev => prev.map(x => x.id === s.id ? { ...x, status: "Active" } : x));
+                            toast.success(`${s.name} reactivated`, { description: `They can now log in with ${s.email}.` });
+                          }}
+                        >
+                          <ToggleRight className="h-3 w-3 mr-1" />Activate
+                        </Button>
                       ) : (
-                        <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => toast.success(`Invitation resent to ${s.email}`)}>Resend</Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 text-xs"
+                          onClick={() => toast.success("Invitation resent", { description: `A new setup link has been emailed to ${s.email}.` })}
+                        >
+                          Resend
+                        </Button>
                       )}
                     </div>
                   </TableCell>
@@ -196,46 +210,9 @@ export default function ClientManagementPage() {
           </Table>
         </TabsContent>
 
-        {/* ══════ Departments Tab ══════ */}
-        <TabsContent value="departments" className="space-y-4 mt-4">
-          <Alert className="border-blue-200 bg-blue-50 dark:bg-blue-950/20">
-            <Info className="h-4 w-4 text-blue-600" />
-            <AlertTitle className="text-sm">Departments are pre-configured at onboarding</AlertTitle>
-            <AlertDescription className="text-xs">
-              Your OhMyHotel account manager sets up your company's departments during onboarding
-              based on your team structure. To add, rename, or remove a department, please contact
-              your AM — this avoids accidental structural changes that would affect sub-account
-              assignments.
-            </AlertDescription>
-          </Alert>
-
-          <p className="text-sm text-muted-foreground">{companyDepts.length} departments</p>
-
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Department Name</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead>Manager</TableHead>
-                <TableHead>Members</TableHead>
-                <TableHead>Created</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {companyDepts.map(d => (
-                <TableRow key={d.id}>
-                  <TableCell className="font-medium">{d.name}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground max-w-[250px] truncate">{d.description}</TableCell>
-                  <TableCell className="text-sm">{d.manager}</TableCell>
-                  <TableCell><Badge variant="secondary" className="text-[10px]">{d.memberCount}</Badge></TableCell>
-                  <TableCell className="text-sm">{d.createdDate}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TabsContent>
-
-        {/* Balance Details tab removed — merged into Settlement > Credit Line card (single source of truth). */}
+        {/* Departments tab removed — customer team structure is flat (role + scope are
+         * the only organizational primitives we need). Balance Details tab removed
+         * earlier (merged into Settlement > Credit Line card). */}
 
         {/* ══════ Payment Cards Tab (PREPAY only) ══════ */}
         {isPrepay && (
@@ -517,13 +494,7 @@ export default function ClientManagementPage() {
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
               <div><label className="text-sm font-medium">Full Name</label><Input placeholder="Enter name" className="mt-1" /></div>
-              <div><label className="text-sm font-medium">Email</label><Input type="email" placeholder="user@company.com" className="mt-1" /></div>
-            </div>
-            <div>
-              <label className="text-sm font-medium">Department</label>
-              <select className="w-full border rounded px-3 py-2 text-sm bg-background mt-1">
-                {companyDepts.map(d => <option key={d.id}>{d.name}</option>)}
-              </select>
+              <div><label className="text-sm font-medium">Email (login ID)</label><Input type="email" placeholder="user@company.com" className="mt-1" /></div>
             </div>
             <div>
               <label className="text-sm font-medium">Role</label>
@@ -552,15 +523,58 @@ export default function ClientManagementPage() {
                 </select>
               </div>
             </div>
+
+            {/* Password info — explains the invite-link flow */}
+            <Alert className="border-blue-200 bg-blue-50 dark:bg-blue-950/20 py-2">
+              <Lock className="h-3.5 w-3.5 text-blue-600" />
+              <AlertTitle className="text-xs">Password — you don't set this</AlertTitle>
+              <AlertDescription className="text-[11px]">
+                An invitation email is sent with a one-time <strong>setup link</strong> (valid
+                for 72 hours). The user sets their own password on first access. As Master you
+                never see or set their password — this protects both of you.
+              </AlertDescription>
+            </Alert>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setAddSubOpen(false)}>Cancel</Button>
-            <Button onClick={() => { toast.success("Sub-account invitation sent!"); setAddSubOpen(false); }}>Send Invitation</Button>
+            <Button onClick={() => { toast.success("Invitation sent", { description: "The user will receive a setup link by email." }); setAddSubOpen(false); }}>
+              Send Invitation
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Add Department dialog removed — departments are ELLIS-managed (see onboarding flow). */}
+      {/* ── Deactivate Sub-account Confirmation ── */}
+      <AlertDialog open={!!deactivateTarget} onOpenChange={(o) => !o && setDeactivateTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Deactivate {deactivateTarget?.name}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              <span className="font-mono text-xs">{deactivateTarget?.email}</span> will no longer
+              be able to log in. Their existing bookings and records remain intact. You can
+              reactivate them at any time by clicking <strong>Activate</strong>.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground"
+              onClick={() => {
+                if (!deactivateTarget) return;
+                setAllSubs(prev => prev.map(x => x.id === deactivateTarget.id ? { ...x, status: "Deactivated" } : x));
+                toast.success(`${deactivateTarget.name} deactivated`, { description: "Active sessions have been terminated." });
+                setDeactivateTarget(null);
+              }}
+            >
+              Deactivate
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Departments UI removed entirely. */}
     </div>
   );
 }
