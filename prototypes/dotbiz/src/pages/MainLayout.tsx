@@ -20,6 +20,7 @@ import { companies } from "@/mocks/companies";
 import { useI18n } from "@/contexts/I18nContext";
 import type { Locale } from "@/i18n/strings";
 import { currentUser } from "@/mocks/users";
+import TutorialOverlay, { type TutorialStep } from "@/components/TutorialOverlay";
 
 /* Sidebar grouped into 3 sections based on usage pattern:
  *   WORK      — daily operations (most used, top of sidebar)
@@ -78,6 +79,19 @@ const navSections: NavSection[] = [
 ];
 const navItems: NavItem[] = navSections.flatMap(s => s.items);
 
+/* Map router path → tutorial data-attribute key. Only paths referenced from
+ * TutorialOverlay steps need an entry — others get no attribute (harmless). */
+const tutorialKeyFor = (path: string): string | undefined => {
+  if (path === "/app/dashboard")  return "nav-dashboard";
+  if (path === "/app/find-hotel") return "nav-find-hotel";
+  if (path === "/app/bookings")   return "nav-bookings";
+  if (path === "/app/settlement") return "nav-settlement";
+  if (path === "/app/tickets")    return "nav-tickets";
+  if (path === "/app/client")     return "nav-team";
+  if (path === "/app/my-account") return "nav-my-account";
+  return undefined;
+};
+
 export default function MainLayout() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -109,6 +123,74 @@ export default function MainLayout() {
 
   /* Top-right popovers */
   const [openPop, setOpenPop] = useState<null | "lang" | "help" | "phone" | "user">(null);
+
+  /* ── Tutorial overlay state ─────────────────────────────
+   * Triggered by clicking the Start Guide (HelpCircle) icon in the top bar.
+   * Steps walk through the main nav items and key features with a spotlight
+   * + tooltip card. Can exit at any point via X / Skip / Esc / backdrop. */
+  const [tutorialOpen, setTutorialOpen] = useState(false);
+  const tutorialSteps: TutorialStep[] = [
+    {
+      title: "Welcome to DOTBIZ 👋",
+      description:
+        "We'll walk you through the key features in about 60 seconds.\n\nYou can exit any time by pressing Esc, clicking Skip, or the X in the corner.",
+    },
+    {
+      targetSelector: '[data-tutorial="nav-dashboard"]',
+      title: "1. Dashboard",
+      description: "Your daily starting point. KPIs, pending actions, and recent alerts are summarized here.\n\nMost users check this every morning.",
+      placement: "right",
+      onBefore: () => navigate("/app/dashboard"),
+    },
+    {
+      targetSelector: '[data-tutorial="nav-find-hotel"]',
+      title: "2. Find Hotel — Make a booking",
+      description: "Click here to search hotels and create a new reservation.\n\nFilter by location, dates, and room type.",
+      placement: "right",
+    },
+    {
+      targetSelector: '[data-tutorial="nav-bookings"]',
+      title: "3. Bookings — Manage reservations",
+      description: "All confirmed, pending, and cancelled bookings live here.\n\nClick any booking for details and actions.",
+      placement: "right",
+    },
+    ...(hasRole(["Master"]) ? [{
+      targetSelector: '[data-tutorial="nav-settlement"]',
+      title: "4. Settlement — Money operations",
+      description: "Invoices, credit line, aging, payment records — everything related to money flows with OhMyHotel is here.\n\nMaster accounts only.",
+      placement: "right" as const,
+    }] : []),
+    {
+      targetSelector: '[data-tutorial="nav-tickets"]',
+      title: "5. Tickets — Get help",
+      description: "Need to dispute a charge or change a request?\n\nOpen a support ticket here — our team responds within 24 hours.",
+      placement: "right",
+    },
+    {
+      targetSelector: '[data-tutorial="top-bell"]',
+      title: "6. Notifications",
+      description: "The bell icon shows unread alerts.\n\nPayment deadlines, credit warnings, and hotel confirmations all surface here in real time.",
+      placement: "bottom",
+    },
+    ...(hasRole(["Master"]) ? [{
+      targetSelector: '[data-tutorial="nav-team"]',
+      title: "7. Team — Manage your staff",
+      description: "Invite OPs, organize by department, and configure voucher branding.\n\nOnly Master accounts can access Team settings.",
+      placement: "right" as const,
+    }] : []),
+    {
+      targetSelector: '[data-tutorial="nav-my-account"]',
+      title: "Your personal settings",
+      description: "Profile, security, notification preferences, saved cards, and coupons live here.\n\nEach team member has their own.",
+      placement: "right",
+    },
+    {
+      targetSelector: '[data-tutorial="top-help"]',
+      title: "You're all set! 🎉",
+      description: "You can replay this tutorial anytime by clicking this help icon.\n\nFor anything else, open a Ticket or check the FAQ Board.",
+      placement: "bottom",
+    },
+  ];
   const headerRef = useRef<HTMLElement | null>(null);
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -193,12 +275,14 @@ export default function MainLayout() {
             <Heart className="h-4 w-4" />
           </Button>
 
-          {/* Start Guide */}
+          {/* Start Guide — launches interactive tutorial overlay */}
           <div className="relative">
             <button
-              onClick={() => setOpenPop(p => p === "help" ? null : "help")}
+              data-tutorial="top-help"
+              onClick={() => { setOpenPop(null); setTutorialOpen(true); }}
               className="flex items-center justify-center h-8 w-8 rounded-md text-white/80 hover:text-white hover:bg-white/10"
-              aria-label="Start Guide"
+              aria-label="Start Guide Tutorial"
+              title="Start interactive tutorial"
             >
               <HelpCircle className="h-4 w-4" />
             </button>
@@ -221,7 +305,7 @@ export default function MainLayout() {
           </Button>
 
           {/* Notifications */}
-          <Button variant="ghost" size="icon" className="text-white/80 hover:text-white hover:bg-white/10 h-8 w-8 relative" onClick={() => navigate("/app/notifications")} aria-label="Notifications">
+          <Button data-tutorial="top-bell" variant="ghost" size="icon" className="text-white/80 hover:text-white hover:bg-white/10 h-8 w-8 relative" onClick={() => navigate("/app/notifications")} aria-label="Notifications">
             <Bell className="h-4 w-4" />
             {unreadCount > 0 && (
               <span className="absolute -top-0.5 -right-0.5 h-4 min-w-4 px-1 rounded-full bg-red-500 text-[9px] text-white flex items-center justify-center">
@@ -262,29 +346,7 @@ export default function MainLayout() {
           </div>
         )}
 
-        {/* ─────────── Start Guide Popover ─────────── */}
-        {openPop === "help" && (
-          <div className="absolute right-[248px] top-[48px] bg-white dark:bg-slate-900 text-foreground shadow-xl rounded-lg ring-1 ring-foreground/10 w-72 z-50 p-4">
-            <h3 className="font-semibold text-base mb-3">Start Guide</h3>
-            <div className="pt-3 border-t">
-              <p className="text-sm font-medium mb-2">Hotel Reservations Beginner's Guide</p>
-              <div className="space-y-1.5">
-                <button onClick={() => { navigate("/app/find-hotel"); setOpenPop(null); }} className="w-full text-left text-sm hover:text-[#FF6000] flex items-center justify-between py-1 text-slate-700 dark:text-slate-300">
-                  Find Hotel <ChevronRight className="h-3.5 w-3.5" />
-                </button>
-                <button onClick={() => { navigate("/app/bookings"); setOpenPop(null); }} className="w-full text-left text-sm hover:text-[#FF6000] flex items-center justify-between py-1 text-slate-700 dark:text-slate-300">
-                  Booking Inquiry <ChevronRight className="h-3.5 w-3.5" />
-                </button>
-                <button onClick={() => { navigate("/app/tickets"); setOpenPop(null); }} className="w-full text-left text-sm hover:text-[#FF6000] flex items-center justify-between py-1 text-slate-700 dark:text-slate-300">
-                  Submit Ticket <ChevronRight className="h-3.5 w-3.5" />
-                </button>
-                <button onClick={() => { navigate("/app/faq"); setOpenPop(null); }} className="w-full text-left text-sm hover:text-[#FF6000] flex items-center justify-between py-1 text-slate-700 dark:text-slate-300">
-                  FAQ Board <ChevronRight className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* Start Guide popover removed — replaced by interactive TutorialOverlay (see bottom of file). */}
 
         {/* ─────────── Customer Service Popover ─────────── */}
         {openPop === "phone" && (
@@ -443,6 +505,7 @@ export default function MainLayout() {
                     return (
                       <button
                         key={item.path}
+                        data-tutorial={tutorialKeyFor(item.path)}
                         onClick={() => { navigate(item.path); setMobileNavOpen(false); }}
                         className={`flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors text-left ${active ? "bg-primary text-primary-foreground" : "hover:bg-accent text-foreground"}`}
                       >
@@ -504,6 +567,7 @@ export default function MainLayout() {
                     return (
                       <button
                         key={item.path}
+                        data-tutorial={tutorialKeyFor(item.path)}
                         onClick={() => navigate(item.path)}
                         className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors text-left whitespace-nowrap ${active ? "bg-primary text-primary-foreground" : "hover:bg-accent text-foreground"}`}
                       >
@@ -548,6 +612,14 @@ export default function MainLayout() {
           <Footer />
         </main>
       </div>
+
+      {/* Tutorial overlay — launched from Start Guide icon in top bar */}
+      <TutorialOverlay
+        open={tutorialOpen}
+        steps={tutorialSteps}
+        onClose={() => setTutorialOpen(false)}
+        onComplete={() => localStorage.setItem("dotbiz_tutorial_seen", "true")}
+      />
 
       {/* Logout Dialog */}
       <AlertDialog open={logoutOpen} onOpenChange={setLogoutOpen}>
