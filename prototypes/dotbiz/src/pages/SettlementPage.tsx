@@ -354,66 +354,87 @@ export default function SettlementPage() {
         </Card>
       )}
 
-      {/* Deposit Utilization Card (POSTPAY only, single-contract view only) — type-aware CTA */}
+      {/* ─────────────────────────────────────────────────────────────────────
+       * UNIFIED CREDIT LINE CARD
+       *
+       * Single source of truth for "how much can this contract spend right now".
+       * Replaces the previous Deposit Utilization + Credit Utilization split.
+       *
+       *   Credit Limit     = getCreditLimit(contract)
+       *                      = contract.creditLimit
+       *                     ?? depositAmount × creditMultiplier
+       *                     ?? depositAmount (1:1 fallback)
+       *   Collateral       = the underlying asset (deposit type + amount)
+       *   Multiplier       = creditMultiplier (1 for Floating, 2+ for BG/GD/Ins)
+       *   Credit Used      = outstanding invoices
+       *   Credit Available = limit − used
+       *
+       * Floating (1:1) and Leveraged (1:N) render as the same card — only the
+       * "Backed by" meta line changes. No Deposit / Credit by Company are
+       * handled with the same structure (different backing description).
+       * ──────────────────────────────────────────────────────────────────── */}
       {selectedContractId !== "all" && effectiveBilling === "POSTPAY" && effectiveDepositType && (() => {
         const depositType = effectiveDepositType;
         const deposit = effectiveDepositAmount || 0;
-
-        /* Per-type behavior */
-        const config: Record<string, { subtitle: string; ctaLabel: string; ctaToast: { title: string; description: string }; ctaColor: string; lowMsg: string; midMsg: string }> = {
+        const curr = effectiveCurrency;
+        const fracDigits = curr === "VND" || curr === "JPY" ? 0 : 2;
+        const fmt = (n: number) => `${curr} ${n.toLocaleString(undefined, { minimumFractionDigits: fracDigits, maximumFractionDigits: fracDigits })}`;
+        /* CTA/messaging per deposit type (which top-up / increase path to route to) */
+        const config: Record<string, { ctaLabel: string; ctaToast: { title: string; description: string }; collateralLabel: (amt: string, mult: number) => string }> = {
           "Floating Deposit": {
-            subtitle: "Pre-funded credit · drawn down per transaction",
             ctaLabel: "Top Up Deposit",
             ctaToast: { title: "Top-up request sent", description: "Our finance team will share wire instructions within 1 business day." },
-            ctaColor: "#DC2626",
-            lowMsg: "Top up your deposit to keep booking smoothly. Once available reaches $0, new bookings will be blocked until existing invoices are settled or the deposit is topped up.",
-            midMsg: "Consider topping up before the deposit is fully drawn down.",
+            collateralLabel: (amt) => `Pre-funded cash · ${amt} deposited (1:1)`,
           },
           "Credit by Company": {
-            subtitle: "OhMyHotel-issued credit line",
             ctaLabel: "Request Credit Increase",
             ctaToast: { title: "Credit increase request sent", description: "Your OhMyHotel account manager will review and respond within 2 business days." },
-            ctaColor: "#FF6000",
-            lowMsg: "Your credit line is nearly fully utilised. Request a credit limit increase to avoid new bookings being blocked.",
-            midMsg: "Heads up: half of your credit line is used. Plan ahead if a higher limit is needed.",
+            collateralLabel: () => "OhMyHotel-issued credit line · no collateral",
           },
           "Guarantee Deposit": {
-            subtitle: "Contractual guarantee deposit · changes require amendment",
             ctaLabel: "Request Limit Increase",
             ctaToast: { title: "Guarantee increase request sent", description: "Our team will draft the contract amendment for your review." },
-            ctaColor: "#FF6000",
-            lowMsg: "You are close to your guaranteed booking limit. Request an increase via contract amendment to avoid disruption.",
-            midMsg: "Heads up: half of your guarantee is used. A contract amendment can raise the ceiling.",
+            collateralLabel: (amt, mult) => `Guarantee Deposit · ${amt} × ${mult}× leverage`,
           },
           "Guarantee Insurance": {
-            subtitle: "Insurer-backed booking guarantee",
             ctaLabel: "Request Insurance Increase",
             ctaToast: { title: "Insurance increase noted", description: "Please contact your insurer to raise the policy limit and share the new certificate with us." },
-            ctaColor: "#FF6000",
-            lowMsg: "You are nearing your insurance-backed limit. Coordinate with your insurer to raise the cover; new bookings will be blocked once it is exhausted.",
-            midMsg: "Heads up: half of your insurance limit is used. Plan ahead with your insurer if a larger cover is needed.",
+            collateralLabel: (amt, mult) => `Insurer-backed · ${amt} × ${mult}× leverage`,
           },
           "Bank Guarantee": {
-            subtitle: "Bank-issued letter of guarantee",
             ctaLabel: "Request Bank Guarantee Increase",
             ctaToast: { title: "Bank guarantee increase noted", description: "Please contact your bank to amend the guarantee; share the updated letter once issued." },
-            ctaColor: "#FF6000",
-            lowMsg: "You are nearing your bank guarantee limit. Coordinate with your bank to amend the guarantee letter; new bookings will be blocked once it is exhausted.",
-            midMsg: "Heads up: half of your bank guarantee is used. Engage your bank if a higher amount is needed.",
+            collateralLabel: (amt, mult) => `Bank-issued Letter of Guarantee · ${amt} × ${mult}× leverage`,
           },
           "No Deposit": {
-            subtitle: "Operating without a deposit",
             ctaLabel: "Set Up Deposit",
             ctaToast: { title: "Deposit setup request sent", description: "Our team will guide you through deposit options to enable higher booking volumes." },
-            ctaColor: "#FF6000",
-            lowMsg: "",
-            midMsg: "",
+            collateralLabel: () => "No collateral on file",
           },
         };
         const cfg = config[depositType] || config["Floating Deposit"];
 
-        /* No-deposit special case — no bar, just info */
-        if (depositType === "No Deposit" || deposit === 0) {
+        /* Compute credit-line state — single source of truth */
+        const contract = selectedContract;
+        const hasLeverage = !!contract?.creditMultiplier && contract.creditMultiplier > 1;
+        const multiplier = contract?.creditMultiplier || 1;
+        const creditLimit = contract ? getCreditLimit(contract) : deposit;
+
+        const used = myInvoices
+          .filter(i => i.matchStatus !== "Full" && i.matchStatus !== "Reconciled")
+          .reduce((s, i) => s + (i.total - i.receivedAmount), 0);
+        const available = Math.max(0, creditLimit - used);
+        const usedPct = creditLimit > 0 ? Math.min(100, Math.round((used / creditLimit) * 100)) : 0;
+
+        const lowThreshold = contract?.creditLowThreshold || 0;
+        const criticalThreshold = contract?.creditCriticalThreshold || 0;
+        const isCritical = criticalThreshold > 0 && available <= criticalThreshold;
+        const isLow = lowThreshold > 0 && available <= lowThreshold && !isCritical;
+
+        const barColor = isCritical ? "#DC2626" : isLow ? "#FF6000" : usedPct >= 50 ? "#FF8C00" : "#009505";
+
+        /* No-deposit / zero-limit special case — single info card, same structure */
+        if (depositType === "No Deposit" || creditLimit === 0) {
           return (
             <Card className="p-6 border-2 border-amber-300 bg-amber-50/40 dark:bg-amber-950/10">
               <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -422,101 +443,146 @@ export default function SettlementPage() {
                     <AlertTriangle className="h-5 w-5 text-amber-600" />
                   </div>
                   <div>
-                    <h2 className="text-lg font-bold">{depositType}</h2>
-                    <p className="text-xs text-muted-foreground">{cfg.subtitle} · No collateral on file with OhMyHotel</p>
+                    <h2 className="text-lg font-bold">Credit Line</h2>
+                    <p className="text-xs text-muted-foreground">{cfg.collateralLabel("", multiplier)}</p>
                   </div>
                 </div>
-                <Button size="sm" className="text-white" style={{ background: cfg.ctaColor }} onClick={() => { if (depositType === "Floating Deposit") setTopUpOpen(true); else toast.success(cfg.ctaToast.title, { description: cfg.ctaToast.description }); }}>
+                <Button size="sm" className="text-white" style={{ background: "#FF6000" }} onClick={() => toast.success(cfg.ctaToast.title, { description: cfg.ctaToast.description })}>
                   <CreditCard className="h-3 w-3 mr-1" />{cfg.ctaLabel}
                 </Button>
               </div>
               <p className="text-xs text-amber-800 dark:text-amber-200 mt-3">
-                Without a deposit, OhMyHotel reserves the right to block new bookings at any time based on outstanding balance and risk. Setting up a Floating Deposit, Bank Guarantee, or Insurance unlocks higher booking volumes.
+                Without a deposit or credit line, OhMyHotel reserves the right to block new bookings at any time based on outstanding balance and risk. Setting up a Floating Deposit, Bank Guarantee, or Insurance unlocks higher booking volumes.
               </p>
             </Card>
           );
         }
 
-        /* Standard utilization view */
-        const used = myInvoices
-          .filter(i => i.matchStatus !== "Full" && i.matchStatus !== "Reconciled")
-          .reduce((s, i) => s + (i.total - i.receivedAmount), 0);
-        const available = Math.max(0, deposit - used);
-        const usedPct = Math.min(100, Math.round((used / deposit) * 100));
-        const availPct = 100 - usedPct;
-        const barColor = usedPct >= 80 ? "#DC2626" : usedPct >= 70 ? "#FF6000" : usedPct >= 50 ? "#FF8C00" : "#009505";
-        const lowDeposit = availPct <= 30;
+        const collateralSubtitle = cfg.collateralLabel(fmt(deposit), multiplier);
+        const isFloating = depositType === "Floating Deposit";
+        const isCreditByCo = depositType === "Credit by Company";
+        const handlePrimaryCta = () => {
+          if (isFloating) setTopUpOpen(true);
+          else toast.success(cfg.ctaToast.title, { description: cfg.ctaToast.description });
+        };
 
         return (
-          <Card className={`p-6 ${lowDeposit ? "border-2 border-red-500 bg-red-50/40 dark:bg-red-950/10" : "border-2 border-slate-200 dark:border-slate-800"}`}>
+          <Card className={`p-6 ${isCritical ? "border-2 border-red-500 bg-red-50/40 dark:bg-red-950/10" : isLow ? "border-2 border-orange-500 bg-orange-50/40 dark:bg-orange-950/10" : "border-2 border-slate-200 dark:border-slate-800"}`}>
             <div className="flex items-start justify-between gap-4 flex-wrap">
-              <div className="flex-1 min-w-[400px]">
+              <div className="flex-1 min-w-[420px]">
                 <div className="flex items-center gap-3 mb-3">
                   <div className="h-10 w-10 rounded-full flex items-center justify-center" style={{ background: barColor + "20" }}>
                     <CreditCard className="h-5 w-5" style={{ color: barColor }} />
                   </div>
-                  <div>
-                    <h2 className="text-lg font-bold">{depositType}</h2>
-                    <p className="text-xs text-muted-foreground">{cfg.subtitle}</p>
+                  <div className="flex-1 min-w-0">
+                    <h2 className="text-lg font-bold flex items-center gap-2 flex-wrap">
+                      Credit Line
+                      {hasLeverage && <Badge variant="outline" className="text-[10px]">{multiplier}× leverage</Badge>}
+                      {!hasLeverage && !isCreditByCo && <Badge variant="outline" className="text-[10px]">1:1</Badge>}
+                      {isCreditByCo && <Badge variant="outline" className="text-[10px]">Credit by Company</Badge>}
+                    </h2>
+                    <p className="text-xs text-muted-foreground">{collateralSubtitle}</p>
                   </div>
-                  <div className="ml-auto text-right">
+                  <div className="text-right shrink-0">
                     <p className="text-3xl font-bold" style={{ color: barColor }}>{usedPct}%</p>
                     <p className="text-[10px] text-muted-foreground uppercase">used</p>
                   </div>
                 </div>
 
-                {/* Big progress bar */}
-                <div className="h-6 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden relative">
+                {/* Primary progress bar with threshold markers */}
+                <div className="relative h-6 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
                   <div className="h-full rounded-full transition-all flex items-center justify-end pr-2" style={{ width: `${usedPct}%`, background: barColor }}>
-                    {usedPct > 15 && <span className="text-[10px] font-bold text-white">${used.toLocaleString()}</span>}
+                    {usedPct > 15 && <span className="text-[10px] font-bold text-white">{fmt(used)}</span>}
                   </div>
+                  {lowThreshold > 0 && (
+                    <div
+                      className="absolute top-0 bottom-0 border-l-2 border-amber-500 dark:border-amber-400"
+                      style={{ left: `${Math.min(100, (1 - lowThreshold / creditLimit) * 100)}%` }}
+                      title={`Low threshold: ${fmt(lowThreshold)} available`}
+                    />
+                  )}
+                  {criticalThreshold > 0 && (
+                    <div
+                      className="absolute top-0 bottom-0 border-l-2 border-red-600"
+                      style={{ left: `${Math.min(100, (1 - criticalThreshold / creditLimit) * 100)}%` }}
+                      title={`Critical threshold: ${fmt(criticalThreshold)} available`}
+                    />
+                  )}
                 </div>
 
-                {/* 3 big stat blocks */}
-                <div className="grid grid-cols-3 gap-3 mt-4">
+                {/* Stat blocks — includes Collateral (when leveraged) so users see the true underlying asset */}
+                <div className={`grid ${hasLeverage ? "grid-cols-5" : "grid-cols-4"} gap-3 mt-4`}>
+                  {hasLeverage && (
+                    <div className="text-center">
+                      <p className="text-[10px] text-muted-foreground uppercase">Collateral</p>
+                      <p className="text-sm font-bold font-mono">{fmt(deposit)}</p>
+                      <p className="text-[9px] text-muted-foreground">{depositType}</p>
+                    </div>
+                  )}
                   <div className="text-center">
-                    <p className="text-[10px] text-muted-foreground uppercase">Total Limit</p>
-                    <p className="text-xl font-bold font-mono">${deposit.toLocaleString()}</p>
+                    <p className="text-[10px] text-muted-foreground uppercase">Credit Limit</p>
+                    <p className="text-xl font-bold font-mono">{fmt(creditLimit)}</p>
+                    {hasLeverage && <p className="text-[9px] text-muted-foreground">{fmt(deposit)} × {multiplier}</p>}
                   </div>
                   <div className="text-center">
-                    <p className="text-[10px] text-muted-foreground uppercase">Used (Outstanding)</p>
-                    <p className="text-xl font-bold font-mono" style={{ color: barColor }}>${used.toLocaleString()}</p>
+                    <p className="text-[10px] text-muted-foreground uppercase">Used</p>
+                    <p className="text-xl font-bold font-mono" style={{ color: barColor }}>{fmt(used)}</p>
                   </div>
                   <div className="text-center">
                     <p className="text-[10px] text-muted-foreground uppercase">Available</p>
-                    <p className={`text-xl font-bold font-mono ${lowDeposit ? "text-red-600" : "text-green-600"}`}>${available.toLocaleString()}</p>
+                    <p className={`text-xl font-bold font-mono ${isCritical ? "text-red-600" : isLow ? "text-orange-600" : "text-green-600"}`}>{fmt(available)}</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-[10px] text-muted-foreground uppercase">Alert at</p>
+                    <p className="text-xs font-mono mt-1">
+                      {lowThreshold > 0 ? <span className="text-amber-600">⚠ {fmt(lowThreshold)}</span> : <span className="text-muted-foreground">—</span>}<br />
+                      {criticalThreshold > 0 ? <span className="text-red-600">🔴 {fmt(criticalThreshold)}</span> : <span className="text-muted-foreground">—</span>}
+                    </p>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Type-specific CTA when low */}
-            {lowDeposit && (
+            {/* Alert banners */}
+            {isCritical && (
               <Alert className="mt-4 border-red-300 bg-red-50 dark:bg-red-950/30">
                 <AlertTriangle className="h-4 w-4 text-red-600" />
-                <AlertTitle className="text-red-900 dark:text-red-100">Limit running low — only {availPct}% available</AlertTitle>
+                <AlertTitle className="text-red-900 dark:text-red-100">Critical: only {fmt(available)} of credit available</AlertTitle>
                 <AlertDescription className="text-xs text-red-800 dark:text-red-200 flex items-center justify-between gap-3 flex-wrap mt-1">
-                  <span>{cfg.lowMsg}</span>
-                  <Button size="sm" className="text-white shrink-0" style={{ background: cfg.ctaColor }} onClick={() => { if (depositType === "Floating Deposit") setTopUpOpen(true); else toast.success(cfg.ctaToast.title, { description: cfg.ctaToast.description }); }}>
+                  <span>You are below the critical threshold ({fmt(criticalThreshold)}). New bookings exceeding available credit will be blocked. Top up your collateral or settle outstanding invoices to restore credit.</span>
+                  <Button size="sm" className="text-white shrink-0" style={{ background: "#DC2626" }} onClick={handlePrimaryCta}>
                     <CreditCard className="h-3 w-3 mr-1" />{cfg.ctaLabel}
                   </Button>
                 </AlertDescription>
               </Alert>
             )}
-            {!lowDeposit && availPct <= 50 && (
+            {isLow && (
+              <Alert className="mt-4 border-orange-300 bg-orange-50 dark:bg-orange-950/20">
+                <AlertTriangle className="h-4 w-4 text-orange-600" />
+                <AlertTitle className="text-orange-900 dark:text-orange-100">Credit running low — {fmt(available)} available</AlertTitle>
+                <AlertDescription className="text-xs text-orange-800 dark:text-orange-200 flex items-center justify-between gap-3 flex-wrap mt-1">
+                  <span>You have crossed the low threshold ({fmt(lowThreshold)}). Top up your collateral or consider settling outstanding invoices to free up credit.</span>
+                  <Button size="sm" variant="outline" onClick={handlePrimaryCta}>
+                    <CreditCard className="h-3 w-3 mr-1" />{cfg.ctaLabel}
+                  </Button>
+                </AlertDescription>
+              </Alert>
+            )}
+            {/* Healthy but midpoint nudge (only when no active threshold breach) */}
+            {!isCritical && !isLow && usedPct >= 50 && (
               <div className="mt-3 flex items-center justify-between gap-3 flex-wrap">
                 <p className="text-xs text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
                   <AlertTriangle className="h-3 w-3" />
-                  {cfg.midMsg} (<strong>{availPct}%</strong> available)
+                  Half of your credit line is used ({fmt(available)} available). Plan ahead if a higher limit is needed.
                 </p>
-                <Button size="sm" variant="outline" onClick={() => { if (depositType === "Floating Deposit") setTopUpOpen(true); else toast.success(cfg.ctaToast.title, { description: cfg.ctaToast.description }); }}>
+                <Button size="sm" variant="outline" onClick={handlePrimaryCta}>
                   <CreditCard className="h-3 w-3 mr-1" />{cfg.ctaLabel}
                 </Button>
               </div>
             )}
 
-            {/* Recent Top-Up requests (Floating Deposit only) */}
-            {depositType === "Floating Deposit" && myTopUps.length > 0 && (
+            {/* Recent Top-Up requests (Floating Deposit only — other types don't have wire flow) */}
+            {isFloating && myTopUps.length > 0 && (
               <div className="mt-4 pt-4 border-t">
                 <p className="text-xs font-bold uppercase text-muted-foreground mb-2">Recent Top-Up Requests</p>
                 <div className="space-y-1.5">
@@ -539,130 +605,6 @@ export default function SettlementPage() {
                   })}
                 </div>
               </div>
-            )}
-          </Card>
-        );
-      })()}
-
-      {/* Credit Utilization Card — for collateral-backed deposits with leverage (Bank Guarantee, Guarantee Deposit, Insurance)
-       * AND Floating Deposit (1:1 — for low-credit warning). Shown only when a specific contract is selected.
-       */}
-      {selectedContractId !== "all" && selectedContract && effectiveBilling === "POSTPAY" && effectiveDepositType !== "No Deposit" && effectiveDepositType !== "Credit by Company" && (() => {
-        const contract = selectedContract;
-        const creditLimit = getCreditLimit(contract);
-        if (creditLimit === 0) return null;
-
-        const used = myInvoices
-          .filter(i => i.matchStatus !== "Full" && i.matchStatus !== "Reconciled")
-          .reduce((s, i) => s + (i.total - i.receivedAmount), 0);
-        const available = Math.max(0, creditLimit - used);
-        const usedPct = Math.min(100, Math.round((used / creditLimit) * 100));
-
-        const lowThreshold = contract.creditLowThreshold || 0;
-        const criticalThreshold = contract.creditCriticalThreshold || 0;
-        const isCritical = criticalThreshold > 0 && available <= criticalThreshold;
-        const isLow = lowThreshold > 0 && available <= lowThreshold && !isCritical;
-
-        const barColor = isCritical ? "#DC2626" : isLow ? "#FF6000" : usedPct >= 50 ? "#FF8C00" : "#009505";
-        const hasLeverage = !!contract.creditMultiplier && contract.creditMultiplier > 1;
-        const curr = effectiveCurrency;
-
-        return (
-          <Card className={`p-6 ${isCritical ? "border-2 border-red-500 bg-red-50/40 dark:bg-red-950/10" : isLow ? "border-2 border-orange-500 bg-orange-50/40 dark:bg-orange-950/10" : "border-2 border-slate-200 dark:border-slate-800"}`}>
-            <div className="flex items-start justify-between gap-4 flex-wrap">
-              <div className="flex-1 min-w-[400px]">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="h-10 w-10 rounded-full flex items-center justify-center" style={{ background: barColor + "20" }}>
-                    <CreditCard className="h-5 w-5" style={{ color: barColor }} />
-                  </div>
-                  <div>
-                    <h2 className="text-lg font-bold flex items-center gap-2">
-                      Credit Available
-                      {hasLeverage && <Badge variant="outline" className="text-[10px]">{contract.creditMultiplier}× leverage</Badge>}
-                    </h2>
-                    <p className="text-xs text-muted-foreground">
-                      {hasLeverage
-                        ? `Backed by ${effectiveDepositType} ${curr} ${(effectiveDepositAmount || 0).toLocaleString()} × ${contract.creditMultiplier}`
-                        : `1:1 with ${effectiveDepositType}`}
-                    </p>
-                  </div>
-                  <div className="ml-auto text-right">
-                    <p className="text-3xl font-bold" style={{ color: barColor }}>{usedPct}%</p>
-                    <p className="text-[10px] text-muted-foreground uppercase">used</p>
-                  </div>
-                </div>
-
-                {/* Big bar with threshold markers */}
-                <div className="relative h-6 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
-                  <div className="h-full rounded-full transition-all flex items-center justify-end pr-2" style={{ width: `${usedPct}%`, background: barColor }}>
-                    {usedPct > 15 && <span className="text-[10px] font-bold text-white">{curr} {used.toLocaleString()}</span>}
-                  </div>
-                  {/* Threshold markers */}
-                  {lowThreshold > 0 && (
-                    <div
-                      className="absolute top-0 bottom-0 border-l-2 border-amber-500 dark:border-amber-400"
-                      style={{ left: `${Math.min(100, (1 - lowThreshold / creditLimit) * 100)}%` }}
-                      title={`Low threshold: ${curr} ${lowThreshold.toLocaleString()} available`}
-                    />
-                  )}
-                  {criticalThreshold > 0 && (
-                    <div
-                      className="absolute top-0 bottom-0 border-l-2 border-red-600"
-                      style={{ left: `${Math.min(100, (1 - criticalThreshold / creditLimit) * 100)}%` }}
-                      title={`Critical threshold: ${curr} ${criticalThreshold.toLocaleString()} available`}
-                    />
-                  )}
-                </div>
-
-                {/* 4 stat blocks: Limit / Used / Available / Threshold */}
-                <div className="grid grid-cols-4 gap-3 mt-4">
-                  <div className="text-center">
-                    <p className="text-[10px] text-muted-foreground uppercase">Credit Limit</p>
-                    <p className="text-xl font-bold font-mono">{curr} {creditLimit.toLocaleString()}</p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-[10px] text-muted-foreground uppercase">Used</p>
-                    <p className="text-xl font-bold font-mono" style={{ color: barColor }}>{curr} {used.toLocaleString()}</p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-[10px] text-muted-foreground uppercase">Available</p>
-                    <p className={`text-xl font-bold font-mono ${isCritical ? "text-red-600" : isLow ? "text-orange-600" : "text-green-600"}`}>{curr} {available.toLocaleString()}</p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-[10px] text-muted-foreground uppercase">Alert at</p>
-                    <p className="text-sm font-mono mt-1">
-                      <span className="text-amber-600">⚠ {curr} {lowThreshold.toLocaleString()}</span><br />
-                      <span className="text-red-600">🔴 {curr} {criticalThreshold.toLocaleString()}</span>
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Critical alert banner */}
-            {isCritical && (
-              <Alert className="mt-4 border-red-300 bg-red-50 dark:bg-red-950/30">
-                <AlertTriangle className="h-4 w-4 text-red-600" />
-                <AlertTitle className="text-red-900 dark:text-red-100">Critical: only {curr} {available.toLocaleString()} of credit available</AlertTitle>
-                <AlertDescription className="text-xs text-red-800 dark:text-red-200 flex items-center justify-between gap-3 flex-wrap mt-1">
-                  <span>You are below the critical threshold ({curr} {criticalThreshold.toLocaleString()}). New bookings may be blocked. Top up your collateral or settle outstanding invoices to restore credit.</span>
-                  <Button size="sm" className="text-white shrink-0" style={{ background: "#DC2626" }} onClick={() => setTopUpOpen(true)}>
-                    <CreditCard className="h-3 w-3 mr-1" />Top Up Now
-                  </Button>
-                </AlertDescription>
-              </Alert>
-            )}
-            {isLow && (
-              <Alert className="mt-4 border-orange-300 bg-orange-50 dark:bg-orange-950/20">
-                <AlertTriangle className="h-4 w-4 text-orange-600" />
-                <AlertTitle className="text-orange-900 dark:text-orange-100">Credit running low — {curr} {available.toLocaleString()} available</AlertTitle>
-                <AlertDescription className="text-xs text-orange-800 dark:text-orange-200 flex items-center justify-between gap-3 flex-wrap mt-1">
-                  <span>You have crossed the low threshold ({curr} {lowThreshold.toLocaleString()}). Top up your collateral or consider settling outstanding invoices to free up credit.</span>
-                  <Button size="sm" variant="outline" onClick={() => setTopUpOpen(true)}>
-                    <CreditCard className="h-3 w-3 mr-1" />Top Up
-                  </Button>
-                </AlertDescription>
-              </Alert>
             )}
           </Card>
         );
