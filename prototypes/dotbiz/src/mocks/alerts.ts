@@ -28,6 +28,7 @@ export type AlertType =
   | "topup_expired"         /* No wire within 7 days */
   /* P0 — Critical (booking) */
   | "prepay_deadline_d7" | "prepay_deadline_d3" | "prepay_deadline_d1" | "prepay_deadline_dday"
+  | "booking_auto_cancelled"  /* PREPAY payment deadline missed — auto-cancel executed */
   | "booking_cancelled_by_hotel"
   | "partial_payment_detected"
   /* P1 — Important */
@@ -39,14 +40,11 @@ export type AlertType =
   | "dispute_resolved"
   | "ticket_reply"
   | "checkin_tomorrow"
-  | "booking_confirmed"
   | "credit_note_issued"
   /* P2 — Useful */
   | "subaccount_added"
   | "role_changed"
-  | "contract_amendment"
-  | "tax_filing_reminder"
-  | "topup_requested";       /* P2 — top-up request created (informational) */
+  | "contract_amendment";
 
 export interface Alert {
   id: string;
@@ -137,6 +135,21 @@ export const alerts: Alert[] = [
     refType: "booking", refId: "K26040816352H01",
   },
 
+  /* Historical: auto-cancelled booking (PREPAY deadline missed) */
+  {
+    id: "alt-012",
+    type: "booking_auto_cancelled",
+    category: "Booking", priority: "P0",
+    customerCompanyId: "comp-002", contractId: "ctr-002-sg",
+    title: "Booking auto-cancelled: Hotel Nikko Bangkok — deadline missed",
+    body: "K26031511457H01 (check-in 2026-03-18, Tanaka Yuki) was auto-cancelled on 2026-03-17 17:00 KST after the payment deadline was missed. USD 780 forfeited per non-refundable terms. Please contact the guest with alternate arrangements.",
+    actionLabel: "View booking", actionPath: "/app/bookings/bk-003",
+    sentVia: ["In-app", "Email", "SMS"],
+    createdAt: "2026-03-17 17:00:30",
+    readAt: "2026-03-17 17:14:22",
+    refType: "booking", refId: "K26031511457H01",
+  },
+
   /* ── GOTADI (comp-010) — multi-entity, leverage credit (Bank Guarantee) — but Floating, low alert ── */
   {
     id: "alt-020",
@@ -188,19 +201,6 @@ export const alerts: Alert[] = [
     createdAt: "2026-04-20 07:00:00",
     readAt: "2026-04-20 08:15:00",
   },
-  {
-    id: "alt-032",
-    type: "booking_confirmed",
-    category: "Booking", priority: "P1",
-    customerCompanyId: "comp-001",
-    title: "Hotel confirmed: K26040816352H01 Raffles Singapore",
-    body: "Confirmation code HC-RFL-7723 issued.",
-    sentVia: ["In-app"],
-    createdAt: "2026-04-09 16:42:11",
-    readAt: "2026-04-09 17:01:00",
-    refType: "booking", refId: "K26040816352H01",
-  },
-
   /* ── Dispute & ticket ── */
   {
     id: "alt-040",
@@ -297,10 +297,10 @@ export const defaultAlertPreferences: AlertPreference[] = [
   { type: "prepay_deadline_d3",         enabled: true,  channels: ["In-app", "Email"] },
   { type: "prepay_deadline_d1",         enabled: true,  channels: ["In-app", "Email"] },
   { type: "prepay_deadline_dday",       enabled: true,  channels: ["In-app", "Email", "SMS"] },
+  { type: "booking_auto_cancelled",     enabled: true,  channels: ["In-app", "Email", "SMS"] },
   { type: "booking_cancelled_by_hotel", enabled: true,  channels: ["In-app", "Email", "SMS"] },
   { type: "partial_payment_detected",   enabled: true,  channels: ["In-app", "Email"] },
   { type: "invoice_due_soon",           enabled: true,  channels: ["In-app", "Email"] },
-  { type: "topup_requested",            enabled: true,  channels: ["In-app"] },
   { type: "topup_pending_reminder",     enabled: true,  channels: ["In-app", "Email"] },
   { type: "invoice_issued",             enabled: true,  channels: ["In-app", "Email"] },
   { type: "payment_received",           enabled: true,  channels: ["In-app"] },
@@ -308,12 +308,10 @@ export const defaultAlertPreferences: AlertPreference[] = [
   { type: "dispute_resolved",           enabled: true,  channels: ["In-app", "Email"] },
   { type: "ticket_reply",               enabled: true,  channels: ["In-app"] },
   { type: "checkin_tomorrow",           enabled: false, channels: ["In-app", "Email"] },
-  { type: "booking_confirmed",          enabled: false, channels: ["In-app"] },
   { type: "credit_note_issued",         enabled: true,  channels: ["In-app", "Email"] },
   { type: "subaccount_added",           enabled: true,  channels: ["In-app"] },
   { type: "role_changed",               enabled: true,  channels: ["In-app", "Email"] },
   { type: "contract_amendment",         enabled: true,  channels: ["In-app", "Email"] },
-  { type: "tax_filing_reminder",        enabled: false, channels: ["In-app"] },
 ];
 
 /* Critical alerts that cannot be fully disabled */
@@ -321,6 +319,7 @@ export const undisableableAlerts: AlertType[] = [
   "credit_critical",
   "topup_expired",
   "booking_cancelled_by_hotel",
+  "booking_auto_cancelled",
   "prepay_deadline_dday",
 ];
 
@@ -335,10 +334,10 @@ export const alertTypeMeta: Record<AlertType, { label: string; category: AlertCa
   prepay_deadline_d3:         { label: "Payment Deadline D-3",         category: "Booking",    priority: "P0" },
   prepay_deadline_d1:         { label: "Payment Deadline D-1",         category: "Booking",    priority: "P0" },
   prepay_deadline_dday:       { label: "Payment Deadline Today",       category: "Booking",    priority: "P0" },
+  booking_auto_cancelled:     { label: "Booking Auto-Cancelled",       category: "Booking",    priority: "P0" },
   booking_cancelled_by_hotel: { label: "Booking Cancelled by Hotel",   category: "Booking",    priority: "P0" },
   partial_payment_detected:   { label: "Partial Payment Detected",     category: "Settlement", priority: "P0" },
   invoice_due_soon:           { label: "Invoice Due Soon (D-2)",       category: "Settlement", priority: "P1" },
-  topup_requested:            { label: "Top-up Requested",             category: "Settlement", priority: "P2" },
   topup_pending_reminder:     { label: "Top-up Pending Reminder (D+5)", category: "Settlement", priority: "P1" },
   invoice_issued:             { label: "Invoice Issued",               category: "Settlement", priority: "P1" },
   payment_received:           { label: "Payment Received",             category: "Settlement", priority: "P1" },
@@ -346,10 +345,8 @@ export const alertTypeMeta: Record<AlertType, { label: string; category: AlertCa
   dispute_resolved:           { label: "Dispute Resolved",             category: "Dispute",    priority: "P1" },
   ticket_reply:               { label: "Ticket Reply",                 category: "Dispute",    priority: "P1" },
   checkin_tomorrow:           { label: "Check-in Tomorrow",            category: "Booking",    priority: "P1" },
-  booking_confirmed:          { label: "Booking Confirmed",            category: "Booking",    priority: "P1" },
   credit_note_issued:         { label: "Credit Note Issued",           category: "Settlement", priority: "P1" },
   subaccount_added:           { label: "Sub-account Added",            category: "Account",    priority: "P2" },
   role_changed:               { label: "Role Changed",                 category: "Account",    priority: "P2" },
   contract_amendment:         { label: "Contract Amendment",           category: "Account",    priority: "P2" },
-  tax_filing_reminder:        { label: "Tax Filing Reminder",          category: "Settlement", priority: "P2" },
 };

@@ -34,6 +34,7 @@ Alerts appear in the bell-icon popover (unread count badge) and on the dedicated
 | `prepay_deadline_d3` | Booking | 3 days before PREPAY deadline | In-app, Email | No |
 | `prepay_deadline_d1` | Booking | 1 day before PREPAY deadline | In-app, Email | No |
 | `prepay_deadline_dday` | Booking | Day of PREPAY deadline | In-app, Email, SMS | **Yes** |
+| `booking_auto_cancelled` | Booking | PREPAY deadline passed, auto-cancel executed | In-app, Email, SMS | **Yes** (Email minimum) |
 | `booking_cancelled_by_hotel` | Booking | Hotel reports overbooking/cancel | In-app, Email, SMS | **Yes** |
 | `partial_payment_detected` | Settlement | Wire amount < invoice.total | In-app, Email | No |
 
@@ -50,7 +51,6 @@ Alerts appear in the bell-icon popover (unread count badge) and on the dedicated
 | `dispute_resolved` | Dispute | Dispute closed | In-app, Email |
 | `ticket_reply` | Dispute | Support ticket has a new reply | In-app |
 | `checkin_tomorrow` | Booking | Check-in date = T+1 | In-app, Email (default off) |
-| `booking_confirmed` | Booking | Hotel issued confirmation code | In-app (default off) |
 | `credit_note_issued` | Settlement | Credit note generated | In-app, Email |
 
 ### P2 — Useful
@@ -60,8 +60,6 @@ Alerts appear in the bell-icon popover (unread count badge) and on the dedicated
 | `subaccount_added` | Account | Master adds a sub-user | In-app |
 | `role_changed` | Account | User role modified | In-app, Email |
 | `contract_amendment` | Account | Settlement cycle/terms changed | In-app, Email |
-| `tax_filing_reminder` | Settlement | Quarter-end tax window open | In-app (default off) |
-| `topup_requested` | Settlement | Customer created a new top-up request | In-app |
 
 ---
 
@@ -204,7 +202,7 @@ Flow:
 ```
 Customer requests top-up → system allocates ref code (TUP-XX-YYYYMMDD-XXXX)
           ↓                              ↓
-   topup_request.status = 'Pending'   topup_requested alert (P2, in-app)
+   topup_request.status = 'Pending'   UI toast (no alert — see §8b)
           ↓
    (wait for wire matching ref code)
           ↓ (if wire arrives within 7d)     ↓ (if no wire by D+5)
@@ -520,11 +518,15 @@ Consolidated decisions from the one-by-one review of each alert type. Where the 
 
 **`checkin_tomorrow`** — Default OFF. Digest format (one 08:00 alert per day summarising all next-day check-ins). In-app only. Recipients = booking creators / group coordinators (Masters not auto-subscribed). Surfaces "hotel confirmation code missing" warnings in body.
 
-**`booking_confirmed`** — Default OFF. Individual (no digest). In-app only. Booking creator only. Valuable mainly for on-request hotels (slow confirmation). Supersedes to `booking_cancelled_by_hotel` on cancel → auto-dismiss.
+**`booking_confirmed`** — Removed from customer taxonomy. API-integrated customers pull confirmation state from ELLIS directly; manual customers can see Pending/Confirmed state on the Booking list via a badge. Alert adds no signal — removed to reduce noise.
 
-### NEW types referenced above (pending formal addition)
+**`tax_filing_reminder`** — Removed. Tax calendars are the customer's own responsibility (they have in-house or external accountants); OhMyHotel is not a tax advisor and wrong-date notifications create legal exposure without upside. Customers who need transaction data for filing can export it from My Account.
 
-- `booking_auto_cancelled` (P0 Booking) — emitted when PREPAY deadline passes with no payment and auto-cancel runs.
+**`topup_requested`** — Removed. Request creation is acknowledged by UI toast; Master can see it in Top-up History. Separate alert is noise given the downstream lifecycle (`topup_pending_reminder` / `topup_confirmed` / `topup_expired`) already covers every meaningful transition.
+
+### `booking_auto_cancelled` (P0 Booking, 🔒 Locked-Email)
+
+Fires when ELLIS auto-cancel worker executes a PREPAY booking after the payment deadline passes with no payment. Body cites: cancellation fact, forfeited amount in contract currency, and guest-alternate-arrangements action. Recipients: Masters + booking creator + **guest email direct** (same pattern as `booking_cancelled_by_hotel`). Channels In-app + Email + SMS by default; Email is the mandatory minimum. Preceding D-7/D-3/D-1/D-day alerts are auto-dismissed. Booking record is preserved (status='Cancelled', cancelledBy='auto', cancelReason='payment_deadline_missed') per §4c-3 immutability rule. Race condition (payment attempted mid-deadline) routes to manual review and does NOT emit this alert.
 
 ---
 
