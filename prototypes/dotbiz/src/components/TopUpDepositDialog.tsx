@@ -85,6 +85,42 @@ export default function TopUpDepositDialog({ open, onOpenChange, customer, curre
     toast.success(`${label} copied`);
   };
 
+  /* Build a plain-text message with full wire instructions — for the employee
+   * to forward to their accounting / finance team via Slack / KakaoTalk / email.
+   * Kept readable in messengers (no markdown tables, just labeled lines). */
+  const buildWireMessage = () => {
+    const n = parseFloat(amount) || 0;
+    const lines = [
+      `[Top-up Wire Request — DOTBIZ]`,
+      ``,
+      `Please wire the following to OhMyHotel for deposit top-up:`,
+      ``,
+      `• Amount:           ${targetCurrency} ${n.toLocaleString()}`,
+      `• Beneficiary:      ${targetEntity.legalName}`,
+      `• Bank:             ${targetEntity.bankInfo.bankName}`,
+      `• SWIFT:            ${targetEntity.bankInfo.swift}`,
+      `• Account Holder:   ${targetEntity.bankInfo.accountHolder}`,
+      `• Account Number:   ${targetEntity.bankInfo.accountNumber}`,
+      `• Bank Address:     ${targetEntity.bankInfo.bankAddress}`,
+      ``,
+      `⚠ MEMO (mandatory — include exactly as shown in the wire remittance information / memo field):`,
+      `   ${refCode}`,
+      ``,
+      `Without this reference code the wire cannot be auto-matched and deposit credit may be delayed 3-5 business days.`,
+      `This reference code is valid for 7 days.`,
+      ``,
+      `Requested via DOTBIZ by ${customer.name}.`,
+    ];
+    return lines.join("\n");
+  };
+
+  const copyWireMessage = () => {
+    navigator.clipboard?.writeText(buildWireMessage());
+    toast.success("Full wire instructions copied", {
+      description: "Paste into your accounting team's chat/email.",
+    });
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent style={{ maxWidth: "640px", width: "92vw" }} className="max-h-[92vh] overflow-y-auto">
@@ -156,6 +192,21 @@ export default function TopUpDepositDialog({ open, onOpenChange, customer, curre
               <div className="flex items-center gap-2 mt-3 text-xs text-muted-foreground">
                 <Clock className="h-3 w-3" />
                 <span>This code is valid for <strong>7 days</strong>. After expiry the request will be cancelled.</span>
+              </div>
+            </div>
+
+            {/* Forward-to-accounting helper — copies full instruction as messenger-ready text */}
+            <div className="border rounded-lg p-3 bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-900">
+              <div className="flex items-start justify-between gap-3 flex-wrap">
+                <div className="flex-1 min-w-[240px]">
+                  <p className="text-xs font-semibold text-blue-900 dark:text-blue-200">Forwarding to your accounting team?</p>
+                  <p className="text-[11px] text-blue-800/80 dark:text-blue-300/80 mt-0.5">
+                    Copy the entire wire instruction as a plain-text message — paste it into Slack, KakaoTalk, email, etc.
+                  </p>
+                </div>
+                <Button size="sm" onClick={copyWireMessage} className="shrink-0">
+                  <Copy className="h-3 w-3 mr-1" />Copy wire instructions
+                </Button>
               </div>
             </div>
 
