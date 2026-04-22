@@ -171,11 +171,13 @@ export default function TutorialOverlay({ open, steps, onClose, onComplete }: Pr
       /* Backdrop click closes */
       onClick={onClose}
     >
-      {/* Spotlight hole around target using box-shadow trick */}
+      {/* Spotlight hole around target using box-shadow trick.
+       * Snappy 120ms ease-out transition — feels responsive between adjacent
+       * sidebar items while still smooth enough when jumping across the page. */}
       {rect ? (
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute transition-all duration-200 rounded-lg"
+          className="pointer-events-none absolute rounded-lg"
           style={{
             top: rect.top - 6,
             left: rect.left - 6,
@@ -183,6 +185,7 @@ export default function TutorialOverlay({ open, steps, onClose, onComplete }: Pr
             height: rect.height + 12,
             boxShadow: "0 0 0 9999px rgba(0, 0, 0, 0.72)",
             border: "2px solid #FF6000",
+            transition: "top 120ms ease-out, left 120ms ease-out, width 120ms ease-out, height 120ms ease-out",
             animation: "tutorialPulse 1.8s ease-in-out infinite",
           }}
         />
@@ -191,12 +194,17 @@ export default function TutorialOverlay({ open, steps, onClose, onComplete }: Pr
         <div aria-hidden="true" className="absolute inset-0 bg-black/70" />
       )}
 
-      {/* Tooltip card */}
+      {/* Tooltip card — transitions in sync with spotlight for a unified feel */}
       <div
         ref={tooltipRef}
         onClick={e => e.stopPropagation()}
         className="absolute bg-white dark:bg-slate-900 text-foreground rounded-xl shadow-2xl ring-1 ring-foreground/10 p-5"
-        style={{ ...tooltipStyle, width: 360, maxWidth: "calc(100vw - 32px)" }}
+        style={{
+          ...tooltipStyle,
+          width: 360,
+          maxWidth: "calc(100vw - 32px)",
+          transition: "top 120ms ease-out, left 120ms ease-out",
+        }}
       >
         {/* Header: progress + close */}
         <div className="flex items-center justify-between mb-3">
