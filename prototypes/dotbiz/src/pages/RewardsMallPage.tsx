@@ -1,7 +1,7 @@
 import { useMemo, useState, useEffect } from "react";
 import {
   Gift, RefreshCw, Sparkles, TrendingUp, Clock, Copy, CheckCircle2, Search,
-  Trophy, Flame, Wallet, ArrowUpRight, ArrowDownLeft, Send,
+  Trophy, Flame, Wallet, ArrowUpRight, ArrowDownLeft, ArrowRight, Send,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
