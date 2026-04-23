@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { AnimatePresence } from "framer-motion";
 import PageTransition from "@/components/PageTransition";
 import Footer from "@/components/Footer";
-import { Search, Moon, Sun, Bell, User, LogOut, LayoutDashboard, CalendarCheck, Wallet, HelpCircle, Gift, Pen, Menu, Users, Ticket, Heart, Phone, ChevronDown, ChevronRight, PieChart, UserCog, Network, ArrowRightLeft, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { Search, Moon, Sun, Bell, User, LogOut, LayoutDashboard, CalendarCheck, Wallet, HelpCircle, Gift, Pen, Menu, Users, Ticket, Heart, Phone, ChevronDown, ChevronRight, PieChart, UserCog, Network, ArrowRightLeft, PanelLeftClose, PanelLeftOpen, Shield } from "lucide-react";
 import { creditSummary } from "@/mocks/clientManagement";
 import { currentCompany } from "@/mocks/companies";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
@@ -65,6 +65,7 @@ const navSections: NavSection[] = [
       { i18nKey: "nav.team",          label: "Master Account", icon: Users, path: "/app/client", roles: ["Master"] },
       { i18nKey: "nav.notifications", label: "Notifications", icon: Bell,  path: "/app/notifications" },
       { i18nKey: "nav.myAccount",     label: "My Account",     icon: User,  path: "/app/my-account" },
+      { i18nKey: "nav.elsEconomics",  label: "ELS Economics",  icon: Shield, path: "/app/admin/els-economics", roles: ["Master"] },
     ],
   },
   {

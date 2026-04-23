@@ -12,6 +12,7 @@ const strings: Record<string, Record<Locale, string>> = {
   "nav.notifications": { EN: "Notifications", KO: "알림", JA: "通知", ZH: "通知", VI: "Thông báo" },
   "nav.faq": { EN: "FAQ Board", KO: "FAQ 게시판", JA: "FAQ", ZH: "常见问题", VI: "Câu hỏi thường gặp" },
   "nav.myAccount": { EN: "My Account", KO: "내 계정", JA: "マイアカウント", ZH: "我的账户", VI: "Tài khoản" },
+  "nav.elsEconomics": { EN: "ELS Economics", KO: "ELS 경제 설정", JA: "ELS経済設定", ZH: "ELS 经济配置", VI: "Cài đặt ELS" },
   "nav.rewards": { EN: "Rewards Mall", KO: "리워드몰", JA: "リワードモール", ZH: "积分商城", VI: "Cửa hàng điểm thưởng" },
   "nav.blog": { EN: "OhMy Blog", KO: "OhMy 블로그", JA: "OhMyブログ", ZH: "OhMy博客", VI: "OhMy Blog" },
   "nav.section.work":      { EN: "Work",      KO: "업무",      JA: "業務",     ZH: "工作",   VI: "Công việc" },

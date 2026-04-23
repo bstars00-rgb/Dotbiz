@@ -31,6 +31,7 @@ import HotelMapViewPage from "@/pages/HotelMapViewPage";
 import MarkupSharingPage from "@/pages/MarkupSharingPage";
 import FavoritesPage from "@/pages/FavoritesPage";
 import MonthlyRatePage from "@/pages/MonthlyRatePage";
+import AdminEconomicsPage from "@/pages/AdminEconomicsPage";
 
 function App() {
   return (
@@ -69,6 +70,7 @@ function App() {
             <Route path="markup-sharing" element={<MarkupSharingPage />} />
             <Route path="favorites" element={<FavoritesPage />} />
             <Route path="monthly-rates" element={<MonthlyRatePage />} />
+            <Route path="admin/els-economics" element={<AdminEconomicsPage />} />
           </Route>
           {/* Standalone screens */}
           <Route path="/login" element={<LoginPage />} />
