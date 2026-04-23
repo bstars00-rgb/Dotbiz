@@ -17,6 +17,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { useAuth } from "@/contexts/AuthContext";
 import { unreadAlertsFor } from "@/mocks/alerts";
 import { companies } from "@/mocks/companies";
+import { earnedStampsFor, STAMPS } from "@/mocks/rewards";
 import { useI18n } from "@/contexts/I18nContext";
 import type { Locale } from "@/i18n/strings";
 import { currentUser } from "@/mocks/users";
@@ -430,11 +431,14 @@ export default function MainLayout() {
 
             {/* Client Info */}
             <div className="px-5 py-3 border-t">
-              <div className="flex items-baseline gap-2">
-                <span className="font-semibold text-sm">Client Info</span>
-                <span className="text-xs text-muted-foreground">{user?.company}</span>
+              <p className="font-semibold text-sm">Client Info</p>
+              <p className="text-sm mt-1">{user?.company || currentCompany.name}</p>
+              <div className="flex items-center gap-1.5 mt-1">
+                <Badge variant="outline" className="text-[10px]">
+                  {user?.billingType || "POSTPAY"}
+                </Badge>
+                <span className="text-[10px] text-muted-foreground">Contract holder</span>
               </div>
-              <p className="text-sm mt-1">{currentCompany.name}</p>
             </div>
 
             {/* Coupon */}
@@ -443,25 +447,41 @@ export default function MainLayout() {
                 <p className="font-semibold text-sm">Coupon</p>
                 <p className="text-red-500 font-bold text-base leading-tight">0</p>
               </div>
-              <button onClick={() => { navigate("/app/rewards"); setOpenPop(null); }} className="text-xs text-red-500 hover:text-red-600 flex items-center gap-0.5">
+              <button onClick={() => { navigate("/app/rewards?tab=vault"); setOpenPop(null); }} className="text-xs text-red-500 hover:text-red-600 flex items-center gap-0.5">
                 My Coupons <ChevronRight className="h-3 w-3" />
               </button>
             </div>
 
-            {/* Action Grid */}
-            <div className="grid grid-cols-4 border-t bg-muted/20">
+            {/* Stamps — passport progress (added for discoverability) */}
+            <div className="px-5 py-3 border-t flex items-center justify-between">
+              <div>
+                <p className="font-semibold text-sm">Stamps</p>
+                <p className="text-red-500 font-bold text-base leading-tight">
+                  {(() => {
+                    const earned = earnedStampsFor(user?.email || "").filter(s => s.earned).length;
+                    return `${earned} / ${STAMPS.length}`;
+                  })()}
+                </p>
+              </div>
+              <button onClick={() => { navigate("/app/rewards?tab=stamps"); setOpenPop(null); }} className="text-xs text-red-500 hover:text-red-600 flex items-center gap-0.5">
+                My Passport <ChevronRight className="h-3 w-3" />
+              </button>
+            </div>
+
+            {/* Action Grid — Dashboard / My Account / Master Account (+ Sign out) */}
+            <div className={`grid ${hasRole(["Master"]) ? "grid-cols-4" : "grid-cols-3"} border-t bg-muted/20`}>
               <button onClick={() => { navigate("/app/dashboard"); setOpenPop(null); }} className="flex flex-col items-center gap-1.5 py-3 hover:bg-muted/40 transition-colors text-xs">
                 <div className="h-9 w-9 rounded-full border flex items-center justify-center"><PieChart className="h-4 w-4 text-red-500" /></div>
-                <span>Data Center</span>
+                <span>Dashboard</span>
               </button>
               <button onClick={() => { navigate("/app/my-account"); setOpenPop(null); }} className="flex flex-col items-center gap-1.5 py-3 hover:bg-muted/40 transition-colors text-xs">
                 <div className="h-9 w-9 rounded-full border flex items-center justify-center"><UserCog className="h-4 w-4 text-red-500" /></div>
-                <span>Account Cen…</span>
+                <span>My Account</span>
               </button>
               {hasRole(["Master"]) && (
                 <button onClick={() => { navigate("/app/client"); setOpenPop(null); }} className="flex flex-col items-center gap-1.5 py-3 hover:bg-muted/40 transition-colors text-xs">
                   <div className="h-9 w-9 rounded-full border flex items-center justify-center"><Network className="h-4 w-4 text-red-500" /></div>
-                  <span>Client Mana…</span>
+                  <span>Master Account</span>
                 </button>
               )}
               <button onClick={() => { setOpenPop(null); setLogoutOpen(true); }} className="flex flex-col items-center gap-1.5 py-3 hover:bg-muted/40 transition-colors text-xs">
@@ -522,7 +542,7 @@ export default function MainLayout() {
           <div className="p-4">
             <div className="flex items-center gap-2 mb-3">
               <Avatar className="h-8 w-8">
-                <AvatarFallback>JP</AvatarFallback>
+                <AvatarFallback>{(user?.name || "U").slice(0, 2).toUpperCase()}</AvatarFallback>
               </Avatar>
               <div>
                 <p className="text-sm font-medium">{user?.name || currentUser.fullName}</p>
@@ -608,21 +628,20 @@ export default function MainLayout() {
           </div>
           <div className="flex-1" />
           <Separator />
-          {/* User section */}
+          {/* User section — identity only.
+           * Switch Account / Logout moved to top-right user popover to
+           * avoid duplicating actions. Hint below points users there. */}
           <div className="p-4 whitespace-nowrap">
-            <div className="flex items-center gap-2 mb-3">
+            <div className="flex items-center gap-2">
               <Avatar className="h-8 w-8"><AvatarFallback>{(user?.name || "U").slice(0, 2).toUpperCase()}</AvatarFallback></Avatar>
-              <div>
-                <p className="text-sm font-medium">{user?.name || currentUser.fullName}</p>
+              <div className="min-w-0">
+                <p className="text-sm font-medium truncate">{user?.name || currentUser.fullName}</p>
                 <Badge variant="secondary" className="text-xs">{user?.role || currentUser.role}</Badge>
               </div>
             </div>
-            <Button variant="ghost" className="w-full justify-start text-xs" onClick={() => { logout(); navigate("/login"); }}>
-              <User className="h-4 w-4 mr-2" aria-hidden="true" />{t("nav.switchAccount")}
-            </Button>
-            <Button variant="ghost" className="w-full justify-start" onClick={() => setLogoutOpen(true)}>
-              <LogOut className="h-4 w-4 mr-2" aria-hidden="true" />{t("nav.logout")}
-            </Button>
+            <p className="text-[10px] text-muted-foreground mt-2 leading-tight">
+              Open the profile menu (top-right) to switch accounts or sign out.
+            </p>
           </div>
         </nav>
         )}

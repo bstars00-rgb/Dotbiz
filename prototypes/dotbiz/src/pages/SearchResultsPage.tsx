@@ -20,6 +20,7 @@ import { Separator } from "@/components/ui/separator";
 import { useScreenState } from "@/hooks/useScreenState";
 import { StateToolbar } from "@/components/StateToolbar";
 import { hotels } from "@/mocks/hotels";
+import { hotelPointsBoost } from "@/mocks/rewards";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -206,7 +207,7 @@ export default function SearchResultsPage() {
     if (selFeatures.size > 0) result = result.filter(h => Array.from(selFeatures).some(f => h.features.includes(f)));
     if (selBrands.size > 0) result = result.filter(h => selBrands.has(h.brand));
     if (selPromotions.size > 0) result = result.filter(h => Array.from(selPromotions).some(p => h.promotion.includes(p)));
-    if (selPoints) result = result.filter(h => h.multiplePoints);
+    if (selPoints) result = result.filter(h => h.multiplePoints || !!hotelPointsBoost(h.id));
 
     return result;
   }, [searchQuery, nameSearch, selLocations, selStars, priceMin, priceMax, selFeatures, selBrands, selPromotions, selPoints]);
@@ -489,9 +490,31 @@ export default function SearchResultsPage() {
                           {h.hasFreeCancellation && (
                             <span className="px-2 py-0.5 rounded text-[10px] font-medium" style={{ color: "#009505", background: "#ecfdf5", border: "1px solid #bbf7d0" }}>Free Cancellation</span>
                           )}
-                          {h.multiplePoints && (
-                            <span className="px-2 py-0.5 rounded text-[10px] font-medium" style={{ color: "#7c3aed", background: "#f5f3ff", border: "1px solid #ddd6fe" }}>Multiple Points</span>
-                          )}
+                          {(() => {
+                            const boost = hotelPointsBoost(h.id);
+                            if (boost) {
+                              return (
+                                <span
+                                  className="px-2 py-0.5 rounded text-[10px] font-bold inline-flex items-center gap-1 animate-pulse"
+                                  style={{
+                                    color: "#fff",
+                                    background: boost.multiplier === 5 ? "linear-gradient(90deg,#EF476F,#FF6000)" : boost.multiplier === 3 ? "linear-gradient(90deg,#FF6000,#FFD166)" : "linear-gradient(90deg,#8b5cf6,#a855f7)",
+                                    border: "1px solid rgba(0,0,0,0.1)",
+                                    boxShadow: "0 1px 4px rgba(255,96,0,0.3)",
+                                  }}
+                                  title={`${boost.label} — ${boost.reason} · Expires ${boost.expiresAt}`}
+                                >
+                                  ⚡ {boost.label}
+                                </span>
+                              );
+                            }
+                            if (h.multiplePoints) {
+                              return (
+                                <span className="px-2 py-0.5 rounded text-[10px] font-medium" style={{ color: "#7c3aed", background: "#f5f3ff", border: "1px solid #ddd6fe" }}>Multiple Points</span>
+                              );
+                            }
+                            return null;
+                          })()}
                           {h.promotion.map(p => (
                             <span key={p} className="px-2 py-0.5 rounded text-[10px] font-medium" style={{ color: "#db2777", background: "#fdf2f8", border: "1px solid #fbcfe8" }}>{p}</span>
                           ))}

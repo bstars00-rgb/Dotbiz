@@ -16,6 +16,7 @@ import { useScreenState } from "@/hooks/useScreenState";
 import { useFormValidation } from "@/hooks/useFormValidation";
 import { StateToolbar } from "@/components/StateToolbar";
 import { useAuth } from "@/contexts/AuthContext";
+import { userPointsState, hotelPointsBoost, estimatedElsForBooking } from "@/mocks/rewards";
 import { currentCompany } from "@/mocks/companies";
 import { hotels } from "@/mocks/hotels";
 import { getRoomsByHotel } from "@/mocks/rooms";
@@ -234,6 +235,59 @@ export default function BookingFormPage() {
         </div>
         <Textarea placeholder="Client special request (in English)" value={customRequest} onChange={e => setCustomRequest(e.target.value)} rows={4} />
       </Card>
+
+      {/* ── Expected ELS (rewards preview) ── */}
+      {(() => {
+        const boost = hotel ? hotelPointsBoost(hotel.id) : null;
+        const myPts = userPointsState[user?.email || ""];
+        const est = estimatedElsForBooking({
+          usdValue: totalPrice,
+          bookingCount: myPts?.bookingCount ?? 0,
+          hotelId: hotel?.id,
+        });
+        return (
+          <Card
+            className="p-4"
+            style={boost ? {
+              background: "linear-gradient(135deg, #FF600010, #EF476F08)",
+              borderColor: boost.multiplier >= 3 ? "#FF6000" : "#8b5cf6",
+            } : undefined}
+          >
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div className="flex items-center gap-3">
+                <div
+                  className="h-10 w-10 rounded-full flex items-center justify-center text-white font-bold"
+                  style={{ background: boost ? "linear-gradient(135deg,#FF6000,#EF476F)" : "#FF6000" }}
+                >
+                  E
+                </div>
+                <div>
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground">You'll earn</p>
+                  <p className="text-xl font-bold" style={{ color: "#FF6000" }}>
+                    +{est.total} ELS <span className="text-xs text-muted-foreground font-normal">≈ US${est.total}.00</span>
+                  </p>
+                  <p className="text-[10px] text-muted-foreground">{est.breakdown}</p>
+                </div>
+              </div>
+              {boost && (
+                <div className="text-right">
+                  <span
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold text-white animate-pulse"
+                    style={{
+                      background: boost.multiplier === 5 ? "linear-gradient(90deg,#EF476F,#FF6000)" : boost.multiplier === 3 ? "linear-gradient(90deg,#FF6000,#FFD166)" : "linear-gradient(90deg,#8b5cf6,#a855f7)",
+                    }}
+                  >
+                    ⚡ {boost.label} PROMO
+                  </span>
+                  <p className="text-[10px] text-muted-foreground mt-1">
+                    Ends {boost.expiresAt} · {boost.reason}
+                  </p>
+                </div>
+              )}
+            </div>
+          </Card>
+        );
+      })()}
 
       {/* ── Billing Rate ── */}
       <Card className="p-5">

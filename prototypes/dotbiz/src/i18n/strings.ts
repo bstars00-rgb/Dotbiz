@@ -79,7 +79,7 @@ const strings: Record<string, Record<Locale, string>> = {
 
   // ── Page Titles ──
   "page.settlement": { EN: "Settlement & Billing", KO: "정산 및 청구", JA: "精算・請求", ZH: "结算与账单", VI: "Thanh toán & Hóa đơn" },
-  "page.clientMgmt": { EN: "Client Management", KO: "고객 관리", JA: "顧客管理", ZH: "客户管理", VI: "Quản lý khách hàng" },
+  "page.clientMgmt": { EN: "Master Account", KO: "마스터 어카운트", JA: "マスターアカウント", ZH: "主账户", VI: "Tài khoản chính" },
   "page.team":       { EN: "Master Account",     KO: "마스터 계정", JA: "マスターアカウント", ZH: "主账户管理", VI: "Tài khoản Master" },
   "page.tickets": { EN: "Hotel Ticket Management", KO: "호텔 티켓 관리", JA: "ホテルチケット管理", ZH: "酒店工单管理", VI: "Quản lý yêu cầu khách sạn" },
   "page.myAccount": { EN: "My Account",      KO: "내 계정",     JA: "マイアカウント",    ZH: "我的账户",   VI: "Tài khoản" },

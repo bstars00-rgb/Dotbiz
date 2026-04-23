@@ -143,10 +143,11 @@ export default function MyAccountPage() {
             <div className="flex items-center gap-4">
               <Sparkles className="h-8 w-8" style={{ color: "#FF6000" }} />
               <div>
-                <p className="text-[11px] uppercase tracking-wider text-muted-foreground">My Reward Points</p>
+                <p className="text-[11px] uppercase tracking-wider text-muted-foreground">My ELS Wallet</p>
                 <p className="text-2xl font-bold" style={{ color: "#FF6000" }}>
-                  {myPoints.balance.toLocaleString()} <span className="text-sm text-muted-foreground">P</span>
+                  {myPoints.balance.toLocaleString()} <span className="text-sm text-muted-foreground">ELS</span>
                 </p>
+                <p className="text-[10px] text-muted-foreground">≈ US${myPoints.balance.toLocaleString()}.00 · 1 ELS = 1 USD</p>
               </div>
               <div className="border-l pl-4 ml-2">
                 <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Tier</p>

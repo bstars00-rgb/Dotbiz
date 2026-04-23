@@ -49,7 +49,10 @@ export type AlertType =
   | "points_earned"          /* Booking confirmed → +N points credited to OP */
   | "points_milestone"       /* Cumulative-booking milestone reached */
   | "points_expiring"        /* D-30 / D-7 before voucher or points expire */
-  | "reward_redeemed";       /* Voucher code issued */
+  | "reward_redeemed"        /* Voucher code issued */
+  /* P1 — Booking volume anomalies (applies to UI + API partners) */
+  | "booking_volume_spike"   /* Usual baseline 10/day but today 20+ — check for abuse or miscount */
+  | "booking_volume_drop";   /* Usual baseline 10/day but today 0 — check integration or partner health */
 
 export interface Alert {
   id: string;
@@ -567,7 +570,7 @@ export const alerts: Alert[] = [
     customerCompanyId: "comp-001",
     title: "Redeemed: CGV 영화 관람권",
     body: "Voucher code CGV-9K4T-2XQB-7M3V issued — valid until 2026-07-15. Redeemed for 14 P.",
-    actionLabel: "Open My Vouchers", actionPath: "/app/rewards?tab=vault",
+    actionLabel: "Open My Coupons", actionPath: "/app/rewards?tab=vault",
     sentVia: ["In-app"],
     createdAt: "2026-04-15 14:10:00",
     readAt: "2026-04-15 14:30:00",
@@ -579,9 +582,70 @@ export const alerts: Alert[] = [
     customerCompanyId: "comp-010",
     title: "Voucher expiring soon — GrabFood 100k VND",
     body: "Your GrabFood voucher GRAB-VN-FD-2K9M expires in 7 days (2026-06-15). Use it before it expires.",
-    actionLabel: "Open My Vouchers", actionPath: "/app/rewards?tab=vault",
+    actionLabel: "Open My Coupons", actionPath: "/app/rewards?tab=vault",
     sentVia: ["In-app", "Email"],
     createdAt: "2026-06-08 09:00:00",
+  },
+
+  /* ══ Booking Volume Anomaly — UI partner (TravelCo) ══
+   * Spike: TravelCo normally runs ~8 bookings/day, but today hit 24 (3× baseline).
+   * Anomaly detector flags it so Master can verify it's not duplicate/abuse. */
+  {
+    id: "alt-600",
+    type: "booking_volume_spike",
+    category: "Booking", priority: "P1",
+    customerCompanyId: "comp-001",
+    title: "Unusual booking volume — 24 bookings today (3× normal)",
+    body: "TravelCo usually generates 8 bookings/day. Today saw 24 confirmed bookings — a 3.0× spike. Please verify this is expected (group/event booking, seasonal push) rather than duplicate entries.",
+    actionLabel: "Review today's bookings", actionPath: "/app/bookings?filter=today",
+    sentVia: ["In-app", "Email"],
+    createdAt: "2026-04-22 18:30:00",
+    refType: "booking",
+  },
+
+  /* ══ Booking Volume Anomaly — API partner (GOTADI) ══
+   * Drop: GOTADI connects via API and usually sends ~12 bookings/day, but 0 came
+   * through in the last 24h — likely an integration outage or token expiry. */
+  {
+    id: "alt-601",
+    type: "booking_volume_drop",
+    category: "Booking", priority: "P1",
+    customerCompanyId: "comp-010",
+    title: "API bookings silent — 0 in the last 24h (baseline 12/day)",
+    body: "GOTADI's API channel typically delivers ~12 bookings/day. In the past 24h we've received 0. This usually indicates: (1) auth token expired, (2) network/firewall change, (3) upstream booking engine issue. Please verify your integration health.",
+    actionLabel: "View API health", actionPath: "/app/bookings?channel=api",
+    sentVia: ["In-app", "Email"],
+    createdAt: "2026-04-22 09:00:00",
+    refType: "booking",
+  },
+
+  /* ══ Booking Volume Anomaly — direct UI (Asia Tours, PREPAY) ══
+   * Drop: Asia Tours usually does ~5 bookings/day, but 0 for 3 days straight. */
+  {
+    id: "alt-602",
+    type: "booking_volume_drop",
+    category: "Booking", priority: "P1",
+    customerCompanyId: "comp-002",
+    title: "No bookings for 3 days — baseline 5/day",
+    body: "Asia Tours Ltd. has made 0 bookings for 3 consecutive days (2026-04-20 ~ 04-22). Baseline is ~5/day. Is your OP team OK? Are there any login/access issues we can help with?",
+    actionLabel: "Contact support", actionPath: "/app/tickets/new",
+    sentVia: ["In-app", "Email"],
+    createdAt: "2026-04-22 10:00:00",
+    refType: "booking",
+  },
+
+  /* ══ Booking Volume Anomaly — API partner spike (Vietnam Vacation Co) ══ */
+  {
+    id: "alt-603",
+    type: "booking_volume_spike",
+    category: "Booking", priority: "P1",
+    customerCompanyId: "comp-011",
+    title: "API spike — 47 bookings in the last hour (baseline 2/hr)",
+    body: "Vietnam Vacation Co's API sent 47 booking requests in the last hour. Normal rate is ~2/hr. This may indicate a runaway script, retry storm, or genuine campaign. Rate-limiting has NOT been applied — contact your integration team to confirm.",
+    actionLabel: "Review API traffic", actionPath: "/app/bookings?channel=api&filter=1h",
+    sentVia: ["In-app", "Email", "SMS"],
+    createdAt: "2026-04-23 02:15:00",
+    refType: "booking",
   },
 ];
 
@@ -638,6 +702,8 @@ export const defaultAlertPreferences: AlertPreference[] = [
   { type: "points_milestone",           enabled: true,  channels: ["In-app", "Email"] },
   { type: "points_expiring",            enabled: true,  channels: ["In-app", "Email"] },
   { type: "reward_redeemed",            enabled: true,  channels: ["In-app"] },
+  { type: "booking_volume_spike",       enabled: true,  channels: ["In-app", "Email"] },
+  { type: "booking_volume_drop",        enabled: true,  channels: ["In-app", "Email"] },
 ];
 
 /* Critical alerts that cannot be fully disabled */
@@ -679,4 +745,6 @@ export const alertTypeMeta: Record<AlertType, { label: string; category: AlertCa
   points_milestone:           { label: "Milestone Reached",            category: "Account",    priority: "P1" },
   points_expiring:            { label: "Points/Voucher Expiring",      category: "Account",    priority: "P1" },
   reward_redeemed:            { label: "Reward Redeemed",              category: "Account",    priority: "P2" },
+  booking_volume_spike:       { label: "Booking Volume Spike",         category: "Booking",    priority: "P1" },
+  booking_volume_drop:        { label: "Booking Volume Drop",          category: "Booking",    priority: "P1" },
 };

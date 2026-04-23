@@ -257,11 +257,11 @@ export default function ClientManagementPage() {
                   <Card className="p-4">
                     <p className="text-[10px] uppercase text-muted-foreground">Top Earner</p>
                     <p className="text-lg font-bold mt-1">{topEarner.name}</p>
-                    <p className="text-sm text-[#FF6000] font-bold">{topEarner.pts.totalEarned.toLocaleString()} P earned</p>
+                    <p className="text-sm text-[#FF6000] font-bold">{topEarner.pts.totalEarned.toLocaleString()} ELS earned</p>
                   </Card>
                   <Card className="p-4">
                     <p className="text-[10px] uppercase text-muted-foreground">Team Total Earned</p>
-                    <p className="text-2xl font-bold mt-1" style={{ color: "#FF6000" }}>{totalTeamEarned.toLocaleString()} P</p>
+                    <p className="text-2xl font-bold mt-1" style={{ color: "#FF6000" }}>{totalTeamEarned.toLocaleString()} ELS</p>
                     <p className="text-[11px] text-muted-foreground">across {teamWithPoints.length} members</p>
                   </Card>
                   <Card className="p-4">
@@ -303,10 +303,10 @@ export default function ClientManagementPage() {
                           </TableCell>
                           <TableCell className="text-right font-mono text-sm">{m.pts.bookingCount.toLocaleString()}</TableCell>
                           <TableCell className="text-right font-mono text-sm font-semibold" style={{ color: "#FF6000" }}>
-                            {m.pts.totalEarned.toLocaleString()} P
+                            {m.pts.totalEarned.toLocaleString()} ELS
                           </TableCell>
-                          <TableCell className="text-right font-mono text-sm">{m.pts.balance.toLocaleString()} P</TableCell>
-                          <TableCell className="text-right font-mono text-sm text-muted-foreground">{m.pts.totalUsed.toLocaleString()} P</TableCell>
+                          <TableCell className="text-right font-mono text-sm">{m.pts.balance.toLocaleString()} ELS</TableCell>
+                          <TableCell className="text-right font-mono text-sm text-muted-foreground">{m.pts.totalUsed.toLocaleString()} ELS</TableCell>
                         </TableRow>
                       );
                     })}
