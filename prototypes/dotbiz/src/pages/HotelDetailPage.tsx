@@ -166,6 +166,65 @@ export default function HotelDetailPage() {
       description: "Your tips will help other OPs pick the right hotel.",
     });
   };
+  /* ── Copy tab content helpers (OPs often paste this into client emails) ── */
+  const copyToClipboard = async (text: string, label: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success(`${label} copied to clipboard`, {
+        description: `${text.length.toLocaleString()} characters ready to paste`,
+      });
+    } catch {
+      toast.error("Copy failed — your browser blocked clipboard access");
+    }
+  };
+
+  const copyOverview = () => {
+    const totalRooms = 200 + parseInt(hotel.id.replace(/\D/g, "")) * 23 % 400;
+    const openingYear = 2000 + parseInt(hotel.id.replace(/\D/g, "")) % 26;
+    const phone = hotel.checkInOutTimes.includes("15:00") ? "+82-2-797-1234" : "+86-21-2327-2888";
+    const text = [
+      `${hotel.name}`,
+      `${hotel.area} · ${hotel.starRating}★ · ${hotel.reviewScore}/10 (${hotel.reviewCount.toLocaleString()} reviews)`,
+      ``,
+      `Opened: ${openingYear} · Total rooms: ${totalRooms} · Phone: ${phone}`,
+      ``,
+      `Introduction`,
+      `${hotel.description} The hotel features world-class amenities including ${hotel.amenities.slice(0, 3).join(", ").toLowerCase()} and more. Conveniently located in ${hotel.area}, guests enjoy easy access to major attractions, shopping districts, and transportation hubs.`,
+      ``,
+      `Amenities: ${hotel.amenities.join(", ")}`,
+      `Features: ${hotel.features.join(", ")}`,
+      `Brand: ${hotel.brand}`,
+    ].join("\n");
+    copyToClipboard(text, "Overview");
+  };
+
+  const copyPolicies = () => {
+    const text = [
+      `${hotel.name} — Policies`,
+      ``,
+      `Check-in / Check-out`,
+      `${hotel.checkInOutTimes}`,
+      ``,
+      `Cancellation: ${hotel.cancellationPolicy}`,
+      `Children: ${hotel.childPolicy}`,
+      `Pets: ${hotel.petPolicy}`,
+      `Smoking: ${hotel.smokingPolicy}`,
+      ``,
+      `Identification: All guests must present valid government-issued photo ID at check-in.`,
+      `Age: Guests must be at least 18 years of age to check in.`,
+    ].join("\n");
+    copyToClipboard(text, "Policies");
+  };
+
+  const copyFacilities = () => {
+    const text = [
+      `${hotel.name} — Facilities`,
+      ``,
+      facilityList.join(" · "),
+    ].join("\n");
+    copyToClipboard(text, "Facilities");
+  };
+
   const toggleHelpful = (reviewId: string) => {
     setVotedIds(prev => {
       const next = new Set(prev);
@@ -653,6 +712,16 @@ export default function HotelDetailPage() {
               <div className="flex items-center gap-2 mb-4">
                 <h3 className="font-bold">Overview</h3>
                 <Badge variant="secondary" className="text-[9px] gap-1"><Sparkles className="h-3 w-3" />AI-Enhanced</Badge>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="ml-auto h-7 text-[11px] gap-1"
+                  onClick={copyOverview}
+                  title="Copy formatted overview to paste into client emails"
+                >
+                  <Copy className="h-3 w-3" />
+                  Copy
+                </Button>
               </div>
               <Separator className="mb-4" />
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-5">
@@ -725,7 +794,19 @@ export default function HotelDetailPage() {
           {/* ── Policies Tab ── */}
           <TabsContent value="policies" className="mt-4">
             <Card className="p-6 space-y-5">
-              <h3 className="font-bold">Policies</h3>
+              <div className="flex items-center gap-2">
+                <h3 className="font-bold">Policies</h3>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="ml-auto h-7 text-[11px] gap-1"
+                  onClick={copyPolicies}
+                  title="Copy policies to paste into client confirmations"
+                >
+                  <Copy className="h-3 w-3" />
+                  Copy
+                </Button>
+              </div>
               <Separator />
               <div>
                 <h4 className="text-sm font-bold mb-2">Check-in and Check-out</h4>
@@ -764,7 +845,19 @@ export default function HotelDetailPage() {
           {/* ── Facilities Tab ── */}
           <TabsContent value="facilities" className="mt-4">
             <Card className="p-6">
-              <h3 className="font-bold mb-4">Hotel Facilities</h3>
+              <div className="flex items-center gap-2 mb-4">
+                <h3 className="font-bold">Hotel Facilities</h3>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="ml-auto h-7 text-[11px] gap-1"
+                  onClick={copyFacilities}
+                  title="Copy facilities list to paste into client emails"
+                >
+                  <Copy className="h-3 w-3" />
+                  Copy
+                </Button>
+              </div>
               <Separator className="mb-4" />
               <div className="grid grid-cols-2 md:grid-cols-4 gap-x-8 gap-y-2">
                 {facilityList.map(f => (
