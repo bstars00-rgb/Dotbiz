@@ -18,11 +18,13 @@ import { useTabParam } from "@/hooks/useTabParam";
 import { StateToolbar } from "@/components/StateToolbar";
 import { useAuth } from "@/contexts/AuthContext";
 import { companies, currentCompany } from "@/mocks/companies";
+import { hotels } from "@/mocks/hotels";
 import {
   rewardProducts, userPointsState, pointsHistoryFor, vouchersFor,
-  tierFor, countryCodeFor, TIERS, tierDivisionFor,
+  countryCodeFor, TIERS, tierDivisionFor,
   ELS_DAILY_TRANSFER_LIMIT, formatEls, elsDirectoryFor, earnedStampsFor,
   STAMPS, RARITY_META, type StampRarity,
+  HOTEL_POINTS_BOOSTS, hotelPointsBoost,
   type RewardProduct, type UserPointsState, type RedeemedVoucher, type PointsTransaction,
 } from "@/mocks/rewards";
 import { toast } from "sonner";
@@ -66,7 +68,6 @@ export default function RewardsMallPage() {
     setMyVouchers(vouchersFor(userEmail));
   }, [userEmail]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const tier = tierFor(mystate.bookingCount);
   const rank = tierDivisionFor(mystate.bookingCount);
 
   /* Products filtered by country */
@@ -245,7 +246,7 @@ export default function RewardsMallPage() {
 
       {/* ─────────── Hero: Balance + Membership Rank ─────────── */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-        {/* ── ELS Balance (compact left) ── */}
+        {/* ── ELS Balance + Earn Rate (left) ── */}
         <Card className="p-5 md:col-span-2 flex flex-col justify-between" style={{ background: `linear-gradient(135deg, #FF600012, transparent 80%)` }}>
           <div>
             <p className="text-[10px] uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
@@ -259,6 +260,58 @@ export default function RewardsMallPage() {
               {formatEls(mystate.balance).usd} <span className="opacity-60">· 1 ELS = 1 USD</span>
             </p>
           </div>
+
+          {/* ── Earn rate breakdown ── */}
+          <div
+            className="mt-3 p-3 rounded-md border"
+            style={{ background: `${rank.tier.color}10`, borderColor: `${rank.tier.color}44` }}
+          >
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-semibold">Your earn rate</span>
+              <span className="text-[10px] font-bold" style={{ color: rank.tier.color }}>
+                {rank.tier.icon} {rank.tier.name} {rank.division}
+              </span>
+            </div>
+            <div className="flex items-baseline gap-1">
+              <span className="text-2xl font-bold" style={{ color: rank.tier.color }}>
+                {rank.tier.multiplier}×
+              </span>
+              <span className="text-[11px] text-muted-foreground">
+                on every booking
+              </span>
+            </div>
+            <p className="text-[10px] text-muted-foreground mt-1">
+              <span className="font-mono">$100</span> booking →{" "}
+              <strong style={{ color: rank.tier.color }}>
+                {Math.round(100 * rank.tier.multiplier)} ELS
+              </strong>
+              {rank.tier.multiplier > 1 && (
+                <> (+{Math.round((rank.tier.multiplier - 1) * 100)}% vs Bronze)</>
+              )}
+            </p>
+            {/* Mini tier progression strip */}
+            <div className="flex items-center gap-0.5 mt-2 text-[8px]">
+              {TIERS.map(t => (
+                <div
+                  key={t.name}
+                  className={`flex-1 text-center py-0.5 rounded transition-opacity ${
+                    t.name === rank.tier.name ? "font-bold" : "opacity-50"
+                  }`}
+                  style={{
+                    background: t.name === rank.tier.name ? `${t.color}25` : undefined,
+                    color: t.name === rank.tier.name ? t.color : undefined,
+                  }}
+                  title={`${t.name} · ${t.multiplier}× earn`}
+                >
+                  {t.multiplier}×
+                </div>
+              ))}
+            </div>
+            <p className="text-[9px] text-muted-foreground mt-1.5 italic">
+              💡 Boost stacks: Gold(1.2×) × Hotel 3× promo = <strong>3.6×</strong> on that booking
+            </p>
+          </div>
+
           <div className="flex items-center gap-3 mt-3 text-[11px] text-muted-foreground border-t pt-2">
             <span>Earned <strong className="text-foreground">{mystate.totalEarned.toLocaleString()}</strong></span>
             <span>·</span>
@@ -660,6 +713,79 @@ export default function RewardsMallPage() {
               </button>
             </div>
           </Card>
+
+          {/* ─── Active Promo Hotels (drives bookings to boosted inventory) ─── */}
+          {(() => {
+            const activePromos = HOTEL_POINTS_BOOSTS
+              .filter(b => hotelPointsBoost(b.hotelId))     /* auto-filter expired */
+              .map(b => ({ boost: b, hotel: hotels.find(h => h.id === b.hotelId) }))
+              .filter(x => !!x.hotel)
+              .sort((a, b) => b.boost.multiplier - a.boost.multiplier);
+
+            if (activePromos.length === 0) return null;
+
+            return (
+              <Card className="p-0 overflow-hidden" style={{ background: "linear-gradient(135deg, #EF476F08, #FF600008)" }}>
+                <div className="px-4 py-3 border-b flex items-center gap-2">
+                  <span className="text-lg">⚡</span>
+                  <h2 className="text-sm font-semibold">Active ELS Boosters · this week</h2>
+                  <span className="text-[10px] text-muted-foreground ml-auto">
+                    {activePromos.length} hotel{activePromos.length === 1 ? "" : "s"} with multiplier
+                  </span>
+                </div>
+                <div className="p-3 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                  {activePromos.slice(0, 6).map(({ boost, hotel }) => {
+                    const mgrad =
+                      boost.multiplier === 5 ? "linear-gradient(90deg,#EF476F,#FF6000)" :
+                      boost.multiplier === 3 ? "linear-gradient(90deg,#FF6000,#FFD166)" :
+                      "linear-gradient(90deg,#8b5cf6,#a855f7)";
+                    return (
+                      <button
+                        key={boost.hotelId}
+                        onClick={() => navigate(`/app/search?hotel=${boost.hotelId}`)}
+                        className="p-3 rounded-md border bg-card hover:shadow-md transition-all text-left group relative overflow-hidden"
+                      >
+                        <span
+                          className="absolute top-2 right-2 px-2 py-0.5 rounded-full text-[10px] font-bold text-white"
+                          style={{ background: mgrad }}
+                        >
+                          ⚡ {boost.label}
+                        </span>
+                        <p className="text-sm font-semibold truncate pr-14">{hotel!.name}</p>
+                        <p className="text-[11px] text-muted-foreground truncate">{hotel!.area}</p>
+                        <div className="flex items-center justify-between mt-2">
+                          <div>
+                            <p className="text-[9px] uppercase tracking-wider text-muted-foreground">
+                              Per $100 booking
+                            </p>
+                            <p className="text-sm font-bold" style={{ color: "#FF6000" }}>
+                              {Math.round(100 * rank.tier.multiplier * boost.multiplier)} ELS
+                            </p>
+                          </div>
+                          <span className="text-[9px] text-muted-foreground">
+                            Ends {boost.expiresAt}
+                          </span>
+                        </div>
+                        <p className="text-[9px] text-muted-foreground mt-1 italic line-clamp-1">
+                          {boost.reason}
+                        </p>
+                      </button>
+                    );
+                  })}
+                </div>
+                {activePromos.length > 6 && (
+                  <div className="px-4 py-2 border-t text-center">
+                    <button
+                      onClick={() => navigate("/app/find-hotel")}
+                      className="text-[11px] font-semibold text-[#FF6000] hover:underline"
+                    >
+                      View all {activePromos.length} promo hotels →
+                    </button>
+                  </div>
+                )}
+              </Card>
+            );
+          })()}
 
           {/* Send / Receive CTA row */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
