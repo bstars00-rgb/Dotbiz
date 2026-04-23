@@ -2,7 +2,7 @@ import { useMemo, useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 import {
   Gift, RefreshCw, Sparkles, TrendingUp, Clock, Copy, CheckCircle2, Search,
-  Trophy, Flame, Wallet, ArrowUpRight, ArrowDownLeft, ArrowRight, Send,
+  Trophy, Flame, Wallet, ArrowUpRight, ArrowDownLeft, ArrowRight, Send, Download,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -116,6 +116,24 @@ export default function RewardsMallPage() {
   const [sendAmount, setSendAmount] = useState<string>("");
   const [sendReason, setSendReason] = useState("");
 
+  /* Recent recipients — derived from local + historical Sent-Transfer txs.
+   * Dedup by counterparty email, sort by most recent, limit 3. */
+  const recentRecipients = useMemo(() => {
+    const sent = allTx.filter(t => t.type === "Sent-Transfer" && t.counterpartyEmail);
+    const seen = new Set<string>();
+    const list: { email: string; name: string; company: string; country: string }[] = [];
+    for (const tx of sent) {
+      if (!tx.counterpartyEmail || seen.has(tx.counterpartyEmail)) continue;
+      const dirEntry = directory.find(d => d.email === tx.counterpartyEmail);
+      if (dirEntry) {
+        list.push(dirEntry);
+        seen.add(tx.counterpartyEmail);
+      }
+      if (list.length >= 3) break;
+    }
+    return list;
+  }, [allTx, directory]);
+
   const filteredDirectory = useMemo(() => {
     const q = sendQuery.trim().toLowerCase();
     if (!q) return directory.slice(0, 8);
@@ -139,6 +157,44 @@ export default function RewardsMallPage() {
     sendAmountNum > remainingDaily ? `Exceeds daily limit (${remainingDaily} ELS left today)` :
     !sendReason.trim() ? "Reason is required" :
     "";
+
+  /* ── CSV export for Wallet Activity ── */
+  const exportCsv = () => {
+    if (allTx.length === 0) {
+      toast.info("No transactions to export yet.");
+      return;
+    }
+    const esc = (v: unknown) => {
+      const s = String(v ?? "");
+      return s.includes(",") || s.includes('"') || s.includes("\n")
+        ? `"${s.replace(/"/g, '""')}"`
+        : s;
+    };
+    const header = ["Date", "Type", "Description", "Amount (ELS)", "Balance", "Counterparty", "Reason", "Booking ID", "Product ID"];
+    const rows = allTx.map(t => [
+      t.date,
+      t.type,
+      t.description,
+      t.amount,
+      t.balance,
+      t.counterpartyName || t.counterpartyEmail || "",
+      t.transferReason || "",
+      t.bookingId || "",
+      t.productId || "",
+    ]);
+    const csv = [header, ...rows].map(r => r.map(esc).join(",")).join("\n");
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    const dateStr = new Date().toISOString().slice(0, 10);
+    a.href = url;
+    a.download = `dotbiz-els-wallet-${userEmail}-${dateStr}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast.success(`Exported ${allTx.length} transactions to CSV`);
+  };
 
   const doSend = () => {
     if (sendError || !sendRecipient) return;
@@ -310,6 +366,32 @@ export default function RewardsMallPage() {
             <p className="text-[9px] text-muted-foreground mt-1.5 italic">
               💡 Boost stacks: Gold(1.2×) × Hotel 3× promo = <strong>3.6×</strong> on that booking
             </p>
+
+            {/* ── Next tier unlock nudge ── */}
+            {(() => {
+              const currentIdx = TIERS.findIndex(t => t.name === rank.tier.name);
+              const nextT = currentIdx < TIERS.length - 1 ? TIERS[currentIdx + 1] : null;
+              if (!nextT) {
+                return (
+                  <p className="text-[10px] mt-2 pt-2 border-t border-border/40 font-semibold" style={{ color: rank.tier.color }}>
+                    🏆 You're at the apex — Diamond tier, the top 1%
+                  </p>
+                );
+              }
+              const delta = Math.round((nextT.multiplier - rank.tier.multiplier) * 100);
+              const bookingsLeft = Math.max(1, nextT.minBookings - mystate.bookingCount);
+              return (
+                <div className="text-[10px] mt-2 pt-2 border-t border-border/40 flex items-center justify-between gap-2">
+                  <span>
+                    Unlock <strong style={{ color: nextT.color }}>{nextT.icon} {nextT.name}</strong>:
+                    <span className="text-muted-foreground"> +{delta}% more per booking</span>
+                  </span>
+                  <span className="font-mono text-muted-foreground whitespace-nowrap">
+                    {bookingsLeft} to go
+                  </span>
+                </div>
+              );
+            })()}
           </div>
 
           <div className="flex items-center gap-3 mt-3 text-[11px] text-muted-foreground border-t pt-2">
@@ -538,11 +620,25 @@ export default function RewardsMallPage() {
                       <Badge className="absolute top-2 right-2 bg-white/25 text-white border-0 text-[9px]">
                         {p.brand}
                       </Badge>
+                      {p.isBestSeller && (
+                        <span
+                          className="absolute top-2 left-2 px-1.5 py-0.5 rounded text-[9px] font-bold text-white flex items-center gap-0.5 shadow-md"
+                          style={{ background: "linear-gradient(90deg, #EF476F, #FF6000)" }}
+                          title={p.monthlyRedemptions ? `${p.monthlyRedemptions.toLocaleString()} OPs redeemed this month` : "Top seller this month"}
+                        >
+                          🔥 Best Seller
+                        </span>
+                      )}
                     </div>
                     {/* Body */}
                     <div className="p-3">
                       <h3 className="text-sm font-semibold line-clamp-1">{p.name}</h3>
                       <p className="text-[11px] text-muted-foreground line-clamp-2 mt-0.5 min-h-[28px]">{p.description}</p>
+                      {p.isBestSeller && p.monthlyRedemptions && (
+                        <p className="text-[9px] text-muted-foreground mt-0.5">
+                          👥 {p.monthlyRedemptions.toLocaleString()} redeemed this month
+                        </p>
+                      )}
                       <div className="flex items-center justify-between mt-2">
                         <div>
                           <p className="text-base font-bold" style={{ color: "#FF6000" }}>
@@ -624,6 +720,42 @@ export default function RewardsMallPage() {
       {/* ─────────── WALLET tab ─────────── */}
       {tab === "wallet" && (
         <div className="space-y-4">
+          {/* ─── Expiry warning banner (coupons expiring ≤ 14d) ─── */}
+          {(() => {
+            const now = new Date();
+            const in14d = new Date(now.getTime() + 14 * 86400000);
+            const expiring = myVouchers.filter(v => {
+              if (v.status !== "Active") return false;
+              const exp = new Date(v.expiresAt);
+              return exp >= now && exp <= in14d;
+            });
+            if (expiring.length === 0) return null;
+            const soonest = expiring.sort((a, b) => a.expiresAt.localeCompare(b.expiresAt))[0];
+            const daysLeft = Math.max(1, Math.ceil((new Date(soonest.expiresAt).getTime() - now.getTime()) / 86400000));
+            return (
+              <Alert className="border-amber-500/60" style={{ background: "#fef3c7" }}>
+                <AlertTitle className="flex items-center gap-2 text-amber-900">
+                  <Clock className="h-4 w-4" />
+                  {expiring.length} coupon{expiring.length === 1 ? "" : "s"} expiring soon
+                </AlertTitle>
+                <AlertDescription className="text-amber-900/90 flex items-center justify-between gap-3 flex-wrap">
+                  <span>
+                    <strong>{soonest.productName}</strong> ({soonest.brand}) expires in {daysLeft} day{daysLeft === 1 ? "" : "s"}
+                    ({soonest.expiresAt}). Use it before it's gone.
+                  </span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setTab("vault")}
+                    className="border-amber-700/50 text-amber-900 hover:bg-amber-100"
+                  >
+                    View My Coupons <ArrowRight className="h-3 w-3 ml-1" />
+                  </Button>
+                </AlertDescription>
+              </Alert>
+            );
+          })()}
+
           {/* ─── What you can do with ELS (4 pillars) ─── */}
           <Card className="p-0 overflow-hidden">
             <div className="px-4 py-3 border-b bg-muted/30 flex items-center gap-2">
@@ -742,7 +874,7 @@ export default function RewardsMallPage() {
                     return (
                       <button
                         key={boost.hotelId}
-                        onClick={() => navigate(`/app/search?hotel=${boost.hotelId}`)}
+                        onClick={() => navigate(`/app/hotel/${boost.hotelId}`)}
                         className="p-3 rounded-md border bg-card hover:shadow-md transition-all text-left group relative overflow-hidden"
                       >
                         <span
@@ -768,6 +900,10 @@ export default function RewardsMallPage() {
                         </div>
                         <p className="text-[9px] text-muted-foreground mt-1 italic line-clamp-1">
                           {boost.reason}
+                        </p>
+                        <p className="text-[10px] font-semibold mt-1.5 flex items-center gap-0.5" style={{ color: "#FF6000" }}>
+                          Book now to earn {boost.multiplier}× ELS
+                          <ArrowRight className="h-3 w-3" />
                         </p>
                       </button>
                     );
@@ -890,11 +1026,22 @@ export default function RewardsMallPage() {
 
           {/* Unified transaction history */}
           <Card className="p-0">
-            <div className="p-4 border-b flex items-center gap-2">
+            <div className="p-4 border-b flex items-center gap-2 flex-wrap">
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
               <h2 className="text-sm font-semibold">Wallet Activity</h2>
               <Badge variant="outline" className="text-[10px]">{allTx.length} entries</Badge>
-              <span className="ml-auto text-[10px] text-muted-foreground">1 ELS = 1 USD</span>
+              <span className="text-[10px] text-muted-foreground">1 ELS = 1 USD</span>
+              <Button
+                size="sm"
+                variant="outline"
+                className="ml-auto h-7 text-[11px] gap-1"
+                onClick={exportCsv}
+                disabled={allTx.length === 0}
+                title="Export all transactions as CSV (for accounting or personal records)"
+              >
+                <Download className="h-3 w-3" />
+                Export CSV
+              </Button>
             </div>
             <div className="divide-y">
               {allTx.length === 0 ? (
@@ -1165,6 +1312,31 @@ export default function RewardsMallPage() {
             {!sendRecipient ? (
               <div>
                 <label className="text-xs font-medium">Recipient</label>
+
+                {/* Recent recipients chips — one-click select */}
+                {recentRecipients.length > 0 && !sendQuery && (
+                  <div className="mt-1.5 mb-2">
+                    <p className="text-[9px] uppercase tracking-wider text-muted-foreground mb-1">
+                      Recent
+                    </p>
+                    <div className="flex gap-1.5 flex-wrap">
+                      {recentRecipients.map(r => (
+                        <button
+                          key={r.email}
+                          onClick={() => setSendRecipient(r)}
+                          className="px-2.5 py-1 rounded-full border text-[11px] hover:bg-muted/60 hover:border-[#FF6000]/40 transition-colors flex items-center gap-1"
+                          title={`${r.email} · ${r.company}`}
+                        >
+                          <span className="h-5 w-5 rounded-full bg-muted flex items-center justify-center text-[9px] font-bold">
+                            {r.name.slice(0, 1).toUpperCase()}
+                          </span>
+                          {r.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <div className="relative mt-1">
                   <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                   <Input
