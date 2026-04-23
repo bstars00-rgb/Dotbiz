@@ -1,4 +1,5 @@
 import { useMemo, useState, useEffect } from "react";
+import { useNavigate } from "react-router";
 import {
   Gift, RefreshCw, Sparkles, TrendingUp, Clock, Copy, CheckCircle2, Search,
   Trophy, Flame, Wallet, ArrowUpRight, ArrowDownLeft, ArrowRight, Send,
@@ -39,6 +40,7 @@ import { toast } from "sonner";
 export default function RewardsMallPage() {
   const { state, setState } = useScreenState("success");
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [tab, setTab] = useTabParam("wallet");
 
   /* Resolve current user + their points state + their company + country */
@@ -414,9 +416,9 @@ export default function RewardsMallPage() {
             })}
           </div>
 
-          {/* ── Perks row ── */}
+          {/* ── Perks row (tier-specific benefits) ── */}
           <div className="mt-3 pt-3 border-t border-border/40 flex items-center gap-2 flex-wrap">
-            <span className="text-[9px] uppercase tracking-wider text-muted-foreground">Member perks</span>
+            <span className="text-[9px] uppercase tracking-wider text-muted-foreground">Tier perks</span>
             {rank.tier.perks.map(p => (
               <span
                 key={p}
@@ -426,13 +428,6 @@ export default function RewardsMallPage() {
                 {p}
               </span>
             ))}
-            <button
-              onClick={() => setTab("stamps")}
-              className="ml-auto text-[10px] font-semibold flex items-center gap-0.5 hover:underline"
-              style={{ color: rank.tier.color }}
-            >
-              View stamp passport <ArrowRight className="h-3 w-3" />
-            </button>
           </div>
         </Card>
       </div>
@@ -576,6 +571,96 @@ export default function RewardsMallPage() {
       {/* ─────────── WALLET tab ─────────── */}
       {tab === "wallet" && (
         <div className="space-y-4">
+          {/* ─── What you can do with ELS (4 pillars) ─── */}
+          <Card className="p-0 overflow-hidden">
+            <div className="px-4 py-3 border-b bg-muted/30 flex items-center gap-2">
+              <Sparkles className="h-4 w-4" style={{ color: "#FF6000" }} />
+              <h2 className="text-sm font-semibold">What ELS does for you</h2>
+              <span className="text-[10px] text-muted-foreground ml-auto">4 benefits · unlocked from day 1</span>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-y md:divide-y-0">
+              {/* 1. Redeem local rewards */}
+              <button
+                onClick={() => setTab("shop")}
+                className="p-4 text-left hover:bg-muted/40 transition-colors group"
+              >
+                <div className="flex items-start gap-2 mb-1.5">
+                  <div className="h-8 w-8 rounded-md flex items-center justify-center text-lg" style={{ background: "#FF600018" }}>
+                    🎁
+                  </div>
+                  <ArrowRight className="h-3 w-3 text-muted-foreground ml-auto mt-1 opacity-0 group-hover:opacity-100 transition-opacity" />
+                </div>
+                <p className="text-sm font-semibold">Redeem local rewards</p>
+                <p className="text-[11px] text-muted-foreground leading-tight mt-1">
+                  Starbucks, 배민, Grab, Rakuten — digital coupons from your own country.
+                </p>
+                <p className="text-[9px] mt-1.5 font-semibold" style={{ color: "#FF6000" }}>
+                  Shop →
+                </p>
+              </button>
+
+              {/* 2. Send to teammates */}
+              <button
+                onClick={() => setSendOpen(true)}
+                className="p-4 text-left hover:bg-muted/40 transition-colors group"
+              >
+                <div className="flex items-start gap-2 mb-1.5">
+                  <div className="h-8 w-8 rounded-md flex items-center justify-center text-lg" style={{ background: "#06D6A018" }}>
+                    💸
+                  </div>
+                  <ArrowRight className="h-3 w-3 text-muted-foreground ml-auto mt-1 opacity-0 group-hover:opacity-100 transition-opacity" />
+                </div>
+                <p className="text-sm font-semibold">Send to teammates</p>
+                <p className="text-[11px] text-muted-foreground leading-tight mt-1">
+                  1 ELS = 1 USD · free transfers · share with other OPs for handovers or thanks.
+                </p>
+                <p className="text-[9px] mt-1.5 font-semibold text-green-600">
+                  Send now →
+                </p>
+              </button>
+
+              {/* 3. Boosted at partner hotels */}
+              <button
+                onClick={() => navigate("/app/find-hotel")}
+                className="p-4 text-left hover:bg-muted/40 transition-colors group"
+              >
+                <div className="flex items-start gap-2 mb-1.5">
+                  <div className="h-8 w-8 rounded-md flex items-center justify-center text-lg" style={{ background: "#EF476F18" }}>
+                    ⚡
+                  </div>
+                  <ArrowRight className="h-3 w-3 text-muted-foreground ml-auto mt-1 opacity-0 group-hover:opacity-100 transition-opacity" />
+                </div>
+                <p className="text-sm font-semibold">2×/3×/5× at promo hotels</p>
+                <p className="text-[11px] text-muted-foreground leading-tight mt-1">
+                  Select hotels earn multiplied ELS — look for the <span className="font-bold" style={{ color: "#EF476F" }}>⚡ badge</span> when booking.
+                </p>
+                <p className="text-[9px] mt-1.5 font-semibold" style={{ color: "#EF476F" }}>
+                  Find hotels →
+                </p>
+              </button>
+
+              {/* 4. Rank up + stamps */}
+              <button
+                onClick={() => setTab("stamps")}
+                className="p-4 text-left hover:bg-muted/40 transition-colors group"
+              >
+                <div className="flex items-start gap-2 mb-1.5">
+                  <div className="h-8 w-8 rounded-md flex items-center justify-center text-lg" style={{ background: "#8b5cf618" }}>
+                    🏆
+                  </div>
+                  <ArrowRight className="h-3 w-3 text-muted-foreground ml-auto mt-1 opacity-0 group-hover:opacity-100 transition-opacity" />
+                </div>
+                <p className="text-sm font-semibold">Rank up + collect stamps</p>
+                <p className="text-[11px] text-muted-foreground leading-tight mt-1">
+                  Bronze → Diamond tier (1.5× earn) · 25 rarity-tiered stamps to conquer.
+                </p>
+                <p className="text-[9px] mt-1.5 font-semibold" style={{ color: "#8b5cf6" }}>
+                  See passport →
+                </p>
+              </button>
+            </div>
+          </Card>
+
           {/* Send / Receive CTA row */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <Card
