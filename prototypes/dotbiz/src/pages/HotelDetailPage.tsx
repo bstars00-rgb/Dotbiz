@@ -33,12 +33,13 @@ import { voucherSettings } from "@/mocks/clientManagement";
 import { getRoomsByHotel } from "@/mocks/rooms";
 import {
   hotelReviews, reviewsFor, reviewStatsFor, reviewCountFor, calculateReviewReward,
+  fileToDataUrl, REVIEW_MAX_PHOTOS, REVIEW_MAX_PHOTO_BYTES,
   type HotelReview,
 } from "@/mocks/reviews";
 import { useAuth } from "@/contexts/AuthContext";
 import { Textarea } from "@/components/ui/textarea";
 import { DialogFooter } from "@/components/ui/dialog";
-import { ThumbsUp, Pencil, X as XIcon } from "lucide-react";
+import { ThumbsUp, Pencil, X as XIcon, Image as ImageIcon, Upload } from "lucide-react";
 
 const facilityList = [
   "Wake-Up Calls", "Concierge Service", "Luggage Storage", "Express Check-In/Check-Out",
@@ -81,6 +82,8 @@ export default function HotelDetailPage() {
   const [rvTitle, setRvTitle] = useState("");
   const [rvBody, setRvBody] = useState("");
   const [rvTipsText, setRvTipsText] = useState("");   /* one tip per line */
+  const [rvPhotos, setRvPhotos] = useState<string[]>([]);  /* data URLs */
+  const [rvLightbox, setRvLightbox] = useState<string | null>(null);
   const [localReviews, setLocalReviews] = useState<HotelReview[]>([]);
   const [votedIds, setVotedIds] = useState<Set<string>>(new Set());
   const allReviewsForHotel = useMemo(
@@ -95,8 +98,42 @@ export default function HotelDetailPage() {
   const rvReward = calculateReviewReward({
     bodyLength: rvBody.trim().length,
     tipCount: rvTips.length,
+    photoCount: rvPhotos.length,
     isFirst: user ? reviewCountFor(user.email) === 0 : false,
   });
+
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+    const available = REVIEW_MAX_PHOTOS - rvPhotos.length;
+    const toProcess = files.slice(0, available);
+    if (files.length > available) {
+      toast.warning(`Only ${available} more photo${available === 1 ? "" : "s"} allowed (max ${REVIEW_MAX_PHOTOS})`);
+    }
+    const added: string[] = [];
+    for (const f of toProcess) {
+      if (f.size > REVIEW_MAX_PHOTO_BYTES) {
+        toast.error(`${f.name} is too large (max 2MB)`);
+        continue;
+      }
+      if (!f.type.startsWith("image/")) {
+        toast.error(`${f.name} is not an image`);
+        continue;
+      }
+      try {
+        const dataUrl = await fileToDataUrl(f);
+        added.push(dataUrl);
+      } catch {
+        toast.error(`Failed to read ${f.name}`);
+      }
+    }
+    if (added.length > 0) setRvPhotos(prev => [...prev, ...added]);
+    e.target.value = "";  /* allow re-selecting same file */
+  };
+
+  const removePhoto = (idx: number) => {
+    setRvPhotos(prev => prev.filter((_, i) => i !== idx));
+  };
   const submitReview = () => {
     if (rvReward.els === 0) {
       toast.error("Review doesn't meet quality criteria. Check the hints below.");
@@ -114,6 +151,7 @@ export default function HotelDetailPage() {
       title: rvTitle.trim() || "My review",
       body: rvBody.trim(),
       tips: rvTips,
+      photos: rvPhotos.length > 0 ? [...rvPhotos] : undefined,
       verifiedStay: true,
       helpfulVotes: 0,
       submittedAt: new Date().toISOString(),
@@ -123,7 +161,7 @@ export default function HotelDetailPage() {
     };
     setLocalReviews(prev => [newReview, ...prev]);
     setReviewDialogOpen(false);
-    setRvTitle(""); setRvBody(""); setRvTipsText(""); setRvRating(5);
+    setRvTitle(""); setRvBody(""); setRvTipsText(""); setRvRating(5); setRvPhotos([]);
     toast.success(`Review submitted · +${rvReward.els} ELS credited`, {
       description: "Your tips will help other OPs pick the right hotel.",
     });
@@ -870,6 +908,25 @@ export default function HotelDetailPage() {
                     <p className="text-sm text-muted-foreground mt-1 whitespace-pre-line">
                       {r.body}
                     </p>
+                    {/* Photo gallery */}
+                    {r.photos && r.photos.length > 0 && (
+                      <div className={`mt-3 grid gap-2 ${
+                        r.photos.length === 1 ? "grid-cols-1 max-w-md" :
+                        r.photos.length === 2 ? "grid-cols-2 max-w-md" :
+                        "grid-cols-2 sm:grid-cols-3 md:grid-cols-4"
+                      }`}>
+                        {r.photos.map((src, i) => (
+                          <button
+                            key={i}
+                            onClick={() => setRvLightbox(src)}
+                            type="button"
+                            className="aspect-[4/3] rounded-md overflow-hidden border hover:ring-2 hover:ring-[#FF6000]/50 transition-all"
+                          >
+                            <img src={src} alt={`Review photo ${i + 1}`} className="h-full w-full object-cover" />
+                          </button>
+                        ))}
+                      </div>
+                    )}
                     {r.tips.length > 0 && (
                       <div className="mt-3">
                         <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">
@@ -958,6 +1015,19 @@ export default function HotelDetailPage() {
 
       <div className="h-8" />
 
+      {/* ── Photo Lightbox ── */}
+      <Dialog open={!!rvLightbox} onOpenChange={(o) => { if (!o) setRvLightbox(null); }}>
+        <DialogContent className="max-w-3xl p-2 bg-black border-black">
+          {rvLightbox && (
+            <img
+              src={rvLightbox}
+              alt="Review photo"
+              className="w-full h-auto max-h-[80vh] object-contain"
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
       {/* ── Write Review Dialog ── */}
       <Dialog open={reviewDialogOpen} onOpenChange={setReviewDialogOpen}>
         <DialogContent className="max-w-lg">
@@ -1044,6 +1114,50 @@ export default function HotelDetailPage() {
                 </span>
                 <span className="text-muted-foreground">
                   {rvTips.length >= 4 ? "✓ Quality bonus eligible" : "4+ tips for quality bonus"}
+                </span>
+              </div>
+            </div>
+
+            {/* Photos */}
+            <div>
+              <label className="text-xs font-medium flex items-center gap-1">
+                <ImageIcon className="h-3 w-3" />
+                Photos <span className="text-muted-foreground font-normal">(optional, +2 ELS bonus)</span>
+              </label>
+              <div className="mt-1 grid grid-cols-4 gap-2">
+                {rvPhotos.map((src, i) => (
+                  <div key={i} className="relative group aspect-square rounded-md overflow-hidden border">
+                    <img src={src} alt={`Upload ${i + 1}`} className="h-full w-full object-cover" />
+                    <button
+                      onClick={() => removePhoto(i)}
+                      type="button"
+                      className="absolute top-1 right-1 h-5 w-5 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                      aria-label="Remove photo"
+                    >
+                      <XIcon className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
+                {rvPhotos.length < REVIEW_MAX_PHOTOS && (
+                  <label className="aspect-square rounded-md border-2 border-dashed border-muted-foreground/30 hover:border-[#FF6000]/60 hover:bg-[#FF6000]/5 cursor-pointer flex flex-col items-center justify-center gap-1 transition-colors">
+                    <Upload className="h-5 w-5 text-muted-foreground" />
+                    <span className="text-[10px] text-muted-foreground">Add photo</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      className="hidden"
+                      onChange={handlePhotoUpload}
+                    />
+                  </label>
+                )}
+              </div>
+              <div className="flex items-center justify-between text-[10px] mt-1">
+                <span className="text-muted-foreground">
+                  {rvPhotos.length} / {REVIEW_MAX_PHOTOS} photos · max 2MB each
+                </span>
+                <span className="text-muted-foreground">
+                  {rvPhotos.length >= 1 ? "✓ Photo bonus unlocked" : "1+ photo for +2 ELS"}
                 </span>
               </div>
             </div>

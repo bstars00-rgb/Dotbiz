@@ -12,6 +12,7 @@
  * Reward schedule (per approved review):
  *   • Base: +3 ELS (minimum 80 chars body, 1+ tip)
  *   • Quality bonus: +2 ELS (4+ tips OR 300+ chars)
+ *   • Photo bonus: +2 ELS (at least 1 photo attached)
  *   • First review: +5 ELS bonus
  *   • Helpful votes: +1 ELS per 10 votes (capped at +5/review)
  *   • Monthly reward cap: 5 approved reviews (prevents spam farming)
@@ -39,6 +40,9 @@ export interface HotelReview {
   body: string;
   /* Tips — structured knowledge bites (searchable, syndicable) */
   tips: string[];
+  /* Photos — data URLs for prototype; CDN URLs in production.
+   * Max 4 per review, max 2MB each. Moderated. */
+  photos?: string[];
   /* Meta */
   verifiedStay: boolean;          /* did this reviewer actually book this hotel */
   stayedAt?: string;              /* ISO date of stay */
@@ -47,6 +51,18 @@ export interface HotelReview {
   approvedAt?: string;
   status: ReviewStatus;
   elsAwarded: number;             /* how much ELS was credited after approval */
+}
+
+/* Generated SVG "photo" placeholders for seeded demo reviews.
+ * In prod: CDN URLs of user-uploaded images. */
+function seedPhoto(label: string, color1: string, color2: string): string {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300">
+    <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${color1}"/><stop offset="1" stop-color="${color2}"/></linearGradient></defs>
+    <rect width="400" height="300" fill="url(#g)"/>
+    <text x="200" y="155" font-family="sans-serif" font-size="22" fill="white" text-anchor="middle" font-weight="700" opacity="0.92">${label}</text>
+    <text x="200" y="185" font-family="sans-serif" font-size="11" fill="white" text-anchor="middle" opacity="0.7">OP-uploaded photo · moderated</text>
+  </svg>`;
+  return `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svg)))}`;
 }
 
 /* ═══════════ Seed reviews — spread across hotels/countries/OPs ═══════════ */
@@ -66,8 +82,13 @@ export const hotelReviews: HotelReview[] = [
     ],
     verifiedStay: true, stayedAt: "2026-03-12",
     helpfulVotes: 47,
+    photos: [
+      seedPhoto("23F Executive Lounge", "#0f172a", "#334155"),
+      seedPhoto("Han River view — 28F", "#1e3a8a", "#60a5fa"),
+      seedPhoto("Breakfast buffet rotation", "#78350f", "#d97706"),
+    ],
     submittedAt: "2026-03-18 14:20:00", approvedAt: "2026-03-18 22:00:00",
-    status: "Approved", elsAwarded: 10,
+    status: "Approved", elsAwarded: 12,
   },
   {
     id: "rev-002", hotelId: "htl-001",
@@ -117,8 +138,12 @@ export const hotelReviews: HotelReview[] = [
     ],
     verifiedStay: true, stayedAt: "2026-03-25",
     helpfulVotes: 58,
+    photos: [
+      seedPhoto("38F Skyline — Skytree view", "#0c4a6e", "#0ea5e9"),
+      seedPhoto("Club lounge cocktail hour", "#7c2d12", "#ea580c"),
+    ],
     submittedAt: "2026-03-30 13:00:00", approvedAt: "2026-03-30 20:15:00",
-    status: "Approved", elsAwarded: 10,
+    status: "Approved", elsAwarded: 12,
   },
   {
     id: "rev-011", hotelId: "htl-005",
@@ -187,8 +212,13 @@ export const hotelReviews: HotelReview[] = [
     ],
     verifiedStay: true, stayedAt: "2026-03-05",
     helpfulVotes: 38,
+    photos: [
+      seedPhoto("65F — West Lake sunset", "#701a75", "#c084fc"),
+      seedPhoto("Indoor heated pool", "#0f766e", "#14b8a6"),
+      seedPhoto("Diplomatic district lobby", "#713f12", "#ca8a04"),
+    ],
     submittedAt: "2026-03-10 10:00:00", approvedAt: "2026-03-10 18:00:00",
-    status: "Approved", elsAwarded: 10,
+    status: "Approved", elsAwarded: 12,
   },
 
   /* Shilla Stay Mapo (htl-002) — 1 review (mid-tier) */
@@ -285,6 +315,7 @@ export function reviewElsEarnedFor(userEmail: string): number {
 export function calculateReviewReward(params: {
   bodyLength: number;
   tipCount: number;
+  photoCount: number;
   isFirst: boolean;
 }): { els: number; breakdown: string[] } {
   const breakdown: string[] = [];
@@ -303,10 +334,30 @@ export function calculateReviewReward(params: {
     els += 2;
     breakdown.push("+2 ELS quality bonus (detailed)");
   }
+  /* Photo bonus */
+  if (params.photoCount >= 1) {
+    els += 2;
+    breakdown.push("+2 ELS photo bonus (visual proof)");
+  }
   /* First review */
   if (params.isFirst) {
     els += 5;
     breakdown.push("+5 ELS first-review bonus");
   }
   return { els, breakdown };
+}
+
+/* Photo upload constraints — enforced client-side, re-validated server-side */
+export const REVIEW_MAX_PHOTOS = 4;
+export const REVIEW_MAX_PHOTO_BYTES = 2 * 1024 * 1024;    /* 2 MB */
+
+/** Convert a File to a base64 data URL for prototype storage.
+ * Real implementation would upload to S3/Cloudflare R2 + store a CDN URL. */
+export function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
 }
