@@ -2,7 +2,7 @@ import { useMemo, useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 import {
   Gift, RefreshCw, Sparkles, TrendingUp, Clock, Copy, CheckCircle2, Search,
-  Trophy, Flame, Wallet, ArrowUpRight, ArrowDownLeft, ArrowRight, Send, Download,
+  Trophy, Flame, Wallet, ArrowRight, Download,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -12,7 +12,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useScreenState } from "@/hooks/useScreenState";
 import { useTabParam } from "@/hooks/useTabParam";
 import { StateToolbar } from "@/components/StateToolbar";
@@ -22,10 +22,10 @@ import { hotels } from "@/mocks/hotels";
 import {
   rewardProducts, userPointsState, pointsHistoryFor, vouchersFor,
   countryCodeFor, TIERS, tierDivisionFor,
-  ELS_DAILY_TRANSFER_LIMIT, formatEls, elsDirectoryFor, earnedStampsFor,
+  formatEls, earnedStampsFor,
   STAMPS, RARITY_META, type StampRarity,
   HOTEL_POINTS_BOOSTS, hotelPointsBoost,
-  type RewardProduct, type UserPointsState, type RedeemedVoucher, type PointsTransaction,
+  type RewardProduct, type UserPointsState, type RedeemedVoucher,
 } from "@/mocks/rewards";
 import { toast } from "sonner";
 
@@ -98,65 +98,11 @@ export default function RewardsMallPage() {
   const [redeemTarget, setRedeemTarget] = useState<RewardProduct | null>(null);
   const [redeemedVoucher, setRedeemedVoucher] = useState<RedeemedVoucher | null>(null);
 
-  /* ── Local transaction log (so Send shows up immediately) ── */
-  const [localTx, setLocalTx] = useState<PointsTransaction[]>([]);
+  /* ── Wallet Activity feed (all earned/used history for this user) ── */
   const allTx = useMemo(
-    () => [...localTx, ...pointsHistoryFor(userEmail)].sort((a, b) => b.date.localeCompare(a.date)),
-    [localTx, userEmail]
-  );
-
-  /* ── Send ELS flow ── */
-  const directory = useMemo(
-    () => elsDirectoryFor().filter(d => d.email !== userEmail),
+    () => pointsHistoryFor(userEmail).sort((a, b) => b.date.localeCompare(a.date)),
     [userEmail]
   );
-  const [sendOpen, setSendOpen] = useState(false);
-  const [sendRecipient, setSendRecipient] = useState<{ email: string; name: string; company: string; country: string } | null>(null);
-  const [sendQuery, setSendQuery] = useState("");
-  const [sendAmount, setSendAmount] = useState<string>("");
-  const [sendReason, setSendReason] = useState("");
-
-  /* Recent recipients — derived from local + historical Sent-Transfer txs.
-   * Dedup by counterparty email, sort by most recent, limit 3. */
-  const recentRecipients = useMemo(() => {
-    const sent = allTx.filter(t => t.type === "Sent-Transfer" && t.counterpartyEmail);
-    const seen = new Set<string>();
-    const list: { email: string; name: string; company: string; country: string }[] = [];
-    for (const tx of sent) {
-      if (!tx.counterpartyEmail || seen.has(tx.counterpartyEmail)) continue;
-      const dirEntry = directory.find(d => d.email === tx.counterpartyEmail);
-      if (dirEntry) {
-        list.push(dirEntry);
-        seen.add(tx.counterpartyEmail);
-      }
-      if (list.length >= 3) break;
-    }
-    return list;
-  }, [allTx, directory]);
-
-  const filteredDirectory = useMemo(() => {
-    const q = sendQuery.trim().toLowerCase();
-    if (!q) return directory.slice(0, 8);
-    return directory.filter(d =>
-      d.name.toLowerCase().includes(q) ||
-      d.email.toLowerCase().includes(q) ||
-      d.company.toLowerCase().includes(q)
-    ).slice(0, 12);
-  }, [directory, sendQuery]);
-
-  const sendAmountNum = Number(sendAmount) || 0;
-  const todaySent = allTx
-    .filter(t => t.type === "Sent-Transfer" && t.date === new Date().toISOString().slice(0, 10))
-    .reduce((acc, t) => acc + Math.abs(t.amount), 0);
-  const remainingDaily = Math.max(0, ELS_DAILY_TRANSFER_LIMIT - todaySent);
-
-  const sendError =
-    !sendRecipient ? "Select a recipient" :
-    sendAmountNum <= 0 ? "Enter an amount" :
-    sendAmountNum > mystate.balance ? "Insufficient ELS balance" :
-    sendAmountNum > remainingDaily ? `Exceeds daily limit (${remainingDaily} ELS left today)` :
-    !sendReason.trim() ? "Reason is required" :
-    "";
 
   /* ── CSV export for Wallet Activity ── */
   const exportCsv = () => {
@@ -170,15 +116,13 @@ export default function RewardsMallPage() {
         ? `"${s.replace(/"/g, '""')}"`
         : s;
     };
-    const header = ["Date", "Type", "Description", "Amount (ELS)", "Balance", "Counterparty", "Reason", "Booking ID", "Product ID"];
+    const header = ["Date", "Type", "Description", "Amount (ELS)", "Balance", "Booking ID", "Product ID"];
     const rows = allTx.map(t => [
       t.date,
       t.type,
       t.description,
       t.amount,
       t.balance,
-      t.counterpartyName || t.counterpartyEmail || "",
-      t.transferReason || "",
       t.bookingId || "",
       t.productId || "",
     ]);
@@ -194,34 +138,6 @@ export default function RewardsMallPage() {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
     toast.success(`Exported ${allTx.length} transactions to CSV`);
-  };
-
-  const doSend = () => {
-    if (sendError || !sendRecipient) return;
-    const now = new Date().toISOString().slice(0, 10);
-    const newBal = mystate.balance - sendAmountNum;
-    const tx: PointsTransaction = {
-      id: `ptx-local-${Date.now()}`,
-      userEmail,
-      date: now,
-      type: "Sent-Transfer",
-      description: `Sent ${sendAmountNum} ELS to ${sendRecipient.name}`,
-      amount: -sendAmountNum,
-      balance: newBal,
-      counterpartyEmail: sendRecipient.email,
-      counterpartyName: sendRecipient.name,
-      transferReason: sendReason.trim(),
-    };
-    setMystate(s => ({ ...s, balance: newBal }));
-    setLocalTx(prev => [tx, ...prev]);
-    setSendOpen(false);
-    setSendRecipient(null);
-    setSendAmount("");
-    setSendReason("");
-    setSendQuery("");
-    toast.success(`Sent ${sendAmountNum} ELS to ${sendRecipient.name}`, {
-      description: `≈ US$${sendAmountNum.toFixed(2)} · They'll see it in their wallet instantly.`,
-    });
   };
 
   const canAfford = redeemTarget ? mystate.balance >= redeemTarget.pointsCost : false;
@@ -289,8 +205,8 @@ export default function RewardsMallPage() {
           ELS Wallet &amp; Rewards
         </h1>
         <p className="text-sm text-muted-foreground mt-0.5">
-          Your personal <strong className="text-[#FF6000]">ELS</strong> coins — earned on every booking.
-          Send to other OPs, redeem for local rewards, and collect{" "}
+          Your personal <strong className="text-[#FF6000]">ELS</strong> — earned on every booking.
+          Non-transferable. Redeem for local rewards and collect{" "}
           <button
             onClick={() => setTab("stamps")}
             className="underline decoration-dotted underline-offset-2 hover:text-amber-700 font-medium"
@@ -761,9 +677,9 @@ export default function RewardsMallPage() {
             <div className="px-4 py-3 border-b bg-muted/30 flex items-center gap-2">
               <Sparkles className="h-4 w-4" style={{ color: "#FF6000" }} />
               <h2 className="text-sm font-semibold">What ELS does for you</h2>
-              <span className="text-[10px] text-muted-foreground ml-auto">4 benefits · unlocked from day 1</span>
+              <span className="text-[10px] text-muted-foreground ml-auto">3 benefits · personal, non-transferable</span>
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-y md:divide-y-0">
+            <div className="grid grid-cols-1 md:grid-cols-3 divide-x divide-y md:divide-y-0">
               {/* 1. Redeem local rewards */}
               <button
                 onClick={() => setTab("shop")}
@@ -784,27 +700,7 @@ export default function RewardsMallPage() {
                 </p>
               </button>
 
-              {/* 2. Send to teammates */}
-              <button
-                onClick={() => setSendOpen(true)}
-                className="p-4 text-left hover:bg-muted/40 transition-colors group"
-              >
-                <div className="flex items-start gap-2 mb-1.5">
-                  <div className="h-8 w-8 rounded-md flex items-center justify-center text-lg" style={{ background: "#06D6A018" }}>
-                    💸
-                  </div>
-                  <ArrowRight className="h-3 w-3 text-muted-foreground ml-auto mt-1 opacity-0 group-hover:opacity-100 transition-opacity" />
-                </div>
-                <p className="text-sm font-semibold">Send to teammates</p>
-                <p className="text-[11px] text-muted-foreground leading-tight mt-1">
-                  1 ELS = 1 USD · free transfers · share with other OPs for handovers or thanks.
-                </p>
-                <p className="text-[9px] mt-1.5 font-semibold text-green-600">
-                  Send now →
-                </p>
-              </button>
-
-              {/* 3. Boosted at partner hotels */}
+              {/* 2. Boosted at partner hotels */}
               <button
                 onClick={() => navigate("/app/find-hotel")}
                 className="p-4 text-left hover:bg-muted/40 transition-colors group"
@@ -815,16 +711,16 @@ export default function RewardsMallPage() {
                   </div>
                   <ArrowRight className="h-3 w-3 text-muted-foreground ml-auto mt-1 opacity-0 group-hover:opacity-100 transition-opacity" />
                 </div>
-                <p className="text-sm font-semibold">2×/3×/5× at promo hotels</p>
+                <p className="text-sm font-semibold">+10%/+15%/+20% at promo hotels</p>
                 <p className="text-[11px] text-muted-foreground leading-tight mt-1">
-                  Select hotels earn multiplied ELS — look for the <span className="font-bold" style={{ color: "#EF476F" }}>⚡ badge</span> when booking.
+                  Select hotels earn boosted ELS — look for the <span className="font-bold" style={{ color: "#EF476F" }}>⚡ badge</span> when booking.
                 </p>
                 <p className="text-[9px] mt-1.5 font-semibold" style={{ color: "#EF476F" }}>
                   Find hotels →
                 </p>
               </button>
 
-              {/* 4. Rank up + stamps */}
+              {/* 3. Rank up + stamps */}
               <button
                 onClick={() => setTab("stamps")}
                 className="p-4 text-left hover:bg-muted/40 transition-colors group"
@@ -927,50 +823,6 @@ export default function RewardsMallPage() {
             );
           })()}
 
-          {/* Send / Receive CTA row */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <Card
-              className="p-4 cursor-pointer hover:shadow-md transition-shadow border-[#FF6000]/30"
-              onClick={() => setSendOpen(true)}
-              style={{ background: "linear-gradient(135deg, #FF600018, transparent)" }}
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-full flex items-center justify-center" style={{ background: "#FF6000" }}>
-                    <Send className="h-5 w-5 text-white" />
-                  </div>
-                  <div>
-                    <p className="font-semibold text-sm">Send ELS</p>
-                    <p className="text-[11px] text-muted-foreground">
-                      Transfer to any OP · free · {remainingDaily.toLocaleString()} ELS remaining today
-                    </p>
-                  </div>
-                </div>
-                <ArrowUpRight className="h-5 w-5 text-[#FF6000]" />
-              </div>
-            </Card>
-            <Card className="p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-full flex items-center justify-center bg-muted">
-                    <ArrowDownLeft className="h-5 w-5 text-green-600" />
-                  </div>
-                  <div>
-                    <p className="font-semibold text-sm">Receive ELS</p>
-                    <p className="text-[11px] text-muted-foreground font-mono">{userEmail}</p>
-                  </div>
-                </div>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => { navigator.clipboard.writeText(userEmail); toast.success("Wallet address copied"); }}
-                >
-                  <Copy className="h-3 w-3 mr-1" />Copy
-                </Button>
-              </div>
-            </Card>
-          </div>
-
           {/* ─── Stamp Passport teaser (first 8, link to full Stamps tab) ─── */}
           {(() => {
             const allStamps = earnedStampsFor(userEmail);
@@ -1050,33 +902,26 @@ export default function RewardsMallPage() {
             <div className="divide-y">
               {allTx.length === 0 ? (
                 <p className="p-8 text-center text-sm text-muted-foreground">
-                  No activity yet. Earn ELS on your first booking or receive from another OP.
+                  No activity yet. Earn ELS on your first booking.
                 </p>
               ) : (
                 allTx.map(tx => {
                   const isCredit = tx.amount > 0;
-                  const iconBg =
-                    tx.type === "Received-Transfer" ? "bg-green-100 dark:bg-green-950" :
-                    tx.type === "Sent-Transfer" ? "bg-orange-100 dark:bg-orange-950" :
-                    "bg-muted";
                   return (
                     <div key={tx.id} className="p-3 flex items-center justify-between gap-3 hover:bg-muted/30">
                       <div className="flex items-center gap-3 min-w-0">
-                        <div className={`h-8 w-8 rounded-md flex items-center justify-center ${iconBg}`}>
+                        <div className="h-8 w-8 rounded-md flex items-center justify-center bg-muted">
                           {tx.type === "Earned-Welcome" ? "🎉" :
                            tx.type === "Earned-Milestone" ? "🏆" :
                            tx.type === "Earned-Booking" ? <Flame className="h-4 w-4 text-[#FF6000]" /> :
                            tx.type === "Earned-Tier-Bonus" ? <Sparkles className="h-4 w-4 text-[#FF6000]" /> :
                            tx.type === "Used-Redeem" ? <Gift className="h-4 w-4" /> :
-                           tx.type === "Sent-Transfer" ? <ArrowUpRight className="h-4 w-4 text-[#FF6000]" /> :
-                           tx.type === "Received-Transfer" ? <ArrowDownLeft className="h-4 w-4 text-green-600" /> :
                            <Clock className="h-4 w-4" />}
                         </div>
                         <div className="min-w-0">
                           <p className="text-sm truncate">{tx.description}</p>
                           <p className="text-[10px] text-muted-foreground">
                             {tx.date} · {tx.type.replace(/-/g, " ")}
-                            {tx.transferReason && <> · <span className="italic">"{tx.transferReason}"</span></>}
                           </p>
                         </div>
                       </div>
@@ -1337,146 +1182,6 @@ export default function RewardsMallPage() {
           </div>
         );
       })()}
-
-      {/* ─────────── Send ELS Dialog ─────────── */}
-      <Dialog open={sendOpen} onOpenChange={(o) => { setSendOpen(o); if (!o) { setSendRecipient(null); setSendQuery(""); setSendAmount(""); setSendReason(""); } }}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Send className="h-4 w-4" style={{ color: "#FF6000" }} />
-              Send ELS to another OP
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3">
-            {/* Step 1: Recipient */}
-            {!sendRecipient ? (
-              <div>
-                <label className="text-xs font-medium">Recipient</label>
-
-                {/* Recent recipients chips — one-click select */}
-                {recentRecipients.length > 0 && !sendQuery && (
-                  <div className="mt-1.5 mb-2">
-                    <p className="text-[9px] uppercase tracking-wider text-muted-foreground mb-1">
-                      Recent
-                    </p>
-                    <div className="flex gap-1.5 flex-wrap">
-                      {recentRecipients.map(r => (
-                        <button
-                          key={r.email}
-                          onClick={() => setSendRecipient(r)}
-                          className="px-2.5 py-1 rounded-full border text-[11px] hover:bg-muted/60 hover:border-[#FF6000]/40 transition-colors flex items-center gap-1"
-                          title={`${r.email} · ${r.company}`}
-                        >
-                          <span className="h-5 w-5 rounded-full bg-muted flex items-center justify-center text-[9px] font-bold">
-                            {r.name.slice(0, 1).toUpperCase()}
-                          </span>
-                          {r.name}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                <div className="relative mt-1">
-                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    className="pl-9"
-                    placeholder="Search by name, email, or company…"
-                    value={sendQuery}
-                    onChange={e => setSendQuery(e.target.value)}
-                    autoFocus
-                  />
-                </div>
-                <div className="mt-2 border rounded-md max-h-56 overflow-y-auto divide-y">
-                  {filteredDirectory.length === 0 ? (
-                    <p className="p-4 text-center text-xs text-muted-foreground">No matches</p>
-                  ) : filteredDirectory.map(r => (
-                    <button
-                      key={r.email}
-                      onClick={() => setSendRecipient(r)}
-                      className="w-full text-left p-2 hover:bg-muted/60 flex items-center justify-between"
-                    >
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium truncate">{r.name}</p>
-                        <p className="text-[10px] text-muted-foreground truncate">{r.email} · {r.company}</p>
-                      </div>
-                      <span className="text-xs shrink-0 ml-2">{r.country}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ) : (
-              <>
-                <div className="p-3 bg-muted rounded-md flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-semibold">{sendRecipient.name}</p>
-                    <p className="text-[11px] text-muted-foreground">{sendRecipient.email}</p>
-                    <p className="text-[10px] text-muted-foreground">{sendRecipient.company} · {sendRecipient.country}</p>
-                  </div>
-                  <Button size="sm" variant="ghost" onClick={() => setSendRecipient(null)}>Change</Button>
-                </div>
-
-                <div>
-                  <label className="text-xs font-medium">Amount (ELS)</label>
-                  <div className="relative mt-1">
-                    <span className="absolute right-3 top-2 text-xs text-muted-foreground">
-                      ≈ US${sendAmountNum.toFixed(2)}
-                    </span>
-                    <Input
-                      type="number"
-                      min={1}
-                      max={Math.min(mystate.balance, remainingDaily)}
-                      value={sendAmount}
-                      onChange={e => setSendAmount(e.target.value)}
-                      placeholder="0"
-                      className="pr-24"
-                      autoFocus
-                    />
-                  </div>
-                  <div className="flex items-center justify-between mt-1 text-[10px] text-muted-foreground">
-                    <span>Available: {mystate.balance.toLocaleString()} ELS</span>
-                    <span>Daily remaining: {remainingDaily.toLocaleString()} / {ELS_DAILY_TRANSFER_LIMIT.toLocaleString()}</span>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="text-xs font-medium">Reason <span className="text-destructive">*</span></label>
-                  <Input
-                    className="mt-1"
-                    placeholder="e.g. Shared booking handover, team bonus…"
-                    value={sendReason}
-                    onChange={e => setSendReason(e.target.value)}
-                    maxLength={80}
-                  />
-                  <p className="text-[9px] text-muted-foreground mt-1">
-                    Required for audit log. Both wallets will show this note.
-                  </p>
-                </div>
-
-                {sendError && sendAmountNum > 0 && (
-                  <p className="text-[11px] text-destructive">{sendError}</p>
-                )}
-
-                <div className="p-2 bg-[#FF6000]/5 border border-[#FF6000]/20 rounded-md text-[10px] text-muted-foreground">
-                  Transfers are <strong>free</strong> (0% fee). Pegged 1 ELS = 1 USD.
-                  Recipient sees instantly — no reversals.
-                </div>
-              </>
-            )}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setSendOpen(false)}>Cancel</Button>
-            <Button
-              onClick={doSend}
-              disabled={!!sendError}
-              style={!sendError ? { background: "#FF6000" } : undefined}
-              className={!sendError ? "text-white" : ""}
-            >
-              {sendRecipient && sendAmountNum > 0 ? `Send ${sendAmountNum} ELS` : "Send ELS"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* ─────────── Redeem confirmation ─────────── */}
       <AlertDialog open={!!redeemTarget} onOpenChange={(o) => !o && setRedeemTarget(null)}>

@@ -354,12 +354,12 @@ export const userPointsState: Record<string, UserPointsState> = {
 
 /* ── ELS (Ellis Coin) constants ──
  * ELS is the coin-style rebrand of OP personal points. 1 ELS = 1 USD (peg).
- * Builds on the earn-rate table above — the underlying ledger is the same
- * state (balance / totalEarned / totalUsed); we just surface it as coins
- * with transfer capability added on top. */
+ *
+ * NON-TRANSFERABLE by design: ELS is personal, tied to the earning OP.
+ * No P2P send/receive — each OP's wallet is isolated, preventing
+ * gift-laundering / vote-trading between colleagues and keeping the
+ * reward pool attribution clean. */
 export const ELS_USD_PEG = 1;                   /* 1 ELS = 1 USD */
-export const ELS_TRANSFER_FEE_PCT = 0;          /* free transfers (P2P) */
-export const ELS_DAILY_TRANSFER_LIMIT = 1000;   /* anti-abuse: 1,000 ELS / day / user */
 
 /* ══════════════════════════════════════════════════════════════════════
  * STAMPS — passport-style achievement trail
@@ -435,8 +435,6 @@ export const STAMPS: StampDef[] = [
   /* ── First-times (all Common — entry-level onboarding) ── */
   { id: "first-booking",  category: "First",     rarity: "Common",    emoji: "🎊", title: "First Booking",       hint: "Complete your very first booking",                 accent: "#FF6000", globalEarnedPct: 94,  bonusEls: 5 },
   { id: "first-redeem",   category: "First",     rarity: "Common",    emoji: "🎁", title: "First Redeem",        hint: "Spend ELS on your first reward",                   accent: "#FF6000", globalEarnedPct: 71,  bonusEls: 5 },
-  { id: "first-send",     category: "First",     rarity: "Rare",      emoji: "💸", title: "First Send",          hint: "Send ELS to another OP for the first time",        accent: "#FF6000", globalEarnedPct: 24,  bonusEls: 15 },
-  { id: "first-receive",  category: "First",     rarity: "Rare",      emoji: "📬", title: "First Receive",       hint: "Receive ELS from a teammate",                      accent: "#06D6A0", globalEarnedPct: 22,  bonusEls: 15 },
   { id: "first-review",   category: "First",     rarity: "Rare",      emoji: "📝", title: "First Review",        hint: "Write your first hotel review",                    accent: "#118AB2", globalEarnedPct: 18,  bonusEls: 15 },
 
   /* ── Milestones (the grind — this is where OPs compete) ── */
@@ -500,8 +498,6 @@ export function earnedStampsFor(userEmail: string): EarnedStamp[] {
   const txs = pointsTransactions.filter(t => t.userEmail === userEmail);
   const firstBookingTx = txs.filter(t => t.type === "Earned-Booking").sort((a, b) => a.date.localeCompare(b.date))[0];
   const firstRedeemTx  = txs.filter(t => t.type === "Used-Redeem").sort((a, b) => a.date.localeCompare(b.date))[0];
-  const firstSendTx    = txs.filter(t => t.type === "Sent-Transfer").sort((a, b) => a.date.localeCompare(b.date))[0];
-  const firstRecvTx    = txs.filter(t => t.type === "Received-Transfer").sort((a, b) => a.date.localeCompare(b.date))[0];
 
   const now = new Date();
   const yearsSinceJoin = (now.getTime() - joined.getTime()) / (365.25 * 86400000);
@@ -532,19 +528,6 @@ export function earnedStampsFor(userEmail: string): EarnedStamp[] {
         progressLabel = "Redeem once";
         earnedAt = firstRedeemTx?.date ?? (earned ? addDays(joined, 14) : undefined);
         break;
-      case "first-send":
-        earned = !!firstSendTx;
-        progress = firstSendTx ? 1 : 0;
-        progressLabel = "Send ELS once";
-        earnedAt = firstSendTx?.date;
-        break;
-      case "first-receive":
-        earned = !!firstRecvTx;
-        progress = firstRecvTx ? 1 : 0;
-        progressLabel = "Receive ELS once";
-        earnedAt = firstRecvTx?.date;
-        break;
-
       /* Milestones (the grind) */
       case "m10":
         earned = u.bookingCount >= 10;      progress = pctTowards(u.bookingCount, 10);     progressLabel = labelBookings(10);
@@ -673,7 +656,6 @@ export const DEMO_STAMP_ROTATION: string[] = [
   "first-booking",     /* Common  — the welcome moment */
   "m10",               /* Common  — early milestone */
   "explorer-intl",     /* Common  — first abroad booking */
-  "first-send",        /* Rare    — new coin mechanic */
   "big-spender",       /* Rare    — spending milestone */
   "tier-silver",       /* Rare    — tier up */
   "anniversary-1y",    /* Common  — loyalty year */
@@ -785,7 +767,7 @@ export function formatEls(amount: number): { els: string; usd: string } {
 }
 
 /* ── Points transactions (per-user history) ── */
-export type PointsTxType = "Earned-Booking" | "Earned-Welcome" | "Earned-Milestone" | "Earned-Tier-Bonus" | "Used-Redeem" | "Received-Transfer" | "Sent-Transfer" | "Expired";
+export type PointsTxType = "Earned-Booking" | "Earned-Welcome" | "Earned-Milestone" | "Earned-Tier-Bonus" | "Used-Redeem" | "Expired";
 export interface PointsTransaction {
   id: string;
   userEmail: string;
@@ -796,10 +778,6 @@ export interface PointsTransaction {
   balance: number;
   bookingId?: string;
   productId?: string;
-  /* For Received-Transfer / Sent-Transfer */
-  counterpartyEmail?: string;
-  counterpartyName?: string;
-  transferReason?: string;
 }
 
 export const pointsTransactions: PointsTransaction[] = [
@@ -818,44 +796,7 @@ export const pointsTransactions: PointsTransaction[] = [
   { id: "ptx-202", userEmail: "gotadi@dotbiz.com", date: "2026-04-15", type: "Used-Redeem",     description: "Redeemed GrabFood 100k VND",              amount: -7, balance: 101, productId: "vn-grab-food-100k" },
   { id: "ptx-203", userEmail: "gotadi@dotbiz.com", date: "2026-04-05", type: "Earned-Milestone",description: "⭐ 50 Bookings milestone",                amount: 5,  balance: 108, },
   { id: "ptx-204", userEmail: "gotadi@dotbiz.com", date: "2026-04-01", type: "Earned-Booking",  description: "Booking K26040109301H01 · Park Hyatt Saigon", amount: 13, balance: 103, bookingId: "bk-009" },
-
-  /* ── Cross-OP ELS transfers (new) ── */
-  { id: "ptx-300", userEmail: "master@dotbiz.com", date: "2026-04-18", type: "Sent-Transfer",     description: "Sent 20 ELS to Mai (GOTADI)",              amount: -20, balance: 185, counterpartyEmail: "mai@gotadi.com",       counterpartyName: "Tran Thi Mai",  transferReason: "Thanks for the Hanoi handover" },
-  { id: "ptx-301", userEmail: "mai@gotadi.com",    date: "2026-04-18", type: "Received-Transfer", description: "Received 20 ELS from James (TravelCo)",    amount: 20,  balance: 56,  counterpartyEmail: "master@dotbiz.com",   counterpartyName: "James Park",    transferReason: "Thanks for the Hanoi handover" },
-  { id: "ptx-302", userEmail: "op@dotbiz.com",     date: "2026-04-12", type: "Received-Transfer", description: "Received 10 ELS from Jennifer (Asia Tours)", amount: 10,  balance: 96,  counterpartyEmail: "prepay@dotbiz.com",    counterpartyName: "Jennifer Wu",   transferReason: "Shared booking reward split" },
-  { id: "ptx-303", userEmail: "prepay@dotbiz.com", date: "2026-04-12", type: "Sent-Transfer",     description: "Sent 10 ELS to Sarah (TravelCo)",          amount: -10, balance: 64,  counterpartyEmail: "op@dotbiz.com",        counterpartyName: "Sarah Kim",     transferReason: "Shared booking reward split" },
 ];
-
-/* ── Directory of ELS-eligible recipients (all users with points state) ──
- * Real implementation: ELLIS /api/users/search?q=... endpoint.
- * For prototype, the union of userPointsState entries + their display names
- * gathered from the matching SubAccount rows. */
-export function elsDirectoryFor(): { email: string; name: string; company: string; country: string }[] {
-  /* Synthesize from userPointsState — name is derived from the matching
-   * mock SubAccount via a lightweight lookup; we avoid tight coupling by
-   * inlining a small mapping here. */
-  const NAMES: Record<string, { name: string; company: string; country: string }> = {
-    "master@dotbiz.com":     { name: "James Park",     company: "TravelCo International", country: "🇰🇷 Korea" },
-    "op@dotbiz.com":         { name: "Sarah Kim",      company: "TravelCo International", country: "🇰🇷 Korea" },
-    "accounting@dotbiz.com": { name: "Daniel Choi",    company: "TravelCo International", country: "🇰🇷 Korea" },
-    "kevin@travelco.com":    { name: "Kevin Lee",      company: "TravelCo International", country: "🇰🇷 Korea" },
-    "emma@travelco.com":     { name: "Emma Wilson",    company: "TravelCo International", country: "🇰🇷 Korea" },
-    "daniel@travelco.com":   { name: "Daniel Choi",    company: "TravelCo International", country: "🇰🇷 Korea" },
-    "prepay@dotbiz.com":     { name: "Jennifer Wu",    company: "Asia Tours Ltd.",        country: "🇰🇷 Korea" },
-    "hiroshi@asiatours.com": { name: "Hiroshi Sato",   company: "Asia Tours Ltd.",        country: "🇰🇷 Korea" },
-    "alex@asiatours.com":    { name: "Alex Chen",      company: "Asia Tours Ltd.",        country: "🇰🇷 Korea" },
-    "gotadi@dotbiz.com":     { name: "Nguyen Van An",  company: "GOTADI",         country: "🇻🇳 Vietnam" },
-    "mai@gotadi.com":        { name: "Tran Thi Mai",   company: "GOTADI",         country: "🇻🇳 Vietnam" },
-    "phong@gotadi.com":      { name: "Le Quoc Phong",  company: "GOTADI",         country: "🇻🇳 Vietnam" },
-    "linh@gotadi.com":       { name: "Pham Thuy Linh", company: "GOTADI",         country: "🇻🇳 Vietnam" },
-    "vvc@dotbiz.com":        { name: "Vu Thi Hoa",     company: "Vietnam Vacation Co",   country: "🇻🇳 Vietnam" },
-    "anh@vietnamvacation.vn":{ name: "Dang Minh Anh",  company: "Vietnam Vacation Co",   country: "🇻🇳 Vietnam" },
-  };
-  return Object.keys(userPointsState).map(email => ({
-    email,
-    ...(NAMES[email] || { name: email.split("@")[0], company: "—", country: "—" }),
-  }));
-}
 
 export function pointsHistoryFor(userEmail: string): PointsTransaction[] {
   return pointsTransactions
