@@ -22,7 +22,7 @@ const channelIcons = { "In-app": Bell, Email: Mail, SMS: Smartphone, Slack: Mess
 
 export default function NotificationsPage() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, hasRole } = useAuth();
   const myCompany = companies.find(c => c.name === user?.company);
 
   const myAlerts = useMemo(() => {
@@ -81,9 +81,11 @@ export default function NotificationsPage() {
           <Button variant="outline" size="sm" onClick={markAllRead} disabled={unreadCount === 0}>
             <CheckCheck className="h-3 w-3 mr-1" />Mark all read
           </Button>
-          <Button variant="outline" size="sm" onClick={() => navigate("/app/my-account?tab=notifications")}>
-            <Settings className="h-3 w-3 mr-1" />Settings
-          </Button>
+          {hasRole(["Master"]) && (
+            <Button variant="outline" size="sm" onClick={() => navigate("/app/client?tab=notifications")}>
+              <Settings className="h-3 w-3 mr-1" />Team Notification Settings
+            </Button>
+          )}
         </div>
       </div>
 
@@ -176,7 +178,7 @@ export default function NotificationsPage() {
           <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
           <p>
             Some alerts cannot be fully disabled (e.g. <strong>Critical Credit</strong>, <strong>Payment Deadline Today</strong>, <strong>Booking Cancelled by Hotel</strong>).
-            Adjust which channels you receive them on in <button className="underline hover:text-foreground" onClick={() => navigate("/app/my-account?tab=notifications")}>Notification Settings</button>.
+            Channel preferences (In-app / Email / SMS) are managed by ELLIS admin based on alert type priority. {hasRole(["Master"]) && <>Master users can set per-sub-account notification scope in <button className="underline hover:text-foreground" onClick={() => navigate("/app/client")}>Master Account</button>.</>}
           </p>
         </div>
       </Card>
