@@ -172,11 +172,7 @@ export default function RewardsMallPage() {
             <p className="text-4xl font-bold mt-1" style={{ color: "#FF6000" }}>
               {mystate.balance.toLocaleString()}<span className="text-lg ml-1 text-muted-foreground">P</span>
             </p>
-            <p className="text-[11px] text-muted-foreground mt-2">
-              {earnRate.flag} {earnRate.localeLabel} · 1 P ≈ value of {earnRate.currency}&nbsp;
-              {earnRate.amountPerPoint.toLocaleString()}
-            </p>
-            <div className="flex items-center gap-3 mt-2 text-[11px] text-muted-foreground">
+            <div className="flex items-center gap-3 mt-3 text-[11px] text-muted-foreground">
               <span>Earned {mystate.totalEarned.toLocaleString()} P</span>
               <span>·</span>
               <span>Used {mystate.totalUsed.toLocaleString()} P</span>
@@ -272,9 +268,7 @@ export default function RewardsMallPage() {
             >
               {categories.map(c => <option key={c} value={c}>{c === "all" ? "All Categories" : c}</option>)}
             </select>
-            <Badge variant="outline" className="text-[10px]">
-              {earnRate.flag} {countryCode} catalog
-            </Badge>
+            <span className="text-xl" title="Your regional catalog">{earnRate.flag}</span>
           </div>
 
           {myProducts.length === 0 ? (
