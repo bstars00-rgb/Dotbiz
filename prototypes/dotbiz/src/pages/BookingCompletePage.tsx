@@ -249,12 +249,31 @@ export default function BookingCompletePage() {
                       </span>
                     </p>
 
+                    {/* Bonus ELS reward card */}
+                    <Card
+                      className="p-3 border-[#FF6000]/40"
+                      style={{ background: "linear-gradient(135deg, #FF600015, transparent)" }}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Stamp reward</p>
+                          <p className="text-2xl font-bold" style={{ color: "#FF6000" }}>
+                            +{current.stamp.bonusEls.toLocaleString()} ELS
+                          </p>
+                          <p className="text-[10px] text-muted-foreground">
+                            ≈ US${current.stamp.bonusEls.toLocaleString()} · Credited to your wallet
+                          </p>
+                        </div>
+                        <Sparkles className="h-10 w-10" style={{ color: "#FF6000" }} />
+                      </div>
+                    </Card>
+
                     <Card className="p-3" style={{ background: `linear-gradient(135deg, ${current.stamp.accent}15, transparent)` }}>
                       <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Your Journey</p>
                       <p className="text-sm mt-1">
                         <strong>{myPts?.bookingCount ?? 0}</strong> bookings ·{" "}
                         <strong>{myPts?.totalEarned ?? 0}</strong> ELS earned ·{" "}
-                        <strong>{(myPts?.balance ?? 0)}</strong> ELS balance
+                        <strong>{(myPts?.balance ?? 0) + current.stamp.bonusEls}</strong> ELS balance
                       </p>
                     </Card>
                   </>

@@ -32,6 +32,14 @@ import { hotels } from "@/mocks/hotels";
 import { addRecentSearch } from "@/pages/FindHotelPage";
 import { voucherSettings } from "@/mocks/clientManagement";
 import { getRoomsByHotel } from "@/mocks/rooms";
+import {
+  hotelReviews, reviewsFor, reviewStatsFor, reviewCountFor, calculateReviewReward,
+  type HotelReview,
+} from "@/mocks/reviews";
+import { useAuth } from "@/contexts/AuthContext";
+import { Textarea } from "@/components/ui/textarea";
+import { DialogFooter } from "@/components/ui/dialog";
+import { ThumbsUp, Pencil, X as XIcon } from "lucide-react";
 
 const facilityList = [
   "Wake-Up Calls", "Concierge Service", "Luggage Storage", "Express Check-In/Check-Out",
@@ -66,6 +74,69 @@ export default function HotelDetailPage() {
   const navigate = useNavigate();
   const { hotelId } = useParams();
   const hotel = hotels.find(h => h.id === hotelId) || hotels[0];
+  const { user } = useAuth();
+
+  /* ── OP Reviews state ── */
+  const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
+  const [rvRating, setRvRating] = useState<1 | 2 | 3 | 4 | 5>(5);
+  const [rvTitle, setRvTitle] = useState("");
+  const [rvBody, setRvBody] = useState("");
+  const [rvTipsText, setRvTipsText] = useState("");   /* one tip per line */
+  const [localReviews, setLocalReviews] = useState<HotelReview[]>([]);
+  const [votedIds, setVotedIds] = useState<Set<string>>(new Set());
+  const allReviewsForHotel = useMemo(
+    () => [...localReviews.filter(r => r.hotelId === hotel.id), ...reviewsFor(hotel.id)],
+    [localReviews, hotel.id]
+  );
+  const hotelReviewStats = useMemo(() => reviewStatsFor(hotel.id), [hotel.id]);
+  const userHasReviewed = hotelReviews.some(
+    r => r.hotelId === hotel.id && r.reviewerEmail === user?.email
+  ) || localReviews.some(r => r.hotelId === hotel.id && r.reviewerEmail === user?.email);
+  const rvTips = rvTipsText.split("\n").map(t => t.trim()).filter(t => t.length > 0);
+  const rvReward = calculateReviewReward({
+    bodyLength: rvBody.trim().length,
+    tipCount: rvTips.length,
+    isFirst: user ? reviewCountFor(user.email) === 0 : false,
+  });
+  const submitReview = () => {
+    if (rvReward.els === 0) {
+      toast.error("Review doesn't meet quality criteria. Check the hints below.");
+      return;
+    }
+    if (!user) return;
+    const newReview: HotelReview = {
+      id: `rev-local-${Date.now()}`,
+      hotelId: hotel.id,
+      reviewerEmail: user.email,
+      reviewerName: user.name,
+      reviewerCompany: user.company,
+      reviewerCountry: "🇰🇷 Korea",
+      rating: rvRating,
+      title: rvTitle.trim() || "My review",
+      body: rvBody.trim(),
+      tips: rvTips,
+      verifiedStay: true,
+      helpfulVotes: 0,
+      submittedAt: new Date().toISOString(),
+      approvedAt: new Date().toISOString(),
+      status: "Approved",
+      elsAwarded: rvReward.els,
+    };
+    setLocalReviews(prev => [newReview, ...prev]);
+    setReviewDialogOpen(false);
+    setRvTitle(""); setRvBody(""); setRvTipsText(""); setRvRating(5);
+    toast.success(`Review submitted · +${rvReward.els} ELS credited`, {
+      description: "Your tips will help other OPs pick the right hotel.",
+    });
+  };
+  const toggleHelpful = (reviewId: string) => {
+    setVotedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(reviewId)) next.delete(reviewId);
+      else next.add(reviewId);
+      return next;
+    });
+  };
   const allRooms = getRoomsByHotel(hotel.id);
   const [hotelTab, setHotelTab] = useTabParam("rooms");
   const [expandedRooms, setExpandedRooms] = useState<Record<string, boolean>>({});
@@ -340,6 +411,10 @@ export default function HotelDetailPage() {
           <TabsList className="w-full justify-start">
             <TabsTrigger value="rooms">Rooms</TabsTrigger>
             <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="reviews" className="gap-1.5">
+              OP Reviews
+              <span className="text-[9px] bg-muted px-1 rounded-full">{allReviewsForHotel.length}</span>
+            </TabsTrigger>
             <TabsTrigger value="policies">Policies</TabsTrigger>
             <TabsTrigger value="facilities">Facilities</TabsTrigger>
           </TabsList>
@@ -661,6 +736,191 @@ export default function HotelDetailPage() {
               </div>
             </Card>
           </TabsContent>
+
+          {/* ── OP Reviews Tab ── */}
+          <TabsContent value="reviews" className="mt-4 space-y-4">
+            {/* Summary + Write CTA */}
+            <Card className="p-5">
+              <div className="flex items-start justify-between gap-4 flex-wrap">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <Badge variant="outline" className="text-[10px]" style={{ borderColor: "#FF6000", color: "#FF6000" }}>
+                      ✓ OP-verified
+                    </Badge>
+                    <h3 className="text-lg font-bold">Professional OP Reviews</h3>
+                  </div>
+                  <p className="text-xs text-muted-foreground max-w-xl">
+                    Reviews from travel agency OPs who actually book + operate stays here.
+                    Not consumer tripadvisor fluff — actionable intel on rooms, service,
+                    and gotchas from people handling 100s of bookings.
+                  </p>
+                </div>
+                <div className="text-right">
+                  {allReviewsForHotel.length > 0 ? (
+                    <>
+                      <div className="flex items-center gap-1 justify-end">
+                        {[1, 2, 3, 4, 5].map(n => (
+                          <Star
+                            key={n}
+                            className="h-5 w-5"
+                            style={{
+                              fill: n <= Math.round(hotelReviewStats.avgRating) ? "#FF6000" : "transparent",
+                              color: "#FF6000",
+                            }}
+                          />
+                        ))}
+                      </div>
+                      <p className="text-2xl font-bold mt-1">{hotelReviewStats.avgRating.toFixed(1)}</p>
+                      <p className="text-[11px] text-muted-foreground">
+                        {hotelReviewStats.count} OP review{hotelReviewStats.count === 1 ? "" : "s"}
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">Be the first to review</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Top tips (cross-review aggregation) */}
+              {hotelReviewStats.topTips.length > 0 && (
+                <div className="mt-4 pt-4 border-t">
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">
+                    💡 Top tips from OPs (insider knowledge)
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {hotelReviewStats.topTips.map(tip => (
+                      <span
+                        key={tip}
+                        className="text-[11px] px-2 py-1 rounded-md bg-amber-50 text-amber-900 border border-amber-200"
+                      >
+                        {tip}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="mt-4 pt-4 border-t flex items-center justify-between flex-wrap gap-2">
+                <p className="text-[11px] text-muted-foreground">
+                  💰 Write a quality review → earn <strong style={{ color: "#FF6000" }}>up to +10 ELS</strong>
+                  {" "}(80+ chars body, 1+ tip, verified stay)
+                </p>
+                {userHasReviewed ? (
+                  <Badge variant="secondary" className="text-[10px]">
+                    <CheckCircle2 className="h-3 w-3 mr-1" />
+                    You've reviewed this hotel
+                  </Badge>
+                ) : (
+                  <Button
+                    size="sm"
+                    onClick={() => setReviewDialogOpen(true)}
+                    style={{ background: "#FF6000" }}
+                    className="text-white"
+                  >
+                    <Pencil className="h-3.5 w-3.5 mr-1" />
+                    Write a review · earn ELS
+                  </Button>
+                )}
+              </div>
+            </Card>
+
+            {/* Review list */}
+            {allReviewsForHotel.length === 0 ? (
+              <Card className="p-10 text-center text-sm text-muted-foreground">
+                No OP reviews yet for this hotel. Be the first — earn +8 ELS for a quality review.
+              </Card>
+            ) : (
+              allReviewsForHotel.map(r => {
+                const hasVoted = votedIds.has(r.id);
+                return (
+                  <Card key={r.id} className="p-5">
+                    <div className="flex items-start justify-between gap-3 flex-wrap">
+                      <div className="flex items-start gap-3">
+                        <div className="h-10 w-10 rounded-full flex items-center justify-center font-bold text-sm" style={{ background: "#FF600022", color: "#FF6000" }}>
+                          {r.reviewerName.slice(0, 2).toUpperCase()}
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="font-semibold text-sm">{r.reviewerName}</p>
+                            {r.verifiedStay && (
+                              <Badge variant="outline" className="text-[9px] text-green-700 border-green-300">
+                                <CheckCircle2 className="h-2.5 w-2.5 mr-0.5" />
+                                Verified stay
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-muted-foreground">
+                            {r.reviewerCompany} · {r.reviewerCountry} · {r.stayedAt ? `Stayed ${r.stayedAt}` : "Submitted anonymously"}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        {[1, 2, 3, 4, 5].map(n => (
+                          <Star
+                            key={n}
+                            className="h-4 w-4"
+                            style={{
+                              fill: n <= r.rating ? "#FF6000" : "transparent",
+                              color: "#FF6000",
+                            }}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                    <h4 className="font-semibold text-base mt-3">{r.title}</h4>
+                    <p className="text-sm text-muted-foreground mt-1 whitespace-pre-line">
+                      {r.body}
+                    </p>
+                    {r.tips.length > 0 && (
+                      <div className="mt-3">
+                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">
+                          🏷️ OP tips
+                        </p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {r.tips.map((tip, i) => (
+                            <span
+                              key={i}
+                              className="text-[11px] px-2 py-1 rounded-md bg-blue-50 text-blue-900 border border-blue-200"
+                            >
+                              {tip}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    <div className="mt-3 pt-3 border-t flex items-center justify-between">
+                      <button
+                        onClick={() => toggleHelpful(r.id)}
+                        className={`text-[11px] flex items-center gap-1 px-2 py-1 rounded-md transition-colors ${
+                          hasVoted ? "bg-[#FF6000]/10 text-[#FF6000] font-semibold" : "hover:bg-muted/60 text-muted-foreground"
+                        }`}
+                        disabled={r.reviewerEmail === user?.email}
+                        title={r.reviewerEmail === user?.email ? "Can't vote on your own review" : ""}
+                      >
+                        <ThumbsUp className="h-3 w-3" />
+                        Helpful · {r.helpfulVotes + (hasVoted ? 1 : 0)}
+                      </button>
+                      <span className="text-[10px] text-muted-foreground">
+                        {r.approvedAt ? new Date(r.approvedAt).toISOString().slice(0, 10) : new Date(r.submittedAt).toISOString().slice(0, 10)}
+                      </span>
+                    </div>
+                  </Card>
+                );
+              })
+            )}
+
+            {/* B2C syndication hint — the business case */}
+            {allReviewsForHotel.length >= 2 && (
+              <Alert style={{ background: "#06D6A015", borderColor: "#06D6A066" }}>
+                <AlertTitle className="text-green-800 text-sm">🌐 These reviews reach end consumers</AlertTitle>
+                <AlertDescription className="text-green-900/80 text-xs">
+                  Approved OP reviews are syndicated (anonymized) to our B2C discovery layer.
+                  Your insights help travelers pick the right hotel — and drive bookings back
+                  to DOTBIZ. The more OPs review, the stronger the flywheel.
+                </AlertDescription>
+              </Alert>
+            )}
+          </TabsContent>
         </Tabs>
       </div>
 
@@ -698,6 +958,148 @@ export default function HotelDetailPage() {
       )}
 
       <div className="h-8" />
+
+      {/* ── Write Review Dialog ── */}
+      <Dialog open={reviewDialogOpen} onOpenChange={setReviewDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Pencil className="h-4 w-4" style={{ color: "#FF6000" }} />
+              Review {hotel.name}
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-3">
+            {/* Rating */}
+            <div>
+              <label className="text-xs font-medium">Your rating</label>
+              <div className="flex items-center gap-1 mt-1">
+                {[1, 2, 3, 4, 5].map(n => (
+                  <button
+                    key={n}
+                    onClick={() => setRvRating(n as 1 | 2 | 3 | 4 | 5)}
+                    className="p-1"
+                    aria-label={`${n} stars`}
+                  >
+                    <Star
+                      className="h-6 w-6"
+                      style={{
+                        fill: n <= rvRating ? "#FF6000" : "transparent",
+                        color: "#FF6000",
+                      }}
+                    />
+                  </button>
+                ))}
+                <span className="ml-2 text-sm font-semibold" style={{ color: "#FF6000" }}>
+                  {rvRating}/5
+                </span>
+              </div>
+            </div>
+
+            {/* Title */}
+            <div>
+              <label className="text-xs font-medium">Headline</label>
+              <Input
+                className="mt-1"
+                placeholder="e.g. 'Reliable for VIP business trips'"
+                value={rvTitle}
+                onChange={e => setRvTitle(e.target.value)}
+                maxLength={80}
+              />
+            </div>
+
+            {/* Body */}
+            <div>
+              <label className="text-xs font-medium">Detailed review</label>
+              <Textarea
+                className="mt-1"
+                rows={5}
+                placeholder="What did you learn from operating bookings here? What works, what doesn't? Share intel that'd save other OPs time…"
+                value={rvBody}
+                onChange={e => setRvBody(e.target.value)}
+                maxLength={2000}
+              />
+              <div className="flex items-center justify-between text-[10px] mt-0.5">
+                <span className={rvBody.trim().length < 80 ? "text-destructive" : "text-muted-foreground"}>
+                  {rvBody.trim().length} / 80 min · {rvBody.length} chars
+                </span>
+                <span className="text-muted-foreground">
+                  {rvBody.trim().length >= 300 ? "✓ Quality bonus eligible" : "300+ chars for quality bonus"}
+                </span>
+              </div>
+            </div>
+
+            {/* Tips */}
+            <div>
+              <label className="text-xs font-medium">Tips (one per line)</label>
+              <Textarea
+                className="mt-1"
+                rows={4}
+                placeholder={`Insider tips that help other OPs:\n- Request 20F+ for city view\n- Avoid weekends (wedding traffic)\n- Club lounge on 23F opens 07:00`}
+                value={rvTipsText}
+                onChange={e => setRvTipsText(e.target.value)}
+              />
+              <div className="flex items-center justify-between text-[10px] mt-0.5">
+                <span className={rvTips.length < 1 ? "text-destructive" : "text-muted-foreground"}>
+                  {rvTips.length} tip{rvTips.length === 1 ? "" : "s"} · min 1
+                </span>
+                <span className="text-muted-foreground">
+                  {rvTips.length >= 4 ? "✓ Quality bonus eligible" : "4+ tips for quality bonus"}
+                </span>
+              </div>
+            </div>
+
+            {/* Reward preview */}
+            <Card
+              className="p-3"
+              style={{
+                background: rvReward.els > 0
+                  ? "linear-gradient(135deg, #FF600015, transparent)"
+                  : "#f1f5f9",
+                borderColor: rvReward.els > 0 ? "#FF600055" : undefined,
+              }}
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                    Reward preview
+                  </p>
+                  <p className="text-2xl font-bold" style={{ color: rvReward.els > 0 ? "#FF6000" : "#94a3b8" }}>
+                    {rvReward.els > 0 ? "+" : ""}{rvReward.els} ELS
+                  </p>
+                </div>
+                <div className="text-right">
+                  {rvReward.breakdown.map((line, i) => (
+                    <p key={i} className="text-[10px] text-muted-foreground">{line}</p>
+                  ))}
+                </div>
+              </div>
+            </Card>
+
+            <div className="p-2.5 rounded-md bg-blue-50 text-[10px] text-blue-900">
+              <strong>Why we reward reviews:</strong> Your insights get syndicated
+              (anonymized) to our B2C layer. Every quality review strengthens
+              DOTBIZ's discovery edge — which flows back as more bookings for you.
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setReviewDialogOpen(false)}>
+              <XIcon className="h-3 w-3 mr-1" />
+              Cancel
+            </Button>
+            <Button
+              onClick={submitReview}
+              disabled={rvReward.els === 0}
+              style={rvReward.els > 0 ? { background: "#FF6000" } : undefined}
+              className={rvReward.els > 0 ? "text-white" : ""}
+            >
+              Submit · earn {rvReward.els} ELS
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <StateToolbar state={state} setState={setState} />
 
       {/* Initial Loading Dialog — simulates fetching live rates from suppliers */}

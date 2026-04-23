@@ -872,10 +872,9 @@ export default function RewardsMallPage() {
                       boost.multiplier === 3 ? "linear-gradient(90deg,#FF6000,#FFD166)" :
                       "linear-gradient(90deg,#8b5cf6,#a855f7)";
                     return (
-                      <button
+                      <div
                         key={boost.hotelId}
-                        onClick={() => navigate(`/app/hotel/${boost.hotelId}`)}
-                        className="p-3 rounded-md border bg-card hover:shadow-md transition-all text-left group relative overflow-hidden"
+                        className="p-3 rounded-md border bg-card relative overflow-hidden"
                       >
                         <span
                           className="absolute top-2 right-2 px-2 py-0.5 rounded-full text-[10px] font-bold text-white"
@@ -901,11 +900,16 @@ export default function RewardsMallPage() {
                         <p className="text-[9px] text-muted-foreground mt-1 italic line-clamp-1">
                           {boost.reason}
                         </p>
-                        <p className="text-[10px] font-semibold mt-1.5 flex items-center gap-0.5" style={{ color: "#FF6000" }}>
-                          Book now to earn {boost.multiplier}× ELS
-                          <ArrowRight className="h-3 w-3" />
-                        </p>
-                      </button>
+                        <Button
+                          size="sm"
+                          onClick={() => navigate(`/app/hotel/${boost.hotelId}`)}
+                          className="w-full mt-2 h-7 text-[11px] text-white"
+                          style={{ background: "#FF6000" }}
+                        >
+                          Book now · earn {boost.multiplier}× ELS
+                          <ArrowRight className="h-3 w-3 ml-1" />
+                        </Button>
+                      </div>
                     );
                   })}
                 </div>
@@ -1172,6 +1176,28 @@ export default function RewardsMallPage() {
                   );
                 })}
               </div>
+
+              {/* ELS earned from stamps + potential */}
+              {(() => {
+                const earnedEls = allStamps.filter(s => s.earned).reduce((sum, s) => sum + s.stamp.bonusEls, 0);
+                const lockedEls = allStamps.filter(s => !s.earned).reduce((sum, s) => sum + s.stamp.bonusEls, 0);
+                return (
+                  <div className="mt-4 pt-3 border-t border-dashed border-amber-700/30 flex items-center justify-between gap-3 flex-wrap">
+                    <div>
+                      <p className="text-[10px] uppercase tracking-wider text-amber-800/70">ELS from stamps</p>
+                      <p className="text-lg font-bold" style={{ color: "#FF6000" }}>
+                        +{earnedEls.toLocaleString()} ELS earned
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[10px] uppercase tracking-wider text-amber-800/70">Still locked</p>
+                      <p className="text-lg font-bold text-amber-800/60">
+                        {lockedEls.toLocaleString()} ELS
+                      </p>
+                    </div>
+                  </div>
+                );
+              })()}
             </Card>
 
             {/* Per-category sections */}
@@ -1239,9 +1265,23 @@ export default function RewardsMallPage() {
 
                           {/* Body */}
                           <div className="flex-1 min-w-0 pr-10">
-                            <p className={`text-sm font-semibold ${earned ? "" : "text-muted-foreground"}`}>
-                              {stamp.title}
-                            </p>
+                            <div className="flex items-center justify-between gap-2">
+                              <p className={`text-sm font-semibold ${earned ? "" : "text-muted-foreground"}`}>
+                                {stamp.title}
+                              </p>
+                              {/* ELS reward chip */}
+                              <span
+                                className="text-[9px] font-bold px-1.5 py-0.5 rounded shrink-0"
+                                style={{
+                                  background: earned ? "#FF600022" : "#94a3b822",
+                                  color: earned ? "#FF6000" : "#64748b",
+                                  border: `1px solid ${earned ? "#FF600055" : "#94a3b855"}`,
+                                }}
+                                title={earned ? "ELS awarded when this stamp was earned" : "Reward for earning this stamp"}
+                              >
+                                {earned ? "+" : ""}{stamp.bonusEls} ELS
+                              </span>
+                            </div>
                             <p className="text-[10px] text-muted-foreground mt-0.5 line-clamp-2">
                               {stamp.hint}
                             </p>

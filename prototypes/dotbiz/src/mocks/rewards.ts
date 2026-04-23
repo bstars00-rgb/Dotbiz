@@ -1,3 +1,5 @@
+import { reviewCountFor } from "@/mocks/reviews";
+
 /* ───────────────────────────────────────────────────────────────────────
  * Rewards Mall — Country-Local OP Reward System
  *
@@ -390,7 +392,20 @@ export interface StampDef {
   /* Social proof (seeded pct of global OPs who have earned this) — tunes the
    * "conquest" feeling; Mythic should be <1%, Legendary <5%, Epic <15%. */
   globalEarnedPct: number;
+  /* One-time ELS bonus credited the moment the stamp is earned.
+   * Rarity-scaled: Common 5 · Rare 15 · Epic 50 · Legendary 200 · Mythic 1000.
+   * These stack with booking earn + transfers — pure upside. */
+  bonusEls: number;
 }
+
+/* Standard reward by rarity (used for calc + UI hints) */
+export const STAMP_BONUS_BY_RARITY: Record<StampRarity, number> = {
+  Common:    5,
+  Rare:      15,
+  Epic:      50,
+  Legendary: 200,
+  Mythic:    1000,
+};
 
 /* Rarity metadata — ring style, glow, chip color */
 export const RARITY_META: Record<StampRarity, { label: string; color: string; ringShadow: string; order: number }> = {
@@ -418,39 +433,44 @@ export const RARITY_META: Record<StampRarity, { label: string; color: string; ri
  * ══════════════════════════════════════════════════════════════════════ */
 export const STAMPS: StampDef[] = [
   /* ── First-times (all Common — entry-level onboarding) ── */
-  { id: "first-booking",  category: "First",     rarity: "Common",    emoji: "🎊", title: "First Booking",       hint: "Complete your very first booking",                 accent: "#FF6000", globalEarnedPct: 94 },
-  { id: "first-redeem",   category: "First",     rarity: "Common",    emoji: "🎁", title: "First Redeem",        hint: "Spend ELS on your first reward",                   accent: "#FF6000", globalEarnedPct: 71 },
-  { id: "first-send",     category: "First",     rarity: "Rare",      emoji: "💸", title: "First Send",          hint: "Send ELS to another OP for the first time",        accent: "#FF6000", globalEarnedPct: 24 },
-  { id: "first-receive",  category: "First",     rarity: "Rare",      emoji: "📬", title: "First Receive",       hint: "Receive ELS from a teammate",                      accent: "#06D6A0", globalEarnedPct: 22 },
+  { id: "first-booking",  category: "First",     rarity: "Common",    emoji: "🎊", title: "First Booking",       hint: "Complete your very first booking",                 accent: "#FF6000", globalEarnedPct: 94,  bonusEls: 5 },
+  { id: "first-redeem",   category: "First",     rarity: "Common",    emoji: "🎁", title: "First Redeem",        hint: "Spend ELS on your first reward",                   accent: "#FF6000", globalEarnedPct: 71,  bonusEls: 5 },
+  { id: "first-send",     category: "First",     rarity: "Rare",      emoji: "💸", title: "First Send",          hint: "Send ELS to another OP for the first time",        accent: "#FF6000", globalEarnedPct: 24,  bonusEls: 15 },
+  { id: "first-receive",  category: "First",     rarity: "Rare",      emoji: "📬", title: "First Receive",       hint: "Receive ELS from a teammate",                      accent: "#06D6A0", globalEarnedPct: 22,  bonusEls: 15 },
+  { id: "first-review",   category: "First",     rarity: "Rare",      emoji: "📝", title: "First Review",        hint: "Write your first hotel review",                    accent: "#118AB2", globalEarnedPct: 18,  bonusEls: 15 },
 
   /* ── Milestones (the grind — this is where OPs compete) ── */
-  { id: "m10",            category: "Milestone", rarity: "Common",    emoji: "🌱", title: "Rookie",              hint: "Reach 10 cumulative bookings",                     accent: "#06D6A0", globalEarnedPct: 68 },
-  { id: "m50",            category: "Milestone", rarity: "Rare",      emoji: "⭐", title: "Regular",             hint: "Reach 50 cumulative bookings",                     accent: "#FFD166", globalEarnedPct: 34 },
-  { id: "m250",           category: "Milestone", rarity: "Epic",      emoji: "🔥", title: "Pro",                 hint: "Reach 250 cumulative bookings",                    accent: "#EF476F", globalEarnedPct: 11 },
-  { id: "m1000",          category: "Milestone", rarity: "Legendary", emoji: "👑", title: "Master",              hint: "Reach 1,000 cumulative bookings",                  accent: "#8b5cf6", globalEarnedPct: 3   },
-  { id: "m5000",          category: "Milestone", rarity: "Mythic",    emoji: "🏆", title: "Legend",              hint: "Reach 5,000 cumulative bookings — ultra-rare",     accent: "#FF6000", globalEarnedPct: 0.4 },
-  { id: "m10000",         category: "Milestone", rarity: "Mythic",    emoji: "⚔️", title: "Immortal",            hint: "Reach 10,000 bookings — fewer than 10 OPs ever",   accent: "#EF476F", globalEarnedPct: 0.1 },
+  { id: "m10",            category: "Milestone", rarity: "Common",    emoji: "🌱", title: "Rookie",              hint: "Reach 10 cumulative bookings",                     accent: "#06D6A0", globalEarnedPct: 68,  bonusEls: 5 },
+  { id: "m50",            category: "Milestone", rarity: "Rare",      emoji: "⭐", title: "Regular",             hint: "Reach 50 cumulative bookings",                     accent: "#FFD166", globalEarnedPct: 34,  bonusEls: 15 },
+  { id: "m250",           category: "Milestone", rarity: "Epic",      emoji: "🔥", title: "Pro",                 hint: "Reach 250 cumulative bookings",                    accent: "#EF476F", globalEarnedPct: 11,  bonusEls: 50 },
+  { id: "m1000",          category: "Milestone", rarity: "Legendary", emoji: "👑", title: "Master",              hint: "Reach 1,000 cumulative bookings",                  accent: "#8b5cf6", globalEarnedPct: 3,   bonusEls: 200 },
+  { id: "m5000",          category: "Milestone", rarity: "Mythic",    emoji: "🏆", title: "Legend",              hint: "Reach 5,000 cumulative bookings — ultra-rare",     accent: "#FF6000", globalEarnedPct: 0.4, bonusEls: 1000 },
+  { id: "m10000",         category: "Milestone", rarity: "Mythic",    emoji: "⚔️", title: "Immortal",            hint: "Reach 10,000 bookings — fewer than 10 OPs ever",   accent: "#EF476F", globalEarnedPct: 0.1, bonusEls: 1000 },
 
   /* ── Tiers ── */
-  { id: "tier-silver",    category: "Tier",      rarity: "Rare",      emoji: "🥈", title: "Silver Tier",         hint: "Earn 1.1× multiplier (50 bookings)",               accent: "#94a3b8", globalEarnedPct: 34 },
-  { id: "tier-gold",      category: "Tier",      rarity: "Epic",      emoji: "🥇", title: "Gold Tier",           hint: "Earn 1.2× multiplier (200 bookings)",              accent: "#eab308", globalEarnedPct: 13 },
-  { id: "tier-platinum",  category: "Tier",      rarity: "Legendary", emoji: "💠", title: "Platinum Tier",       hint: "Earn 1.3× multiplier (500 bookings)",              accent: "#8b5cf6", globalEarnedPct: 5  },
-  { id: "tier-diamond",   category: "Tier",      rarity: "Mythic",    emoji: "💎", title: "Diamond Tier",        hint: "Exclusive 1.5× — reach 1,500 bookings",            accent: "#06D6A0", globalEarnedPct: 0.8 },
+  { id: "tier-silver",    category: "Tier",      rarity: "Rare",      emoji: "🥈", title: "Silver Tier",         hint: "Earn 1.1× multiplier (50 bookings)",               accent: "#94a3b8", globalEarnedPct: 34,  bonusEls: 15 },
+  { id: "tier-gold",      category: "Tier",      rarity: "Epic",      emoji: "🥇", title: "Gold Tier",           hint: "Earn 1.2× multiplier (200 bookings)",              accent: "#eab308", globalEarnedPct: 13,  bonusEls: 50 },
+  { id: "tier-platinum",  category: "Tier",      rarity: "Legendary", emoji: "💠", title: "Platinum Tier",       hint: "Earn 1.3× multiplier (500 bookings)",              accent: "#8b5cf6", globalEarnedPct: 5,   bonusEls: 200 },
+  { id: "tier-diamond",   category: "Tier",      rarity: "Mythic",    emoji: "💎", title: "Diamond Tier",        hint: "Exclusive 1.5× — reach 1,500 bookings",            accent: "#06D6A0", globalEarnedPct: 0.8, bonusEls: 1000 },
 
   /* ── Explorer (geographic diversification) ── */
-  { id: "explorer-intl",  category: "Explorer",  rarity: "Common",    emoji: "✈️", title: "International Flyer", hint: "Book a hotel outside your home country",           accent: "#118AB2", globalEarnedPct: 62 },
-  { id: "explorer-3ctry", category: "Explorer",  rarity: "Rare",      emoji: "🧭", title: "Triple Crown",        hint: "Book hotels in 3 different countries",             accent: "#118AB2", globalEarnedPct: 28 },
-  { id: "explorer-5ctry", category: "Explorer",  rarity: "Epic",      emoji: "🌏", title: "Continental",         hint: "Book hotels in 5 different countries",             accent: "#118AB2", globalEarnedPct: 9  },
-  { id: "explorer-all6",  category: "Explorer",  rarity: "Legendary", emoji: "🌍", title: "World Conqueror",     hint: "Book in ALL 6 supported countries — near impossible", accent: "#EF476F", globalEarnedPct: 1.2 },
+  { id: "explorer-intl",  category: "Explorer",  rarity: "Common",    emoji: "✈️", title: "International Flyer", hint: "Book a hotel outside your home country",           accent: "#118AB2", globalEarnedPct: 62,  bonusEls: 5 },
+  { id: "explorer-3ctry", category: "Explorer",  rarity: "Rare",      emoji: "🧭", title: "Triple Crown",        hint: "Book hotels in 3 different countries",             accent: "#118AB2", globalEarnedPct: 28,  bonusEls: 15 },
+  { id: "explorer-5ctry", category: "Explorer",  rarity: "Epic",      emoji: "🌏", title: "Continental",         hint: "Book hotels in 5 different countries",             accent: "#118AB2", globalEarnedPct: 9,   bonusEls: 50 },
+  { id: "explorer-all6",  category: "Explorer",  rarity: "Legendary", emoji: "🌍", title: "World Conqueror",     hint: "Book in ALL 6 supported countries — near impossible", accent: "#EF476F", globalEarnedPct: 1.2, bonusEls: 200 },
 
   /* ── Habits (long-game loyalty) ── */
-  { id: "big-spender",    category: "Habit",     rarity: "Rare",      emoji: "🛍️", title: "Big Spender",         hint: "Redeem 100+ ELS total",                            accent: "#EF476F", globalEarnedPct: 19 },
-  { id: "whale",          category: "Habit",     rarity: "Epic",      emoji: "🐋", title: "Whale",               hint: "Redeem 500+ ELS total",                            accent: "#118AB2", globalEarnedPct: 4  },
-  { id: "voucher-hoard",  category: "Habit",     rarity: "Rare",      emoji: "🧧", title: "Voucher Collector",   hint: "Hold 5+ active vouchers at once",                  accent: "#FF6000", globalEarnedPct: 15 },
-  { id: "anniversary-1y", category: "Habit",     rarity: "Common",    emoji: "🎂", title: "1-Year Anniversary",  hint: "Stay active for 1 full year",                      accent: "#EF476F", globalEarnedPct: 52 },
-  { id: "loyal-3y",       category: "Habit",     rarity: "Epic",      emoji: "🏅", title: "3-Year Veteran",      hint: "Stay active for 3 years",                          accent: "#a855f7", globalEarnedPct: 12 },
-  { id: "veteran-5y",     category: "Habit",     rarity: "Legendary", emoji: "🎖️", title: "5-Year Elite",        hint: "Stay active for 5 years",                          accent: "#eab308", globalEarnedPct: 3  },
-  { id: "eternal-10y",    category: "Habit",     rarity: "Mythic",    emoji: "🗿", title: "Eternal",             hint: "10 years with DOTBIZ — legendary loyalty",         accent: "#FF6000", globalEarnedPct: 0.2 },
+  { id: "big-spender",    category: "Habit",     rarity: "Rare",      emoji: "🛍️", title: "Big Spender",         hint: "Redeem 100+ ELS total",                            accent: "#EF476F", globalEarnedPct: 19,  bonusEls: 15 },
+  { id: "whale",          category: "Habit",     rarity: "Epic",      emoji: "🐋", title: "Whale",               hint: "Redeem 500+ ELS total",                            accent: "#118AB2", globalEarnedPct: 4,   bonusEls: 50 },
+  { id: "voucher-hoard",  category: "Habit",     rarity: "Rare",      emoji: "🧧", title: "Voucher Collector",   hint: "Hold 5+ active vouchers at once",                  accent: "#FF6000", globalEarnedPct: 15,  bonusEls: 15 },
+  { id: "anniversary-1y", category: "Habit",     rarity: "Common",    emoji: "🎂", title: "1-Year Anniversary",  hint: "Stay active for 1 full year",                      accent: "#EF476F", globalEarnedPct: 52,  bonusEls: 5 },
+  { id: "loyal-3y",       category: "Habit",     rarity: "Epic",      emoji: "🏅", title: "3-Year Veteran",      hint: "Stay active for 3 years",                          accent: "#a855f7", globalEarnedPct: 12,  bonusEls: 50 },
+  { id: "veteran-5y",     category: "Habit",     rarity: "Legendary", emoji: "🎖️", title: "5-Year Elite",        hint: "Stay active for 5 years",                          accent: "#eab308", globalEarnedPct: 3,   bonusEls: 200 },
+  { id: "eternal-10y",    category: "Habit",     rarity: "Mythic",    emoji: "🗿", title: "Eternal",             hint: "10 years with DOTBIZ — legendary loyalty",         accent: "#FF6000", globalEarnedPct: 0.2, bonusEls: 1000 },
+
+  /* ── Reviewer (new category — contribute to knowledge pool) ── */
+  { id: "top-reviewer",   category: "Habit",     rarity: "Epic",      emoji: "✍️", title: "Top Reviewer",        hint: "Write 5 hotel reviews (quality-approved)",         accent: "#118AB2", globalEarnedPct: 7,   bonusEls: 50 },
+  { id: "review-master",  category: "Habit",     rarity: "Legendary", emoji: "🏛️", title: "Review Master",       hint: "Write 25 approved hotel reviews",                  accent: "#a855f7", globalEarnedPct: 1.5, bonusEls: 200 },
 ];
 
 export interface EarnedStamp {
@@ -596,6 +616,32 @@ export function earnedStampsFor(userEmail: string): EarnedStamp[] {
       case "eternal-10y":
         earned = yearsSinceJoin >= 10;      progress = pctTowards(yearsSinceJoin, 10);     progressLabel = labelYears(10);
         earnedAt = earned ? addDays(joined, 365 * 10) : undefined; break;
+
+      /* Reviewer stamps — uses approvedReviewsFor count (declared in reviews.ts, called lazily) */
+      case "first-review": {
+        const n = reviewCountFor(userEmail);
+        earned = n >= 1;
+        progress = pctTowards(n, 1);
+        progressLabel = `${n} / 1 reviews`;
+        earnedAt = earned ? addDays(joined, 90) : undefined;
+        break;
+      }
+      case "top-reviewer": {
+        const n = reviewCountFor(userEmail);
+        earned = n >= 5;
+        progress = pctTowards(n, 5);
+        progressLabel = `${n} / 5 reviews`;
+        earnedAt = earned ? addDays(joined, 200) : undefined;
+        break;
+      }
+      case "review-master": {
+        const n = reviewCountFor(userEmail);
+        earned = n >= 25;
+        progress = pctTowards(n, 25);
+        progressLabel = `${n} / 25 reviews`;
+        earnedAt = earned ? addDays(joined, 600) : undefined;
+        break;
+      }
     }
 
     return { stamp: s, earned, earnedAt, progress, progressLabel };
