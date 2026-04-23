@@ -1,24 +1,32 @@
 import { useState } from "react";
-import { User, Mail, Phone, Lock, Save, RefreshCw } from "lucide-react";
+import { useNavigate } from "react-router";
+import { User, Mail, Phone, Lock, Save, RefreshCw, Sparkles, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useScreenState } from "@/hooks/useScreenState";
 import { StateToolbar } from "@/components/StateToolbar";
 import { useI18n } from "@/contexts/I18nContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { currentUser } from "@/mocks/users";
 import { currentCompany } from "@/mocks/companies";
+import { userPointsState, tierFor } from "@/mocks/rewards";
 import { toast } from "sonner";
 
 export default function MyAccountPage() {
   const { state, setState } = useScreenState("success");
   const { t } = useI18n();
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const [changePassOpen, setChangePassOpen] = useState(false);
+
+  /* My reward points (read-only summary) */
+  const myPoints = userPointsState[user?.email || ""] || null;
+  const myTier = myPoints ? tierFor(myPoints.bookingCount) : null;
 
   /* Controlled form state with simple required-field validation.
    * Save button is disabled when any required field is blank, and we
@@ -123,6 +131,37 @@ export default function MyAccountPage() {
           </Button>
         </div>
       </Card>
+
+      {/* ─── Reward Points mini-widget ─── */}
+      {myPoints && myTier && (
+        <Card
+          className="p-5 cursor-pointer hover:shadow-md transition-shadow overflow-hidden relative"
+          style={{ background: `linear-gradient(90deg, ${myTier.color}18, transparent 60%)` }}
+          onClick={() => navigate("/app/rewards")}
+        >
+          <div className="flex items-center justify-between gap-4 flex-wrap">
+            <div className="flex items-center gap-4">
+              <Sparkles className="h-8 w-8" style={{ color: "#FF6000" }} />
+              <div>
+                <p className="text-[11px] uppercase tracking-wider text-muted-foreground">My Reward Points</p>
+                <p className="text-2xl font-bold" style={{ color: "#FF6000" }}>
+                  {myPoints.balance.toLocaleString()} <span className="text-sm text-muted-foreground">P</span>
+                </p>
+              </div>
+              <div className="border-l pl-4 ml-2">
+                <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Tier</p>
+                <p className="text-base font-bold" style={{ color: myTier.color }}>
+                  {myTier.icon} {myTier.name}
+                </p>
+                <p className="text-[10px] text-muted-foreground">{myPoints.bookingCount} bookings · {myTier.multiplier}× earn</p>
+              </div>
+            </div>
+            <Button variant="outline" size="sm">
+              Open Rewards <ArrowRight className="h-3 w-3 ml-1" />
+            </Button>
+          </div>
+        </Card>
+      )}
 
       {/* ─── Company Info (read-only, contract-bound) ─── */}
       <Card className="p-6">

@@ -44,7 +44,12 @@ export type AlertType =
   /* P2 — Useful */
   | "subaccount_added"
   | "role_changed"
-  | "contract_amendment";
+  | "contract_amendment"
+  /* P2 — Rewards Mall (OP-personal) */
+  | "points_earned"          /* Booking confirmed → +N points credited to OP */
+  | "points_milestone"       /* Cumulative-booking milestone reached */
+  | "points_expiring"        /* D-30 / D-7 before voucher or points expire */
+  | "reward_redeemed";       /* Voucher code issued */
 
 export interface Alert {
   id: string;
@@ -528,6 +533,56 @@ export const alerts: Alert[] = [
     createdAt: "2026-04-21 11:00:00",
     refType: "contract", refId: "ctr-011-vn",
   },
+
+  /* ── Rewards (per-OP) — seed a few examples ── */
+  {
+    id: "alt-500",
+    type: "points_earned",
+    category: "Account", priority: "P2",
+    customerCompanyId: "comp-001",
+    title: "🔥 +2 P earned — Fairmont Singapore booking",
+    body: "Your booking K26041511201H01 was confirmed. 2 points credited (Silver tier 1.1× applied). Balance: 185 P.",
+    actionLabel: "View Rewards", actionPath: "/app/rewards",
+    sentVia: ["In-app"],
+    createdAt: "2026-04-20 11:22:18",
+    readAt: "2026-04-20 11:25:00",
+    refType: "booking", refId: "bk-016",
+  },
+  {
+    id: "alt-501",
+    type: "points_milestone",
+    category: "Account", priority: "P1",
+    customerCompanyId: "comp-010",
+    title: "⭐ 50 Bookings milestone reached — Silver tier unlocked",
+    body: "Congratulations on 50 bookings! +5 bonus points and you've advanced to Silver tier (1.1× earn multiplier from now on).",
+    actionLabel: "View Rewards", actionPath: "/app/rewards",
+    sentVia: ["In-app", "Email"],
+    createdAt: "2026-04-05 08:00:00",
+    refType: undefined,
+  },
+  {
+    id: "alt-502",
+    type: "reward_redeemed",
+    category: "Account", priority: "P2",
+    customerCompanyId: "comp-001",
+    title: "Redeemed: CGV 영화 관람권",
+    body: "Voucher code CGV-9K4T-2XQB-7M3V issued — valid until 2026-07-15. Redeemed for 14 P.",
+    actionLabel: "Open My Vouchers", actionPath: "/app/rewards?tab=vault",
+    sentVia: ["In-app"],
+    createdAt: "2026-04-15 14:10:00",
+    readAt: "2026-04-15 14:30:00",
+  },
+  {
+    id: "alt-503",
+    type: "points_expiring",
+    category: "Account", priority: "P1",
+    customerCompanyId: "comp-010",
+    title: "Voucher expiring soon — GrabFood 100k VND",
+    body: "Your GrabFood voucher GRAB-VN-FD-2K9M expires in 7 days (2026-06-15). Use it before it expires.",
+    actionLabel: "Open My Vouchers", actionPath: "/app/rewards?tab=vault",
+    sentVia: ["In-app", "Email"],
+    createdAt: "2026-06-08 09:00:00",
+  },
 ];
 
 /* Helper — get unread alerts for a customer */
@@ -579,6 +634,10 @@ export const defaultAlertPreferences: AlertPreference[] = [
   { type: "subaccount_added",           enabled: true,  channels: ["In-app"] },
   { type: "role_changed",               enabled: true,  channels: ["In-app", "Email"] },
   { type: "contract_amendment",         enabled: true,  channels: ["In-app", "Email"] },
+  { type: "points_earned",              enabled: true,  channels: ["In-app"] },
+  { type: "points_milestone",           enabled: true,  channels: ["In-app", "Email"] },
+  { type: "points_expiring",            enabled: true,  channels: ["In-app", "Email"] },
+  { type: "reward_redeemed",            enabled: true,  channels: ["In-app"] },
 ];
 
 /* Critical alerts that cannot be fully disabled */
@@ -616,4 +675,8 @@ export const alertTypeMeta: Record<AlertType, { label: string; category: AlertCa
   subaccount_added:           { label: "Sub-account Added",            category: "Account",    priority: "P2" },
   role_changed:               { label: "Role Changed",                 category: "Account",    priority: "P2" },
   contract_amendment:         { label: "Contract Amendment",           category: "Account",    priority: "P2" },
+  points_earned:              { label: "Points Earned",                category: "Account",    priority: "P2" },
+  points_milestone:           { label: "Milestone Reached",            category: "Account",    priority: "P1" },
+  points_expiring:            { label: "Points/Voucher Expiring",      category: "Account",    priority: "P1" },
+  reward_redeemed:            { label: "Reward Redeemed",              category: "Account",    priority: "P2" },
 };

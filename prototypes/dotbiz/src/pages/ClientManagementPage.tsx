@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from "react";
-import { Search, Plus, Upload, Users, FileText, ToggleLeft, ToggleRight, Trash2, CreditCard, Lock, Calendar, MapPin, Phone, Info } from "lucide-react";
+import { Search, Plus, Upload, Users, FileText, ToggleLeft, ToggleRight, Trash2, CreditCard, Lock, Calendar, MapPin, Phone, Info, Trophy, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +14,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useI18n } from "@/contexts/I18nContext";
 import { useTabParam } from "@/hooks/useTabParam";
 import { subAccounts as seedSubAccounts, voucherSettingsByCompany, type SubAccount } from "@/mocks/clientManagement";
+import { userPointsState, tierFor } from "@/mocks/rewards";
 import { companies, currentCompany } from "@/mocks/companies";
 import { getSavedCards, saveCard, removeCard, type SavedCard } from "@/components/PaymentDialog";
 import { toast } from "sonner";
@@ -98,6 +99,7 @@ export default function ClientManagementPage() {
       <Tabs value={clientTab} onValueChange={setClientTab}>
         <TabsList className="flex-wrap">
           <TabsTrigger value="subaccounts" className="gap-1.5"><Users className="h-3.5 w-3.5" />Sub-accounts</TabsTrigger>
+          <TabsTrigger value="leaderboard" className="gap-1.5"><Trophy className="h-3.5 w-3.5" />Team Leaderboard</TabsTrigger>
           {/* Payment Cards — PREPAY only. POSTPAY settles via invoice wires, no card needed. */}
           {isPrepay && (
             <TabsTrigger value="cards" className="gap-1.5"><CreditCard className="h-3.5 w-3.5" />Payment Cards</TabsTrigger>
@@ -213,6 +215,107 @@ export default function ClientManagementPage() {
         {/* Departments tab removed — customer team structure is flat (role + scope are
          * the only organizational primitives we need). Balance Details tab removed
          * earlier (merged into Settlement > Credit Line card). */}
+
+        {/* ══════ Team Leaderboard Tab ══════
+         * Read-only view of team members' reward points. Master can see how
+         * engaged each OP is but CANNOT transfer, adjust, or redeem their
+         * points (points are personally owned per-OP). */}
+        <TabsContent value="leaderboard" className="space-y-4 mt-4">
+          <Alert className="border-orange-200 bg-orange-50 dark:bg-orange-950/20">
+            <Trophy className="h-4 w-4" style={{ color: "#FF6000" }} />
+            <AlertTitle className="text-sm">Team Rewards Leaderboard</AlertTitle>
+            <AlertDescription className="text-xs">
+              Each OP personally owns the points they earn on their bookings. This is a read-only
+              view — you can see engagement but cannot adjust or redeem others' points.
+            </AlertDescription>
+          </Alert>
+
+          {(() => {
+            const teamWithPoints = companySubs
+              .map(s => {
+                const pts = userPointsState[s.email];
+                return pts ? { ...s, pts } : null;
+              })
+              .filter((x): x is (SubAccount & { pts: typeof userPointsState[string] }) => x !== null)
+              .sort((a, b) => b.pts.totalEarned - a.pts.totalEarned);
+
+            if (teamWithPoints.length === 0) {
+              return (
+                <Card className="p-10 text-center text-muted-foreground text-sm">
+                  No points data yet — your team will start earning after their first booking.
+                </Card>
+              );
+            }
+
+            const totalTeamEarned = teamWithPoints.reduce((s, x) => s + x.pts.totalEarned, 0);
+            const totalTeamBookings = teamWithPoints.reduce((s, x) => s + x.pts.bookingCount, 0);
+            const topEarner = teamWithPoints[0];
+
+            return (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <Card className="p-4">
+                    <p className="text-[10px] uppercase text-muted-foreground">Top Earner</p>
+                    <p className="text-lg font-bold mt-1">{topEarner.name}</p>
+                    <p className="text-sm text-[#FF6000] font-bold">{topEarner.pts.totalEarned.toLocaleString()} P earned</p>
+                  </Card>
+                  <Card className="p-4">
+                    <p className="text-[10px] uppercase text-muted-foreground">Team Total Earned</p>
+                    <p className="text-2xl font-bold mt-1" style={{ color: "#FF6000" }}>{totalTeamEarned.toLocaleString()} P</p>
+                    <p className="text-[11px] text-muted-foreground">across {teamWithPoints.length} members</p>
+                  </Card>
+                  <Card className="p-4">
+                    <p className="text-[10px] uppercase text-muted-foreground">Team Bookings</p>
+                    <p className="text-2xl font-bold mt-1">{totalTeamBookings.toLocaleString()}</p>
+                    <p className="text-[11px] text-muted-foreground">cumulative, all-time</p>
+                  </Card>
+                </div>
+
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-12">Rank</TableHead>
+                      <TableHead>Member</TableHead>
+                      <TableHead>Tier</TableHead>
+                      <TableHead className="text-right">Bookings</TableHead>
+                      <TableHead className="text-right">Earned</TableHead>
+                      <TableHead className="text-right">Balance</TableHead>
+                      <TableHead className="text-right">Used</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {teamWithPoints.map((m, i) => {
+                      const t = tierFor(m.pts.bookingCount);
+                      const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : "";
+                      return (
+                        <TableRow key={m.id}>
+                          <TableCell className="font-bold text-center">
+                            {medal || `#${i + 1}`}
+                          </TableCell>
+                          <TableCell>
+                            <p className="font-medium text-sm">{m.name}</p>
+                            <p className="text-[11px] text-muted-foreground">{m.email}</p>
+                          </TableCell>
+                          <TableCell>
+                            <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-md" style={{ background: `${t.color}22`, color: t.color }}>
+                              {t.icon} {t.name}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-right font-mono text-sm">{m.pts.bookingCount.toLocaleString()}</TableCell>
+                          <TableCell className="text-right font-mono text-sm font-semibold" style={{ color: "#FF6000" }}>
+                            {m.pts.totalEarned.toLocaleString()} P
+                          </TableCell>
+                          <TableCell className="text-right font-mono text-sm">{m.pts.balance.toLocaleString()} P</TableCell>
+                          <TableCell className="text-right font-mono text-sm text-muted-foreground">{m.pts.totalUsed.toLocaleString()} P</TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </>
+            );
+          })()}
+        </TabsContent>
 
         {/* ══════ Payment Cards Tab (PREPAY only) ══════ */}
         {isPrepay && (
