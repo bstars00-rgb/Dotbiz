@@ -38,7 +38,6 @@ import {
 } from "@/mocks/reviews";
 import { useAuth } from "@/contexts/AuthContext";
 import { Textarea } from "@/components/ui/textarea";
-import { DialogFooter } from "@/components/ui/dialog";
 import { ThumbsUp, Pencil, X as XIcon, Image as ImageIcon, Upload } from "lucide-react";
 
 const facilityList = [
@@ -77,7 +76,7 @@ export default function HotelDetailPage() {
   const { user } = useAuth();
 
   /* ── OP Reviews state ── */
-  const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
+  const [reviewFormOpen, setReviewFormOpen] = useState(false);
   const [rvRating, setRvRating] = useState<1 | 2 | 3 | 4 | 5>(5);
   const [rvTitle, setRvTitle] = useState("");
   const [rvBody, setRvBody] = useState("");
@@ -160,7 +159,7 @@ export default function HotelDetailPage() {
       elsAwarded: rvReward.els,
     };
     setLocalReviews(prev => [newReview, ...prev]);
-    setReviewDialogOpen(false);
+    setReviewFormOpen(false);
     setRvTitle(""); setRvBody(""); setRvTipsText(""); setRvRating(5); setRvPhotos([]);
     toast.success(`Review submitted · +${rvReward.els} ELS credited`, {
       description: "Your tips will help other OPs pick the right hotel.",
@@ -940,10 +939,15 @@ export default function HotelDetailPage() {
                     <CheckCircle2 className="h-3 w-3 mr-1" />
                     You've reviewed this hotel
                   </Badge>
+                ) : reviewFormOpen ? (
+                  <Badge variant="outline" className="text-[10px] border-[#FF6000]/50 text-[#FF6000]">
+                    <Pencil className="h-3 w-3 mr-1" />
+                    Writing review below…
+                  </Badge>
                 ) : (
                   <Button
                     size="sm"
-                    onClick={() => setReviewDialogOpen(true)}
+                    onClick={() => setReviewFormOpen(true)}
                     style={{ background: "#FF6000" }}
                     className="text-white"
                   >
@@ -953,6 +957,218 @@ export default function HotelDetailPage() {
                 )}
               </div>
             </Card>
+
+            {/* ── Inline Write Review form ── */}
+            {reviewFormOpen && !userHasReviewed && (
+              <Card
+                className="p-5 border-2"
+                style={{ borderColor: "#FF600055", background: "linear-gradient(135deg, #FF600008, transparent 70%)" }}
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <Pencil className="h-4 w-4" style={{ color: "#FF6000" }} />
+                    <h3 className="font-bold text-base">Write your review · {hotel.name}</h3>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setReviewFormOpen(false);
+                      /* Keep draft state — user may reopen */
+                    }}
+                    className="text-muted-foreground hover:text-foreground p-1 rounded hover:bg-muted"
+                    aria-label="Collapse form"
+                  >
+                    <XIcon className="h-4 w-4" />
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Left column: rating + title + body */}
+                  <div className="space-y-3">
+                    {/* Rating */}
+                    <div>
+                      <label className="text-xs font-medium">Your rating</label>
+                      <div className="flex items-center gap-1 mt-1">
+                        {[1, 2, 3, 4, 5].map(n => (
+                          <button
+                            key={n}
+                            onClick={() => setRvRating(n as 1 | 2 | 3 | 4 | 5)}
+                            className="p-1"
+                            aria-label={`${n} stars`}
+                          >
+                            <Star
+                              className="h-7 w-7"
+                              style={{
+                                fill: n <= rvRating ? "#FF6000" : "transparent",
+                                color: "#FF6000",
+                              }}
+                            />
+                          </button>
+                        ))}
+                        <span className="ml-2 text-sm font-semibold" style={{ color: "#FF6000" }}>
+                          {rvRating}/5
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Title */}
+                    <div>
+                      <label className="text-xs font-medium">Headline</label>
+                      <Input
+                        className="mt-1"
+                        placeholder="e.g. 'Reliable for VIP business trips'"
+                        value={rvTitle}
+                        onChange={e => setRvTitle(e.target.value)}
+                        maxLength={80}
+                      />
+                    </div>
+
+                    {/* Body */}
+                    <div>
+                      <label className="text-xs font-medium">Detailed review</label>
+                      <Textarea
+                        className="mt-1"
+                        rows={7}
+                        placeholder="What did you learn from operating bookings here? What works, what doesn't? Share intel that'd save other OPs time…"
+                        value={rvBody}
+                        onChange={e => setRvBody(e.target.value)}
+                        maxLength={2000}
+                      />
+                      <div className="flex items-center justify-between text-[10px] mt-0.5">
+                        <span className={rvBody.trim().length < 80 ? "text-destructive" : "text-muted-foreground"}>
+                          {rvBody.trim().length} / 80 min · {rvBody.length} chars
+                        </span>
+                        <span className="text-muted-foreground">
+                          {rvBody.trim().length >= 300 ? "✓ Quality bonus eligible" : "300+ for quality bonus"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Right column: tips + photos + reward preview */}
+                  <div className="space-y-3">
+                    {/* Tips */}
+                    <div>
+                      <label className="text-xs font-medium">Tips (one per line)</label>
+                      <Textarea
+                        className="mt-1"
+                        rows={5}
+                        placeholder={`Insider tips that help other OPs:\n- Request 20F+ for city view\n- Avoid weekends (wedding traffic)\n- Club lounge on 23F opens 07:00`}
+                        value={rvTipsText}
+                        onChange={e => setRvTipsText(e.target.value)}
+                      />
+                      <div className="flex items-center justify-between text-[10px] mt-0.5">
+                        <span className={rvTips.length < 1 ? "text-destructive" : "text-muted-foreground"}>
+                          {rvTips.length} tip{rvTips.length === 1 ? "" : "s"} · min 1
+                        </span>
+                        <span className="text-muted-foreground">
+                          {rvTips.length >= 4 ? "✓ Quality bonus eligible" : "4+ for quality bonus"}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Photos */}
+                    <div>
+                      <label className="text-xs font-medium flex items-center gap-1">
+                        <ImageIcon className="h-3 w-3" />
+                        Photos <span className="text-muted-foreground font-normal">(optional, +2 ELS bonus)</span>
+                      </label>
+                      <div className="mt-1 grid grid-cols-4 gap-2">
+                        {rvPhotos.map((src, i) => (
+                          <div key={i} className="relative group aspect-square rounded-md overflow-hidden border">
+                            <img src={src} alt={`Upload ${i + 1}`} className="h-full w-full object-cover" />
+                            <button
+                              onClick={() => removePhoto(i)}
+                              type="button"
+                              className="absolute top-1 right-1 h-5 w-5 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                              aria-label="Remove photo"
+                            >
+                              <XIcon className="h-3 w-3" />
+                            </button>
+                          </div>
+                        ))}
+                        {rvPhotos.length < REVIEW_MAX_PHOTOS && (
+                          <label className="aspect-square rounded-md border-2 border-dashed border-muted-foreground/30 hover:border-[#FF6000]/60 hover:bg-[#FF6000]/5 cursor-pointer flex flex-col items-center justify-center gap-1 transition-colors">
+                            <Upload className="h-5 w-5 text-muted-foreground" />
+                            <span className="text-[10px] text-muted-foreground">Add photo</span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              multiple
+                              className="hidden"
+                              onChange={handlePhotoUpload}
+                            />
+                          </label>
+                        )}
+                      </div>
+                      <div className="flex items-center justify-between text-[10px] mt-1">
+                        <span className="text-muted-foreground">
+                          {rvPhotos.length} / {REVIEW_MAX_PHOTOS} · max 2MB each
+                        </span>
+                        <span className="text-muted-foreground">
+                          {rvPhotos.length >= 1 ? "✓ Photo bonus unlocked" : "1+ for +2 ELS"}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Reward preview */}
+                    <Card
+                      className="p-3"
+                      style={{
+                        background: rvReward.els > 0
+                          ? "linear-gradient(135deg, #FF600015, transparent)"
+                          : "#f1f5f9",
+                        borderColor: rvReward.els > 0 ? "#FF600055" : undefined,
+                      }}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-[9px] uppercase tracking-wider text-muted-foreground">
+                            Reward preview
+                          </p>
+                          <p className="text-2xl font-bold" style={{ color: rvReward.els > 0 ? "#FF6000" : "#94a3b8" }}>
+                            {rvReward.els > 0 ? "+" : ""}{rvReward.els} ELS
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          {rvReward.breakdown.map((line, i) => (
+                            <p key={i} className="text-[9px] text-muted-foreground">{line}</p>
+                          ))}
+                        </div>
+                      </div>
+                    </Card>
+                  </div>
+                </div>
+
+                {/* Footer: syndication hint + actions */}
+                <div className="mt-4 pt-4 border-t flex items-center justify-between gap-3 flex-wrap">
+                  <p className="text-[10px] text-muted-foreground italic max-w-md">
+                    💡 Approved reviews are syndicated (anonymized) to our B2C layer —
+                    your insights strengthen DOTBIZ's discovery edge.
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setReviewFormOpen(false);
+                        setRvTitle(""); setRvBody(""); setRvTipsText(""); setRvRating(5); setRvPhotos([]);
+                      }}
+                    >
+                      Discard
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={submitReview}
+                      disabled={rvReward.els === 0}
+                      style={rvReward.els > 0 ? { background: "#FF6000" } : undefined}
+                      className={rvReward.els > 0 ? "text-white" : ""}
+                    >
+                      Submit · earn {rvReward.els} ELS
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+            )}
 
             {/* Review list */}
             {allReviewsForHotel.length === 0 ? (
@@ -1118,191 +1334,6 @@ export default function HotelDetailPage() {
               className="w-full h-auto max-h-[80vh] object-contain"
             />
           )}
-        </DialogContent>
-      </Dialog>
-
-      {/* ── Write Review Dialog ── */}
-      <Dialog open={reviewDialogOpen} onOpenChange={setReviewDialogOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Pencil className="h-4 w-4" style={{ color: "#FF6000" }} />
-              Review {hotel.name}
-            </DialogTitle>
-          </DialogHeader>
-
-          <div className="space-y-3">
-            {/* Rating */}
-            <div>
-              <label className="text-xs font-medium">Your rating</label>
-              <div className="flex items-center gap-1 mt-1">
-                {[1, 2, 3, 4, 5].map(n => (
-                  <button
-                    key={n}
-                    onClick={() => setRvRating(n as 1 | 2 | 3 | 4 | 5)}
-                    className="p-1"
-                    aria-label={`${n} stars`}
-                  >
-                    <Star
-                      className="h-6 w-6"
-                      style={{
-                        fill: n <= rvRating ? "#FF6000" : "transparent",
-                        color: "#FF6000",
-                      }}
-                    />
-                  </button>
-                ))}
-                <span className="ml-2 text-sm font-semibold" style={{ color: "#FF6000" }}>
-                  {rvRating}/5
-                </span>
-              </div>
-            </div>
-
-            {/* Title */}
-            <div>
-              <label className="text-xs font-medium">Headline</label>
-              <Input
-                className="mt-1"
-                placeholder="e.g. 'Reliable for VIP business trips'"
-                value={rvTitle}
-                onChange={e => setRvTitle(e.target.value)}
-                maxLength={80}
-              />
-            </div>
-
-            {/* Body */}
-            <div>
-              <label className="text-xs font-medium">Detailed review</label>
-              <Textarea
-                className="mt-1"
-                rows={5}
-                placeholder="What did you learn from operating bookings here? What works, what doesn't? Share intel that'd save other OPs time…"
-                value={rvBody}
-                onChange={e => setRvBody(e.target.value)}
-                maxLength={2000}
-              />
-              <div className="flex items-center justify-between text-[10px] mt-0.5">
-                <span className={rvBody.trim().length < 80 ? "text-destructive" : "text-muted-foreground"}>
-                  {rvBody.trim().length} / 80 min · {rvBody.length} chars
-                </span>
-                <span className="text-muted-foreground">
-                  {rvBody.trim().length >= 300 ? "✓ Quality bonus eligible" : "300+ chars for quality bonus"}
-                </span>
-              </div>
-            </div>
-
-            {/* Tips */}
-            <div>
-              <label className="text-xs font-medium">Tips (one per line)</label>
-              <Textarea
-                className="mt-1"
-                rows={4}
-                placeholder={`Insider tips that help other OPs:\n- Request 20F+ for city view\n- Avoid weekends (wedding traffic)\n- Club lounge on 23F opens 07:00`}
-                value={rvTipsText}
-                onChange={e => setRvTipsText(e.target.value)}
-              />
-              <div className="flex items-center justify-between text-[10px] mt-0.5">
-                <span className={rvTips.length < 1 ? "text-destructive" : "text-muted-foreground"}>
-                  {rvTips.length} tip{rvTips.length === 1 ? "" : "s"} · min 1
-                </span>
-                <span className="text-muted-foreground">
-                  {rvTips.length >= 4 ? "✓ Quality bonus eligible" : "4+ tips for quality bonus"}
-                </span>
-              </div>
-            </div>
-
-            {/* Photos */}
-            <div>
-              <label className="text-xs font-medium flex items-center gap-1">
-                <ImageIcon className="h-3 w-3" />
-                Photos <span className="text-muted-foreground font-normal">(optional, +2 ELS bonus)</span>
-              </label>
-              <div className="mt-1 grid grid-cols-4 gap-2">
-                {rvPhotos.map((src, i) => (
-                  <div key={i} className="relative group aspect-square rounded-md overflow-hidden border">
-                    <img src={src} alt={`Upload ${i + 1}`} className="h-full w-full object-cover" />
-                    <button
-                      onClick={() => removePhoto(i)}
-                      type="button"
-                      className="absolute top-1 right-1 h-5 w-5 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                      aria-label="Remove photo"
-                    >
-                      <XIcon className="h-3 w-3" />
-                    </button>
-                  </div>
-                ))}
-                {rvPhotos.length < REVIEW_MAX_PHOTOS && (
-                  <label className="aspect-square rounded-md border-2 border-dashed border-muted-foreground/30 hover:border-[#FF6000]/60 hover:bg-[#FF6000]/5 cursor-pointer flex flex-col items-center justify-center gap-1 transition-colors">
-                    <Upload className="h-5 w-5 text-muted-foreground" />
-                    <span className="text-[10px] text-muted-foreground">Add photo</span>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      multiple
-                      className="hidden"
-                      onChange={handlePhotoUpload}
-                    />
-                  </label>
-                )}
-              </div>
-              <div className="flex items-center justify-between text-[10px] mt-1">
-                <span className="text-muted-foreground">
-                  {rvPhotos.length} / {REVIEW_MAX_PHOTOS} photos · max 2MB each
-                </span>
-                <span className="text-muted-foreground">
-                  {rvPhotos.length >= 1 ? "✓ Photo bonus unlocked" : "1+ photo for +2 ELS"}
-                </span>
-              </div>
-            </div>
-
-            {/* Reward preview */}
-            <Card
-              className="p-3"
-              style={{
-                background: rvReward.els > 0
-                  ? "linear-gradient(135deg, #FF600015, transparent)"
-                  : "#f1f5f9",
-                borderColor: rvReward.els > 0 ? "#FF600055" : undefined,
-              }}
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                    Reward preview
-                  </p>
-                  <p className="text-2xl font-bold" style={{ color: rvReward.els > 0 ? "#FF6000" : "#94a3b8" }}>
-                    {rvReward.els > 0 ? "+" : ""}{rvReward.els} ELS
-                  </p>
-                </div>
-                <div className="text-right">
-                  {rvReward.breakdown.map((line, i) => (
-                    <p key={i} className="text-[10px] text-muted-foreground">{line}</p>
-                  ))}
-                </div>
-              </div>
-            </Card>
-
-            <div className="p-2.5 rounded-md bg-blue-50 text-[10px] text-blue-900">
-              <strong>Why we reward reviews:</strong> Your insights get syndicated
-              (anonymized) to our B2C layer. Every quality review strengthens
-              DOTBIZ's discovery edge — which flows back as more bookings for you.
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setReviewDialogOpen(false)}>
-              <XIcon className="h-3 w-3 mr-1" />
-              Cancel
-            </Button>
-            <Button
-              onClick={submitReview}
-              disabled={rvReward.els === 0}
-              style={rvReward.els > 0 ? { background: "#FF6000" } : undefined}
-              className={rvReward.els > 0 ? "text-white" : ""}
-            >
-              Submit · earn {rvReward.els} ELS
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
 
