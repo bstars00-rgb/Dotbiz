@@ -1,7 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { useNavigate, useParams } from "react-router";
 import HotelLoadingDialog from "@/components/HotelLoadingDialog";
-import CurrencyCalculator from "@/components/CurrencyCalculator";
 import { MapContainer, TileLayer, Marker, Popup, Circle } from "react-leaflet";
 import { DivIcon } from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -1364,7 +1363,6 @@ export default function HotelDetailPage() {
         </DialogContent>
       </Dialog>
 
-      <CurrencyCalculator />
     </div>
   );
 }
