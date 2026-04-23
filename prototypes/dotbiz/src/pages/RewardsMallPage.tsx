@@ -337,9 +337,9 @@ export default function RewardsMallPage() {
               </span>
             </div>
             <p className="text-[10px] text-muted-foreground mt-1">
-              <span className="font-mono">$100</span> booking →{" "}
+              <span className="font-mono">$1,000</span> booking →{" "}
               <strong style={{ color: rank.tier.color }}>
-                {Math.round(100 * rank.tier.multiplier)} ELS
+                {Math.max(1, Math.round(1000 * 0.01 * rank.tier.multiplier))} ELS
               </strong>
               {rank.tier.multiplier > 1 && (
                 <> (+{Math.round((rank.tier.multiplier - 1) * 100)}% vs Bronze)</>
@@ -364,7 +364,7 @@ export default function RewardsMallPage() {
               ))}
             </div>
             <p className="text-[9px] text-muted-foreground mt-1.5 italic">
-              💡 Boost stacks: Gold(1.2×) × Hotel 3× promo = <strong>3.6×</strong> on that booking
+              💡 Base 1 ELS / $100 · tier × hotel promo stack (e.g. Gold 1.2× × +15% = <strong>1.38×</strong>)
             </p>
 
             {/* ── Next tier unlock nudge ── */}
@@ -868,8 +868,8 @@ export default function RewardsMallPage() {
                 <div className="p-3 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
                   {activePromos.slice(0, 6).map(({ boost, hotel }) => {
                     const mgrad =
-                      boost.multiplier === 5 ? "linear-gradient(90deg,#EF476F,#FF6000)" :
-                      boost.multiplier === 3 ? "linear-gradient(90deg,#FF6000,#FFD166)" :
+                      boost.multiplier >= 1.2  ? "linear-gradient(90deg,#EF476F,#FF6000)" :
+                      boost.multiplier >= 1.15 ? "linear-gradient(90deg,#FF6000,#FFD166)" :
                       "linear-gradient(90deg,#8b5cf6,#a855f7)";
                     return (
                       <div
@@ -887,10 +887,10 @@ export default function RewardsMallPage() {
                         <div className="flex items-center justify-between mt-2">
                           <div>
                             <p className="text-[9px] uppercase tracking-wider text-muted-foreground">
-                              Per $100 booking
+                              Per $1,000 booking
                             </p>
                             <p className="text-sm font-bold" style={{ color: "#FF6000" }}>
-                              {Math.round(100 * rank.tier.multiplier * boost.multiplier)} ELS
+                              {Math.max(1, Math.round(1000 * 0.01 * rank.tier.multiplier * boost.multiplier))} ELS
                             </p>
                           </div>
                           <span className="text-[9px] text-muted-foreground">
@@ -906,7 +906,7 @@ export default function RewardsMallPage() {
                           className="w-full mt-2 h-7 text-[11px] text-white"
                           style={{ background: "#FF6000" }}
                         >
-                          Book now · earn {boost.multiplier}× ELS
+                          Book now · {boost.label}
                           <ArrowRight className="h-3 w-3 ml-1" />
                         </Button>
                       </div>

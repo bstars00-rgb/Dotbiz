@@ -498,7 +498,7 @@ export default function SearchResultsPage() {
                                   className="px-2 py-0.5 rounded text-[10px] font-bold inline-flex items-center gap-1 animate-pulse"
                                   style={{
                                     color: "#fff",
-                                    background: boost.multiplier === 5 ? "linear-gradient(90deg,#EF476F,#FF6000)" : boost.multiplier === 3 ? "linear-gradient(90deg,#FF6000,#FFD166)" : "linear-gradient(90deg,#8b5cf6,#a855f7)",
+                                    background: boost.multiplier >= 1.2 ? "linear-gradient(90deg,#EF476F,#FF6000)" : boost.multiplier >= 1.15 ? "linear-gradient(90deg,#FF6000,#FFD166)" : "linear-gradient(90deg,#8b5cf6,#a855f7)",
                                     border: "1px solid rgba(0,0,0,0.1)",
                                     boxShadow: "0 1px 4px rgba(255,96,0,0.3)",
                                   }}

@@ -274,7 +274,7 @@ export default function BookingFormPage() {
                   <span
                     className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold text-white animate-pulse"
                     style={{
-                      background: boost.multiplier === 5 ? "linear-gradient(90deg,#EF476F,#FF6000)" : boost.multiplier === 3 ? "linear-gradient(90deg,#FF6000,#FFD166)" : "linear-gradient(90deg,#8b5cf6,#a855f7)",
+                      background: boost.multiplier >= 1.2 ? "linear-gradient(90deg,#EF476F,#FF6000)" : boost.multiplier >= 1.15 ? "linear-gradient(90deg,#FF6000,#FFD166)" : "linear-gradient(90deg,#8b5cf6,#a855f7)",
                     }}
                   >
                     ⚡ {boost.label} PROMO
