@@ -44,17 +44,16 @@ export default function BookingFormPage() {
   const [bookerName, setBookerName] = useState(() => { const s = loadSavedForm(); return s?.bookerName ?? user?.name ?? currentCompany.name; });
   const [bookerEmail, setBookerEmail] = useState(() => { const s = loadSavedForm(); return s?.bookerEmail ?? user?.email ?? currentCompany.email; });
   const [bookerMobile, setBookerMobile] = useState(() => loadSavedForm()?.bookerMobile ?? "");
-  /* Guest 국가 — 마케팅 분석 목적 optional 필드 (요금 차등 X) */
-  const [guestNationality, setGuestNationality] = useState<string>(() => loadSavedForm()?.guestNationality ?? "");
   const [bookerCode, setBookerCode] = useState(() => loadSavedForm()?.bookerCode ?? "");
   const [mobileCountry, setMobileCountry] = useState(() => loadSavedForm()?.mobileCountry ?? "82");
 
-  /* Travelers — restored from session */
+  /* Travelers — restored from session.
+   * nationality 필드는 게스트별 optional (1인 1국적). 마케팅 분석 목적. */
   const [travelers, setTravelers] = useState(() => {
     const s = loadSavedForm();
     return s?.travelers ?? [
-      { id: "t-1", room: 1, gender: "M", localName: "", lastName: "", firstName: "", childBirthday: "" },
-      { id: "t-2", room: 1, gender: "M", localName: "", lastName: "", firstName: "", childBirthday: "" },
+      { id: "t-1", room: 1, gender: "M", localName: "", lastName: "", firstName: "", childBirthday: "", nationality: "" },
+      { id: "t-2", room: 1, gender: "M", localName: "", lastName: "", firstName: "", childBirthday: "", nationality: "" },
     ];
   });
 
@@ -89,7 +88,7 @@ export default function BookingFormPage() {
   /* Auto-save form data + booking params to sessionStorage */
   useEffect(() => {
     const data = {
-      bookerName, bookerEmail, bookerMobile, bookerCode, mobileCountry, guestNationality,
+      bookerName, bookerEmail, bookerMobile, bookerCode, mobileCountry,
       travelers, specialReqs: Array.from(specialReqs), customRequest, expectedCheckIn,
     };
     sessionStorage.setItem(FORM_STORAGE_KEY, JSON.stringify(data));
@@ -97,7 +96,7 @@ export default function BookingFormPage() {
     sessionStorage.setItem("dotbiz_booking_room", roomId);
     sessionStorage.setItem("dotbiz_booking_checkin", checkIn);
     sessionStorage.setItem("dotbiz_booking_checkout", checkOut);
-  }, [bookerName, bookerEmail, bookerMobile, bookerCode, mobileCountry, guestNationality, travelers, specialReqs, customRequest, expectedCheckIn, hotelId, roomId, checkIn, checkOut]);
+  }, [bookerName, bookerEmail, bookerMobile, bookerCode, mobileCountry, travelers, specialReqs, customRequest, expectedCheckIn, hotelId, roomId, checkIn, checkOut]);
   const nights = Math.max(1, Math.round((new Date(checkOut).getTime() - new Date(checkIn).getTime()) / 86400000));
   const totalPrice = room ? room.price * nights : 0;
   const isFreeCancel = room?.cancellationPolicy === "free_cancel";
@@ -152,26 +151,6 @@ export default function BookingFormPage() {
             <label className="text-sm font-medium">Hotel Confirmation No.</label>
             <Input value={bookerCode} onChange={e => setBookerCode(e.target.value)} className="mt-1" placeholder="Hotel Confirmation No." />
           </div>
-          <div>
-            <label className="text-sm font-medium">
-              Guest Nationality <span className="text-muted-foreground text-xs font-normal">(선택 · 마케팅 분석용)</span>
-            </label>
-            <select
-              value={guestNationality}
-              onChange={e => setGuestNationality(e.target.value)}
-              className="mt-1 w-full border rounded-md px-3 py-2 text-sm bg-background"
-            >
-              <option value="">— 선택 안 함 —</option>
-              {[
-                "Korean", "Japanese", "Chinese (Mainland)", "Chinese (Hong Kong)", "Taiwanese",
-                "Vietnamese", "Thai", "Singaporean", "Malaysian", "Indonesian", "Filipino",
-                "American", "British", "Australian", "German", "French", "Indian", "Other",
-              ].map(n => <option key={n} value={n}>{n}</option>)}
-            </select>
-            <p className="text-[10px] text-muted-foreground mt-1">
-              요금 차등 없음 · 마케팅 타겟팅 분석 목적 · 미입력 가능
-            </p>
-          </div>
         </div>
       </Card>
 
@@ -202,8 +181,9 @@ export default function BookingFormPage() {
             <TableRow>
               <TableHead className="w-20">Rooms</TableHead>
               <TableHead className="w-20">Gender</TableHead>
-              <TableHead>Name(Local Language)</TableHead>
+              <TableHead>Name (Local Language)</TableHead>
               <TableHead>Last Name / First Name (EN)</TableHead>
+              <TableHead className="w-36">Nationality</TableHead>
               <TableHead className="w-28">Child Birthday</TableHead>
             </TableRow>
           </TableHeader>
@@ -217,13 +197,27 @@ export default function BookingFormPage() {
                     <label className="flex items-center gap-1 cursor-pointer"><input type="radio" name={`gender-${i}`} checked={t.gender === "F"} onChange={() => updateTraveler(i, "gender", "F")} className="accent-[#FF6000]" /><span className="text-xs">F</span></label>
                   </div>
                 </TableCell>
-                <TableCell><Input placeholder="Name(Local Language)" value={t.localName} onChange={e => updateTraveler(i, "localName", e.target.value)} className="text-xs" /></TableCell>
+                <TableCell><Input placeholder="Name (Local Language)" value={t.localName} onChange={e => updateTraveler(i, "localName", e.target.value)} className="text-xs" /></TableCell>
                 <TableCell>
                   <div className="flex items-center gap-1">
                     <Input placeholder="Please enter only uppercas..." value={t.lastName} onChange={e => { updateTraveler(i, "lastName", e.target.value.toUpperCase()); setTravelerErrors(false); }} className={`text-xs flex-1 ${travelerErrors && !t.lastName ? "border-[#FF6000] ring-2 ring-[#FF6000]/30" : ""}`} />
                     <span className="text-muted-foreground">/</span>
                     <Input placeholder="Please enter only uppercase letters." value={t.firstName} onChange={e => { updateTraveler(i, "firstName", e.target.value.toUpperCase()); setTravelerErrors(false); }} className={`text-xs flex-1 ${travelerErrors && !t.firstName ? "border-[#FF6000] ring-2 ring-[#FF6000]/30" : ""}`} />
                   </div>
+                </TableCell>
+                <TableCell>
+                  <select
+                    value={t.nationality || ""}
+                    onChange={e => updateTraveler(i, "nationality", e.target.value)}
+                    className="w-full border rounded px-2 py-1.5 text-xs bg-background"
+                  >
+                    <option value="">—</option>
+                    {[
+                      "Korean", "Japanese", "Chinese (Mainland)", "Chinese (Hong Kong)", "Taiwanese",
+                      "Vietnamese", "Thai", "Singaporean", "Malaysian", "Indonesian", "Filipino",
+                      "American", "British", "Australian", "German", "French", "Indian", "Other",
+                    ].map(n => <option key={n} value={n}>{n}</option>)}
+                  </select>
                 </TableCell>
                 <TableCell>
                   {parseInt(searchParams.get("children") || "0") > 0 ? (
