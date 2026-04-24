@@ -1,57 +1,79 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router";
 import {
-  Shield, Settings, ArrowRight,
-  AlertTriangle, Users, Send, Search, X as XIcon, Edit, History,
+  Shield, AlertTriangle, ArrowRight, Edit, History, Save, Plus, Trash2,
+  Coins, TrendingUp, Award, Settings, ShieldCheck, Package, ExternalLink,
+  DollarSign, Percent, Calendar, Users, X as XIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useScreenState } from "@/hooks/useScreenState";
 import { useTabParam } from "@/hooks/useTabParam";
 import { StateToolbar } from "@/components/StateToolbar";
 import { useAuth } from "@/contexts/AuthContext";
+import { hotels } from "@/mocks/hotels";
 import {
-  APPROVAL_ITEMS, getApprovalItem,
-  IMPACT_COLOR, APPROVER_COLOR,
-  allParameterChanges, changesForItem,
-  type ApprovalItem, type ApprovalCategory, type ParameterChange,
+  IMPACT_COLOR,
+  allParameterChanges,
+  type ParameterChange,
 } from "@/mocks/approvals";
+import {
+  HOTEL_POINTS_BOOSTS,
+  TIERS,
+  STAMP_BONUS_BY_RARITY,
+  type HotelPointsBoost,
+  type StampRarity,
+} from "@/mocks/rewards";
 import { toast } from "sonner";
 
 /* ──────────────────────────────────────────────────────────────────────
- * AdminEconomicsPage — ELLIS admin 실제 관리 페이지
+ * AdminEconomicsPage — 실집행 어드민 도구
  *
- * 이 페이지는 **결재가 이미 완료된 변경을 실제 프로덕션에 반영**하는 도구.
- * 결재 요청/서명 워크플로우는 별도 결재 시스템(이메일·Slack·전자결재 등)에서
- * 처리되며, 여기서는 **승인 번호를 참조하여 값을 즉시 수정**한다.
+ * 각 파라미터는 데이터 타입에 맞는 전용 편집 UI 제공:
+ *   • 단일 숫자 → Slider + Number input (예: 적립률, 만료 개월)
+ *   • 통화 → ₩ 표기 Number input (예: 예산 한도)
+ *   • 불리언 → Toggle switch (예: ELS 양도 가능)
+ *   • 배수 세트 → 5개 inline input (예: 티어 배수)
+ *   • 객체 배열 → 편집 가능한 테이블 (예: 호텔 프로모)
+ *   • 바로가기 → 다른 어드민 페이지 링크 (예: 리뷰 모더레이션)
  *
- * 변경 시 주의:
- *   1. 반드시 해당 결재 문서 번호(apr-xxx) 참조
- *   2. 즉시 시스템 전체에 반영 (고객 앱 포함)
- *   3. 전체 변경 이력이 영구 감사 로그에 기록됨
- *
- * Three tabs:
- *   • 파라미터 — 모든 설정 값을 직접 수정 (결재 참조 필수)
- *   • 변경 이력 — 이 페이지로 실행된 모든 변경의 감사 로그
- *   • 결재 매트릭스 — 사전 결재 체계 참고 (읽기 전용)
+ * 결재는 이 페이지 외부 시스템(전자결재·Slack)에서 처리되고,
+ * 여기서는 승인된 값을 실제로 **시스템에 입력**하는 도구.
  * ────────────────────────────────────────────────────────────────────── */
+
+/* 편집 가능한 라이브 설정 — 실제로는 ELLIS DB에 write */
+interface LiveSettings {
+  elsBookingEarnRate: number;
+  elsUsdPeg: number;
+  rewardPoolBudgetKrw: number | null;    /* null = uncapped */
+  tierMultipliers: [number, number, number, number, number];
+  tierThresholds: [number, number, number, number];  /* Silver/Gold/Plat/Diamond */
+  hotelBoosts: HotelPointsBoost[];
+  promoMaxMultiplier: number;
+  stampBonuses: Record<StampRarity, number>;
+  reviewRewardFormula: {
+    base: number;
+    quality: number;
+    photo: number;
+    first: number;
+    monthlyCap: number;
+  };
+  elsNonTransferable: boolean;
+  elsExpiryMonths: number;
+}
 
 export default function AdminEconomicsPage() {
   const { state, setState } = useScreenState("success");
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [tab, setTab] = useTabParam("parameters");
+  const [tab, setTab] = useTabParam("economics");
 
-  /* ── Access guard: ELLIS internal staff only ──
-   * Even Master customers must not see this page. Direct URL access
-   * shows a polite denial. */
+  /* Access guard — 내부 스태프 전용 */
   if (!user?.isInternal) {
     return (
       <div className="p-6 max-w-2xl mx-auto">
@@ -71,674 +93,1125 @@ export default function AdminEconomicsPage() {
     );
   }
 
-  /* ── Live-editable parameter values (세션 시뮬레이션) ──
-   * 실제로는 ELLIS DB에 write되고 전 시스템 재설정 트리거.
-   * 프로토타입에선 페이지 내 local state로 변경을 즉각 반영. */
-  const [liveValues, setLiveValues] = useState<Record<string, string>>(
-    Object.fromEntries(APPROVAL_ITEMS.map(i => [i.key, i.currentValue]))
-  );
+  /* ── Live editable settings ── */
+  const [settings, setSettings] = useState<LiveSettings>({
+    elsBookingEarnRate: 0.01,
+    elsUsdPeg: 1.0,
+    rewardPoolBudgetKrw: null,
+    tierMultipliers: [TIERS[0].multiplier, TIERS[1].multiplier, TIERS[2].multiplier, TIERS[3].multiplier, TIERS[4].multiplier] as [number, number, number, number, number],
+    tierThresholds: [TIERS[1].minBookings, TIERS[2].minBookings, TIERS[3].minBookings, TIERS[4].minBookings] as [number, number, number, number],
+    hotelBoosts: HOTEL_POINTS_BOOSTS.map(b => ({ ...b })),
+    promoMaxMultiplier: 1.25,
+    stampBonuses: { ...STAMP_BONUS_BY_RARITY },
+    reviewRewardFormula: { base: 3, quality: 2, photo: 2, first: 5, monthlyCap: 5 },
+    elsNonTransferable: true,
+    elsExpiryMonths: 24,
+  });
+
   const [sessionChanges, setSessionChanges] = useState<ParameterChange[]>([]);
 
-  /* ── Edit Value dialog state ── */
-  const [editItem, setEditItem] = useState<ApprovalItem | null>(null);
-  const [editNewValue, setEditNewValue] = useState("");
-  const [editApprovalRef, setEditApprovalRef] = useState("");
-  const [editReason, setEditReason] = useState("");
-  const [editConfirm, setEditConfirm] = useState(false);
-
-  const openEditValue = (item: ApprovalItem) => {
-    setEditItem(item);
-    setEditNewValue(liveValues[item.key] || item.currentValue);
-    setEditApprovalRef("");
-    setEditReason("");
-    setEditConfirm(false);
-  };
-
-  const submitEditValue = () => {
-    if (!editItem) return;
-    if (!editNewValue.trim()) {
-      toast.error("새 값을 입력해주세요");
-      return;
-    }
-    if (!editApprovalRef.trim()) {
-      toast.error("결재 번호 참조는 필수입니다 (apr-xxx 형식)");
-      return;
-    }
-    if (!/^apr-\d+$/.test(editApprovalRef.trim())) {
-      toast.error("결재 번호 형식이 잘못되었습니다 (예: apr-010)");
-      return;
-    }
-    if (!editConfirm) {
-      toast.error("즉시 프로덕션 반영 확인 체크박스가 필요합니다");
-      return;
-    }
-    const previousValue = liveValues[editItem.key] || editItem.currentValue;
+  /* 세션 변경 기록 */
+  const recordChange = (itemKey: string, label: string, before: string, after: string) => {
     const now = new Date().toISOString();
-    const change: ParameterChange = {
-      id: `chg-local-${Date.now()}`,
-      itemKey: editItem.key,
+    setSessionChanges(list => [{
+      id: `chg-local-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      itemKey,
       appliedBy: user?.email || "unknown",
       appliedByName: user?.name || "Unknown",
       appliedAt: now,
-      previousValue,
-      newValue: editNewValue.trim(),
-      approvalRef: editApprovalRef.trim(),
-      reason: editReason.trim() || undefined,
-    };
-    setLiveValues(v => ({ ...v, [editItem.key]: editNewValue.trim() }));
-    setSessionChanges(list => [change, ...list]);
-    toast.success(`${editItem.label} 적용 완료`, {
-      description: `${previousValue} → ${editNewValue.trim()} · 전 시스템에 즉시 반영`,
+      previousValue: before,
+      newValue: after,
+      reason: "어드민 직접 수정",
+    }, ...list]);
+    toast.success(`${label} 변경 적용`, {
+      description: `${before} → ${after} · 전 시스템에 즉시 반영`,
     });
-    setEditItem(null);
   };
 
-  /* 시드 변경 + 세션 변경 합친 전체 이력 */
   const combinedChanges = useMemo(
     () => [...sessionChanges, ...allParameterChanges()].sort((a, b) => b.appliedAt.localeCompare(a.appliedAt)),
     [sessionChanges]
   );
 
-  /* ── Category filter on Parameters tab ── */
-  const [catFilter, setCatFilter] = useState<ApprovalCategory | "all">("all");
-  const [search, setSearch] = useState("");
-
-  const filteredItems = useMemo(() => {
-    let list = APPROVAL_ITEMS;
-    if (catFilter !== "all") list = list.filter(i => i.category === catFilter);
-    if (search.trim()) {
-      const q = search.trim().toLowerCase();
-      list = list.filter(i =>
-        i.label.toLowerCase().includes(q) ||
-        i.description.toLowerCase().includes(q) ||
-        i.key.toLowerCase().includes(q)
-      );
-    }
-    return list;
-  }, [catFilter, search]);
-
-
-  const categories: Array<{ key: ApprovalCategory | "all"; label: string; count: number }> = [
-    { key: "all",           label: "전체",         count: APPROVAL_ITEMS.length },
-    { key: "Economics",     label: "경제 정책",    count: APPROVAL_ITEMS.filter(i => i.category === "Economics").length },
-    { key: "Promotions",    label: "프로모션",     count: APPROVAL_ITEMS.filter(i => i.category === "Promotions").length },
-    { key: "Shop Catalog",  label: "상품 카탈로그", count: APPROVAL_ITEMS.filter(i => i.category === "Shop Catalog").length },
-    { key: "Gamification",  label: "게임화",       count: APPROVAL_ITEMS.filter(i => i.category === "Gamification").length },
-    { key: "Policy",        label: "운영 정책",    count: APPROVAL_ITEMS.filter(i => i.category === "Policy").length },
-    { key: "Content",       label: "콘텐츠",       count: APPROVAL_ITEMS.filter(i => i.category === "Content").length },
-  ];
-
-  if (state === "loading") return (
-    <div className="p-6 max-w-[1400px] mx-auto space-y-4">
-      <div className="h-8 w-64 bg-muted animate-pulse rounded" />
-      <div className="h-96 bg-muted animate-pulse rounded" />
-      <StateToolbar state={state} setState={setState} />
-    </div>
-  );
+  const todayChanges = combinedChanges.filter(
+    c => c.appliedAt.slice(0, 10) === new Date().toISOString().slice(0, 10)
+  ).length;
 
   return (
     <div className="p-6 max-w-[1400px] mx-auto space-y-5">
-      {/* ── Header ── */}
+      {/* Header */}
       <div>
         <div className="flex items-center gap-2">
           <Shield className="h-6 w-6" style={{ color: "#FF6000" }} />
           <h1 className="text-2xl font-bold">ELS 경제 관리</h1>
           <Badge variant="outline" className="text-[10px] ml-2" style={{ borderColor: "#FF6000", color: "#FF6000" }}>
-            ELLIS 내부 · 거버넌스
+            ELLIS 내부 어드민
           </Badge>
         </div>
         <p className="text-sm text-muted-foreground mt-1">
-          ELS 리워드 경제 <strong>실제 적용 도구</strong>. 결재 완료된 변경을 시스템에 반영하며,
-          모든 변경은 자동으로 감사 로그에 기록됩니다. 결재 워크플로우(서명·결정)는 별도 시스템에서
-          처리되어 있어야 하며, 여기서는 <strong>결재 번호(apr-xxx)를 반드시 참조</strong>해야 합니다.
+          ELS 경제 시스템의 모든 설정을 직접 편집. 저장 즉시 전 시스템에 반영되며
+          모든 변경은 자동으로 감사 로그에 기록됩니다.
         </p>
       </div>
 
-      {/* ── 중요 경고 배너 ── */}
+      {/* Warning banner */}
       <Alert className="border-[#EF476F]/50" style={{ background: "#EF476F08" }}>
         <AlertTriangle className="h-4 w-4 text-[#EF476F]" />
-        <AlertTitle className="text-sm text-[#EF476F]">
-          ⚠ 실시간 프로덕션 반영 — 변경 전 반드시 결재 완료 확인
-        </AlertTitle>
+        <AlertTitle className="text-sm text-[#EF476F]">⚠ 실시간 프로덕션 반영</AlertTitle>
         <AlertDescription className="text-xs">
-          이 페이지에서 수정한 값은 <strong>즉시 전 시스템에 반영</strong>됩니다 (고객 앱 포함).
-          결재 문서(apr-xxx)가 모든 서명을 수집 완료했는지 반드시 확인 후 변경하세요.
-          잘못된 변경은 전체 고객에게 영향을 미칠 수 있으며, 롤백은 별도 절차가 필요합니다.
+          모든 변경은 <strong>즉시 고객 앱에 반영</strong>됩니다. 사전 결재가 완료된 값만 입력하세요.
+          변경 이력은 <strong>영구 보존</strong>되며 감사 감리 시 증빙 자료로 사용됩니다.
         </AlertDescription>
       </Alert>
 
-      {/* ── Critical KPIs ── */}
+      {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
         <Card className="p-4">
           <p className="text-[10px] uppercase tracking-wider text-muted-foreground">오늘 적용 변경</p>
-          <p className="text-3xl font-bold mt-1" style={{ color: "#FF6000" }}>
-            {combinedChanges.filter(c => c.appliedAt.slice(0, 10) === new Date().toISOString().slice(0, 10)).length}
-          </p>
-          <p className="text-[10px] text-muted-foreground mt-1">건 (전체 {combinedChanges.length}건)</p>
+          <p className="text-3xl font-bold mt-1" style={{ color: "#FF6000" }}>{todayChanges}</p>
+          <p className="text-[10px] text-muted-foreground mt-1">건 (누적 {combinedChanges.length})</p>
         </Card>
         <Card className="p-4">
-          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">조정 가능 파라미터</p>
-          <p className="text-3xl font-bold mt-1">{APPROVAL_ITEMS.length}</p>
-          <p className="text-[10px] text-muted-foreground mt-1">6개 카테고리</p>
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">예약 적립률</p>
+          <p className="text-3xl font-bold mt-1">{settings.elsBookingEarnRate}</p>
+          <p className="text-[10px] text-muted-foreground mt-1">ELS / $1 ($100 = {Math.round(100 * settings.elsBookingEarnRate * 100) / 100})</p>
         </Card>
         <Card className="p-4">
-          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Critical Items</p>
-          <p className="text-3xl font-bold mt-1" style={{ color: IMPACT_COLOR.Critical }}>
-            {APPROVAL_ITEMS.filter(i => i.impact === "Critical").length}
-          </p>
-          <p className="text-[10px] text-muted-foreground mt-1">대표이사 결재 필수</p>
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">활성 프로모 호텔</p>
+          <p className="text-3xl font-bold mt-1">{settings.hotelBoosts.length}</p>
+          <p className="text-[10px] text-muted-foreground mt-1">개 호텔 부스트 적용 중</p>
         </Card>
         <Card className="p-4">
           <p className="text-[10px] uppercase tracking-wider text-muted-foreground">월 예산 한도</p>
-          <p className="text-3xl font-bold mt-1" style={{ color: "#EF476F" }}>
-            —
+          <p className="text-3xl font-bold mt-1" style={{ color: settings.rewardPoolBudgetKrw === null ? "#EF476F" : "inherit" }}>
+            {settings.rewardPoolBudgetKrw === null ? "—" : `₩${(settings.rewardPoolBudgetKrw / 1_000_000).toFixed(0)}M`}
           </p>
-          <p className="text-[10px] text-muted-foreground mt-1">미설정 (Critical)</p>
+          <p className="text-[10px] text-muted-foreground mt-1">
+            {settings.rewardPoolBudgetKrw === null ? "미설정 (필수)" : "월간 상한"}
+          </p>
         </Card>
       </div>
 
-      {/* ── Tabs ── */}
+      {/* Tabs */}
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
-          <TabsTrigger value="parameters" className="gap-1.5">
-            <Settings className="h-3.5 w-3.5" />
-            파라미터
-            <span className="ml-1 text-[9px] bg-muted px-1 rounded-full">{APPROVAL_ITEMS.length}</span>
+          <TabsTrigger value="economics" className="gap-1.5">
+            <Coins className="h-3.5 w-3.5" />경제 정책
+          </TabsTrigger>
+          <TabsTrigger value="promotions" className="gap-1.5">
+            <TrendingUp className="h-3.5 w-3.5" />프로모션
+            <span className="ml-1 text-[9px] bg-muted px-1 rounded-full">{settings.hotelBoosts.length}</span>
+          </TabsTrigger>
+          <TabsTrigger value="gamification" className="gap-1.5">
+            <Award className="h-3.5 w-3.5" />게임화
+          </TabsTrigger>
+          <TabsTrigger value="policy" className="gap-1.5">
+            <ShieldCheck className="h-3.5 w-3.5" />정책
           </TabsTrigger>
           <TabsTrigger value="history" className="gap-1.5">
-            <History className="h-3.5 w-3.5" />
-            변경 이력
+            <History className="h-3.5 w-3.5" />변경 이력
             <span className="ml-1 text-[9px] bg-muted px-1 rounded-full">{combinedChanges.length}</span>
-          </TabsTrigger>
-          <TabsTrigger value="matrix" className="gap-1.5">
-            <Users className="h-3.5 w-3.5" />
-            결재 매트릭스
           </TabsTrigger>
         </TabsList>
       </Tabs>
 
-      {/* ═══════════ PARAMETERS TAB ═══════════ */}
-      {tab === "parameters" && (
-        <div className="space-y-4">
-          {/* Filter row */}
-          <div className="flex items-center gap-3 flex-wrap">
-            <div className="relative flex-1 min-w-[240px]">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="파라미터명 또는 키로 검색…"
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                className="pl-9"
-              />
-            </div>
-            <div className="flex items-center gap-1 flex-wrap">
-              {categories.map(c => (
-                <button
-                  key={c.key}
-                  onClick={() => setCatFilter(c.key)}
-                  className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors ${
-                    catFilter === c.key
-                      ? "bg-[#FF6000] text-white"
-                      : "bg-muted hover:bg-muted/60 text-foreground"
-                  }`}
-                >
-                  {c.label} <span className="opacity-70">({c.count})</span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Parameter grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            {filteredItems.map(item => {
-              const lastChange = [...sessionChanges, ...changesForItem(item.key)][0];
-              const currentLive = liveValues[item.key] || item.currentValue;
-              const isChanged = currentLive !== item.currentValue;
-              return (
-                <Card
-                  key={item.key}
-                  className={`p-4 flex flex-col ${isChanged ? "border-[#FF6000]" : ""}`}
-                  style={isChanged ? { borderWidth: 2 } : undefined}
-                >
-                  <div className="flex items-start justify-between gap-2 mb-2">
-                    <div className="min-w-0">
-                      <Badge variant="outline" className="text-[9px] mb-1">
-                        {item.category}
-                      </Badge>
-                      <h3 className="font-semibold text-sm">{item.label}</h3>
-                    </div>
-                    <span
-                      className="text-[9px] font-bold px-1.5 py-0.5 rounded uppercase whitespace-nowrap"
-                      style={{
-                        background: `${IMPACT_COLOR[item.impact]}22`,
-                        color: IMPACT_COLOR[item.impact],
-                        border: `1px solid ${IMPACT_COLOR[item.impact]}55`,
-                      }}
-                    >
-                      {item.impact}
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-muted-foreground line-clamp-2 mb-2">
-                    {item.description}
-                  </p>
-                  <div
-                    className="p-2 rounded-md text-xs mb-2"
-                    style={{ background: isChanged ? "#FF600015" : undefined }}
-                  >
-                    <p className="text-[9px] uppercase tracking-wider text-muted-foreground flex items-center gap-1">
-                      현재 적용값
-                      {isChanged && <span className="text-[8px] font-bold text-[#FF6000]">· 세션 내 변경</span>}
-                    </p>
-                    <p className="font-mono text-xs" style={isChanged ? { color: "#FF6000" } : undefined}>
-                      {currentLive}
-                    </p>
-                  </div>
-                  <div className="text-[10px] text-muted-foreground space-y-1 mb-2">
-                    <p><strong>검토 주기:</strong> {item.reviewCadence}</p>
-                    <p className="line-clamp-2"><strong>예산 영향:</strong> {item.budgetImpactHint}</p>
-                  </div>
-                  {lastChange && (
-                    <div className="text-[9px] text-muted-foreground mb-2 pl-2 border-l-2 border-muted">
-                      <strong>최근 변경:</strong> {lastChange.appliedAt.slice(0, 10)} by {lastChange.appliedByName.split(" ")[0]}
-                      {" · "}<span className="text-[#FF6000] font-mono">{lastChange.approvalRef}</span>
-                    </div>
-                  )}
-                  <div className="flex items-center justify-between mt-auto pt-2 border-t">
-                    <div className="flex items-center gap-1 flex-wrap" title="사전 결재가 필요한 체인">
-                      {item.approvers.map((a, i) => (
-                        <span key={a} className="flex items-center gap-0.5">
-                          <span
-                            className="text-[9px] font-bold px-1.5 py-0.5 rounded"
-                            style={{
-                              background: `${APPROVER_COLOR[a]}22`,
-                              color: APPROVER_COLOR[a],
-                            }}
-                          >
-                            {a}
-                          </span>
-                          {i < item.approvers.length - 1 && <ArrowRight className="h-2.5 w-2.5 text-muted-foreground" />}
-                        </span>
-                      ))}
-                    </div>
-                    <Button
-                      size="sm"
-                      className="h-6 text-[10px] gap-1 shrink-0 text-white"
-                      style={{ background: "#FF6000" }}
-                      onClick={() => openEditValue(item)}
-                    >
-                      <Edit className="h-3 w-3" />
-                      값 수정
-                    </Button>
-                  </div>
-                </Card>
-              );
-            })}
-          </div>
-        </div>
+      {/* ═══════════ 경제 정책 탭 ═══════════ */}
+      {tab === "economics" && (
+        <EconomicsTab settings={settings} setSettings={setSettings} recordChange={recordChange} />
       )}
 
-      {/* ═══════════ HISTORY TAB ═══════════ */}
-      {tab === "history" && (
-        <div className="space-y-4">
-          <Alert>
-            <History className="h-4 w-4" />
-            <AlertTitle className="text-sm">변경 이력 (감사 로그)</AlertTitle>
-            <AlertDescription className="text-xs">
-              이 페이지에서 실행된 모든 파라미터 변경이 영구 기록됩니다.
-              각 변경은 사전 결재 문서(apr-xxx)를 참조하며, 변경자·시각·전후 값이 함께 저장됩니다.
-              감사 감리 시 증빙 자료로 사용됩니다.
-            </AlertDescription>
-          </Alert>
-
-          <Card className="p-0 overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-32">적용 시각</TableHead>
-                  <TableHead>파라미터</TableHead>
-                  <TableHead>변경 내역 (이전 → 이후)</TableHead>
-                  <TableHead className="w-28">결재 참조</TableHead>
-                  <TableHead className="w-36">적용자</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {combinedChanges.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={5} className="text-center text-sm text-muted-foreground py-8">
-                      변경 이력이 없습니다.
-                    </TableCell>
-                  </TableRow>
-                ) : combinedChanges.map(chg => {
-                  const item = getApprovalItem(chg.itemKey);
-                  return (
-                    <TableRow key={chg.id}>
-                      <TableCell className="text-xs font-mono text-muted-foreground whitespace-nowrap">
-                        {chg.appliedAt.slice(0, 16).replace("T", " ")}
-                      </TableCell>
-                      <TableCell>
-                        <div>
-                          <p className="text-sm font-medium">{item?.label || chg.itemKey}</p>
-                          {item && (
-                            <div className="flex items-center gap-1 mt-0.5">
-                              <Badge variant="outline" className="text-[9px]">{item.category}</Badge>
-                              <span
-                                className="text-[9px] font-bold px-1 py-0.5 rounded"
-                                style={{
-                                  background: `${IMPACT_COLOR[item.impact]}22`,
-                                  color: IMPACT_COLOR[item.impact],
-                                }}
-                              >
-                                {item.impact}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="space-y-1">
-                          <p className="text-xs font-mono line-through text-muted-foreground">{chg.previousValue}</p>
-                          <p className="text-xs font-mono" style={{ color: "#FF6000" }}>
-                            ↳ {chg.newValue}
-                          </p>
-                          {chg.reason && (
-                            <p className="text-[10px] text-muted-foreground italic">{chg.reason}</p>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className="text-[10px] font-mono" style={{ color: "#FF6000", borderColor: "#FF600055" }}>
-                          {chg.approvalRef}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-xs">
-                        <p className="font-medium">{chg.appliedByName}</p>
-                        <p className="text-[10px] text-muted-foreground font-mono">{chg.appliedBy}</p>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </Card>
-        </div>
+      {/* ═══════════ 프로모션 탭 ═══════════ */}
+      {tab === "promotions" && (
+        <PromotionsTab settings={settings} setSettings={setSettings} recordChange={recordChange} />
       )}
 
-      {/* ═══════════ MATRIX TAB ═══════════ */}
-      {tab === "matrix" && (
-        <div className="space-y-4">
-          <Alert>
-            <AlertTitle className="text-sm">결재 매트릭스</AlertTitle>
-            <AlertDescription className="text-xs">
-              참고용 테이블: 각 변경 유형별 결재자 체계. Impact 등급 순으로 정렬.
-              명시된 결재자가 순서대로 모두 승인해야 변경이 적용됩니다.
-            </AlertDescription>
-          </Alert>
-
-          <Card className="p-0 overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-32">카테고리</TableHead>
-                  <TableHead>파라미터</TableHead>
-                  <TableHead className="w-24">Impact</TableHead>
-                  <TableHead>결재 체인</TableHead>
-                  <TableHead className="w-32">검토 주기</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {[...APPROVAL_ITEMS]
-                  .sort((a, b) => {
-                    const order = { Critical: 0, High: 1, Medium: 2, Low: 3 };
-                    return order[a.impact] - order[b.impact];
-                  })
-                  .map(item => (
-                    <TableRow key={item.key}>
-                      <TableCell>
-                        <Badge variant="outline" className="text-[10px]">{item.category}</Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div>
-                          <p className="font-medium text-sm">{item.label}</p>
-                          <p className="text-[10px] text-muted-foreground line-clamp-1">{item.description}</p>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <span
-                          className="text-[10px] font-bold px-2 py-0.5 rounded uppercase"
-                          style={{
-                            background: `${IMPACT_COLOR[item.impact]}22`,
-                            color: IMPACT_COLOR[item.impact],
-                          }}
-                        >
-                          {item.impact}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1 flex-wrap">
-                          {item.approvers.map((a, i) => (
-                            <span key={a} className="flex items-center gap-0.5">
-                              <span
-                                className="text-[10px] font-bold px-1.5 py-0.5 rounded"
-                                style={{
-                                  background: `${APPROVER_COLOR[a]}22`,
-                                  color: APPROVER_COLOR[a],
-                                }}
-                              >
-                                {a}
-                              </span>
-                              {i < item.approvers.length - 1 && <ArrowRight className="h-2.5 w-2.5 text-muted-foreground" />}
-                            </span>
-                          ))}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-xs text-muted-foreground">{item.reviewCadence}</TableCell>
-                    </TableRow>
-                  ))}
-              </TableBody>
-            </Table>
-          </Card>
-
-          {/* Legend */}
-          <Card className="p-4">
-            <p className="text-sm font-semibold mb-3">범례</p>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">Impact 등급</p>
-                <div className="space-y-1.5">
-                  {(["Critical", "High", "Medium", "Low"] as const).map(imp => (
-                    <div key={imp} className="flex items-center gap-2 text-xs">
-                      <span
-                        className="inline-block h-3 w-3 rounded"
-                        style={{ background: IMPACT_COLOR[imp] }}
-                      />
-                      <strong>{imp}</strong>
-                      <span className="text-muted-foreground">
-                        {imp === "Critical" && "— 돈이 직접 움직임, CEO 결재 필수"}
-                        {imp === "High" && "— 예산에 실질적 영향"}
-                        {imp === "Medium" && "— 운영 레벨, CMO/CPO 권한"}
-                        {imp === "Low" && "— 일상 운영, 단일 결재자"}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">결재자 역할</p>
-                <div className="space-y-1.5">
-                  {(Object.keys(APPROVER_COLOR) as Array<keyof typeof APPROVER_COLOR>).map(role => (
-                    <div key={role} className="flex items-center gap-2 text-xs">
-                      <span
-                        className="text-[10px] font-bold px-1.5 py-0.5 rounded"
-                        style={{
-                          background: `${APPROVER_COLOR[role]}22`,
-                          color: APPROVER_COLOR[role],
-                        }}
-                      >
-                        {role}
-                      </span>
-                      <span className="text-muted-foreground">
-                        {role === "CEO" && "대표이사 · Critical 변경 최종 결재"}
-                        {role === "CFO" && "재무이사 · 예산/부채 결재"}
-                        {role === "CMO" && "마케팅이사 · 프로모션·게임화 전략"}
-                        {role === "CPO" && "상품이사 · 카탈로그·공급사 계약"}
-                        {role === "Marketing Manager" && "마케팅팀 · 프로모 실행·상품 가격"}
-                        {role === "Content Manager" && "콘텐츠팀 · 리뷰 검수·takedown"}
-                        {role === "ELLIS Admin" && "시스템 운영 파라미터"}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </Card>
-        </div>
+      {/* ═══════════ 게임화 탭 ═══════════ */}
+      {tab === "gamification" && (
+        <GamificationTab settings={settings} setSettings={setSettings} recordChange={recordChange} />
       )}
 
-      {/* ── Edit Value Dialog (직접 값 수정) ── */}
-      <Dialog open={!!editItem} onOpenChange={(o) => { if (!o) setEditItem(null); }}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Edit className="h-4 w-4" style={{ color: "#FF6000" }} />
-              값 수정 · {editItem?.label}
-            </DialogTitle>
-          </DialogHeader>
+      {/* ═══════════ 정책 탭 ═══════════ */}
+      {tab === "policy" && (
+        <PolicyTab settings={settings} setSettings={setSettings} recordChange={recordChange} navigate={navigate} />
+      )}
 
-          {editItem && (
-            <div className="space-y-3">
-              {/* 상단 경고 — 이 변경은 실시간 반영 */}
-              <div className="p-2.5 rounded-md border border-[#EF476F]/50" style={{ background: "#EF476F08" }}>
-                <p className="text-[11px] text-[#EF476F] font-semibold flex items-center gap-1">
-                  <AlertTriangle className="h-3.5 w-3.5" />
-                  즉시 반영 경고
-                </p>
-                <p className="text-[10px] text-[#EF476F]/90 mt-0.5">
-                  이 값은 저장 즉시 전 시스템(고객 앱 포함)에 반영됩니다.
-                  반드시 해당 결재(apr-xxx)가 모든 서명 수집 완료된 상태여야 합니다.
-                </p>
-              </div>
-
-              {/* Item context */}
-              <div className="p-3 rounded-md bg-muted/40">
-                <div className="flex items-center justify-between mb-1">
-                  <Badge variant="outline" className="text-[9px]">{editItem.category}</Badge>
-                  <span
-                    className="text-[9px] font-bold px-1.5 py-0.5 rounded uppercase"
-                    style={{
-                      background: `${IMPACT_COLOR[editItem.impact]}22`,
-                      color: IMPACT_COLOR[editItem.impact],
-                    }}
-                  >
-                    {editItem.impact}
-                  </span>
-                </div>
-                <p className="text-[11px] text-muted-foreground mb-2">{editItem.description}</p>
-                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">현재 적용값</p>
-                <p className="text-sm font-mono">{liveValues[editItem.key] || editItem.currentValue}</p>
-              </div>
-
-              {/* Pre-approval chain (read-only) — "이 사람들이 미리 사인했어야 함" */}
-              <div>
-                <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
-                  이 변경의 필수 사전 결재자 체인 (모두 서명 완료 확인)
-                </p>
-                <div className="flex items-center gap-1 flex-wrap">
-                  {editItem.approvers.map((a, i) => (
-                    <span key={a} className="flex items-center gap-0.5">
-                      <span
-                        className="text-[11px] font-bold px-2 py-1 rounded-md"
-                        style={{
-                          background: `${APPROVER_COLOR[a]}22`,
-                          color: APPROVER_COLOR[a],
-                          border: `1px solid ${APPROVER_COLOR[a]}55`,
-                        }}
-                      >
-                        {a} ✓
-                      </span>
-                      {i < editItem.approvers.length - 1 && <ArrowRight className="h-3 w-3 text-muted-foreground" />}
-                    </span>
-                  ))}
-                </div>
-              </div>
-
-              {/* New value */}
-              <div>
-                <label className="text-xs font-medium">새 값 <span className="text-destructive">*</span></label>
-                <Input
-                  className="mt-1 font-mono"
-                  value={editNewValue}
-                  onChange={e => setEditNewValue(e.target.value)}
-                  placeholder="결재 승인된 정확한 값"
-                />
-                <p className="text-[10px] text-muted-foreground mt-1">
-                  형식은 현재값과 동일하게 (단위·표기 일치). 결재 문서와 정확히 동일해야 함.
-                </p>
-              </div>
-
-              {/* Approval reference */}
-              <div>
-                <label className="text-xs font-medium">결재 문서 번호 <span className="text-destructive">*</span></label>
-                <Input
-                  className="mt-1 font-mono"
-                  value={editApprovalRef}
-                  onChange={e => setEditApprovalRef(e.target.value)}
-                  placeholder="예: apr-010"
-                />
-                <p className="text-[10px] text-muted-foreground mt-1">
-                  사전에 모든 서명 수집을 완료한 결재 문서 번호를 입력.
-                  감사 로그 영구 기록.
-                </p>
-              </div>
-
-              {/* Reason (optional) */}
-              <div>
-                <label className="text-xs font-medium">적용 비고 (선택)</label>
-                <Textarea
-                  className="mt-1"
-                  rows={2}
-                  value={editReason}
-                  onChange={e => setEditReason(e.target.value)}
-                  placeholder="예: 결재 완료 후 즉시 반영. 이관 계획 동봉."
-                />
-              </div>
-
-              {/* Final confirmation checkbox */}
-              <label className="flex items-start gap-2 cursor-pointer p-2.5 rounded-md bg-amber-50 border border-amber-300">
-                <input
-                  type="checkbox"
-                  checked={editConfirm}
-                  onChange={e => setEditConfirm(e.target.checked)}
-                  className="mt-0.5 h-4 w-4 accent-[#EF476F]"
-                />
-                <span className="text-[11px] text-amber-900 leading-snug">
-                  <strong>최종 확인</strong>: 위 결재 문서의 모든 서명을 확인했으며,
-                  이 변경이 <strong>즉시 전 시스템에 반영</strong>됨을 이해했습니다.
-                  본 수정 이력은 감사 로그에 <strong>영구 기록</strong>되며, 잘못된 변경에 대한
-                  책임은 적용자({user?.name})에게 있음을 인지합니다.
-                </span>
-              </label>
-            </div>
-          )}
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditItem(null)}>
-              <XIcon className="h-3 w-3 mr-1" />
-              취소
-            </Button>
-            <Button
-              onClick={submitEditValue}
-              disabled={!editConfirm || !editNewValue.trim() || !editApprovalRef.trim()}
-              style={editConfirm && editNewValue.trim() && editApprovalRef.trim() ? { background: "#FF6000" } : undefined}
-              className={editConfirm && editNewValue.trim() && editApprovalRef.trim() ? "text-white" : ""}
-            >
-              <Edit className="h-3 w-3 mr-1" />
-              즉시 프로덕션 반영
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* ═══════════ 변경 이력 탭 ═══════════ */}
+      {tab === "history" && <HistoryTab changes={combinedChanges} />}
 
       <StateToolbar state={state} setState={setState} />
+    </div>
+  );
+}
+
+/* ═════════════════════════════════════════════════
+ * 경제 정책 탭
+ * ═════════════════════════════════════════════════ */
+function EconomicsTab({
+  settings, setSettings, recordChange,
+}: {
+  settings: LiveSettings;
+  setSettings: React.Dispatch<React.SetStateAction<LiveSettings>>;
+  recordChange: (key: string, label: string, before: string, after: string) => void;
+}) {
+  /* 로컬 편집 버퍼 */
+  const [earnRate, setEarnRate] = useState(settings.elsBookingEarnRate);
+  const [usdPeg, setUsdPeg] = useState(settings.elsUsdPeg);
+  const [budget, setBudget] = useState<number | null>(settings.rewardPoolBudgetKrw);
+  const [tierMults, setTierMults] = useState(settings.tierMultipliers);
+  const [tierThresh, setTierThresh] = useState(settings.tierThresholds);
+  const [expiry, setExpiry] = useState(settings.elsExpiryMonths);
+
+  const saveEarnRate = () => {
+    if (earnRate === settings.elsBookingEarnRate) return;
+    recordChange("ELS_BOOKING_EARN_RATE", "ELS 예약 적립률", `${settings.elsBookingEarnRate} ELS/$1`, `${earnRate} ELS/$1`);
+    setSettings(s => ({ ...s, elsBookingEarnRate: earnRate }));
+  };
+  const savePeg = () => {
+    if (usdPeg === settings.elsUsdPeg) return;
+    recordChange("ELS_USD_PEG", "ELS ↔ USD 페그", `1 ELS = ${settings.elsUsdPeg} USD`, `1 ELS = ${usdPeg} USD`);
+    setSettings(s => ({ ...s, elsUsdPeg: usdPeg }));
+  };
+  const saveBudget = () => {
+    if (budget === settings.rewardPoolBudgetKrw) return;
+    const before = settings.rewardPoolBudgetKrw === null ? "미설정" : `₩${settings.rewardPoolBudgetKrw.toLocaleString()}`;
+    const after = budget === null ? "미설정" : `₩${budget.toLocaleString()}`;
+    recordChange("REWARD_POOL_BUDGET", "월 예산 한도", before, after);
+    setSettings(s => ({ ...s, rewardPoolBudgetKrw: budget }));
+  };
+  const saveTiers = () => {
+    const sameMults = tierMults.every((m, i) => m === settings.tierMultipliers[i]);
+    const sameThresh = tierThresh.every((t, i) => t === settings.tierThresholds[i]);
+    if (sameMults && sameThresh) return;
+    const beforeMults = settings.tierMultipliers.join(" / ");
+    const afterMults = tierMults.join(" / ");
+    const beforeThresh = settings.tierThresholds.join(" / ");
+    const afterThresh = tierThresh.join(" / ");
+    if (!sameMults) recordChange("TIER_MULTIPLIERS", "티어 배수", beforeMults, afterMults);
+    if (!sameThresh) recordChange("TIER_THRESHOLDS", "티어 임계값", beforeThresh, afterThresh);
+    setSettings(s => ({ ...s, tierMultipliers: tierMults, tierThresholds: tierThresh }));
+  };
+  const saveExpiry = () => {
+    if (expiry === settings.elsExpiryMonths) return;
+    recordChange("ELS_EXPIRY_POLICY", "ELS 만료 기간", `${settings.elsExpiryMonths}개월`, `${expiry}개월`);
+    setSettings(s => ({ ...s, elsExpiryMonths: expiry }));
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* 예약 적립률 */}
+      <Card className="p-5">
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <Coins className="h-4 w-4" style={{ color: "#FF6000" }} />
+              <h3 className="font-semibold">ELS 예약 적립률</h3>
+              <Badge className="text-[9px] text-white" style={{ background: IMPACT_COLOR.Critical }}>CRITICAL</Badge>
+              <Badge variant="outline" className="text-[9px]">CFO → CEO 결재</Badge>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              객실가 $1당 지급 ELS. 리워드 풀 전체 비용의 핵심 레버.
+            </p>
+          </div>
+          <Button
+            size="sm"
+            onClick={saveEarnRate}
+            disabled={earnRate === settings.elsBookingEarnRate}
+            style={earnRate !== settings.elsBookingEarnRate ? { background: "#FF6000" } : undefined}
+            className={earnRate !== settings.elsBookingEarnRate ? "text-white" : ""}
+          >
+            <Save className="h-3 w-3 mr-1" />저장
+          </Button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+          <div>
+            <label className="text-xs font-medium">적립률 (ELS / $1)</label>
+            <div className="flex items-center gap-2 mt-1">
+              <Input
+                type="number"
+                step="0.001"
+                min="0.001"
+                max="0.1"
+                value={earnRate}
+                onChange={e => setEarnRate(Number(e.target.value))}
+                className="font-mono"
+              />
+            </div>
+            <input
+              type="range"
+              min="0.001"
+              max="0.05"
+              step="0.001"
+              value={earnRate}
+              onChange={e => setEarnRate(Number(e.target.value))}
+              className="w-full mt-2 accent-[#FF6000]"
+            />
+            <div className="flex justify-between text-[9px] text-muted-foreground mt-0.5">
+              <span>0.001 (보수적)</span>
+              <span>0.05 (적극적)</span>
+            </div>
+          </div>
+          <div className="p-3 rounded-md bg-muted/40">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">예시: $100 예약 (Bronze)</p>
+            <p className="text-2xl font-bold" style={{ color: "#FF6000" }}>
+              {Math.max(1, Math.round(100 * earnRate))} ELS
+            </p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">
+              ≈ ${Math.max(1, Math.round(100 * earnRate)).toFixed(2)}
+            </p>
+          </div>
+          <div className="p-3 rounded-md bg-muted/40">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">예시: $500 × Gold × 프로모 1.15×</p>
+            <p className="text-2xl font-bold" style={{ color: "#FF6000" }}>
+              {Math.max(1, Math.round(500 * earnRate * 1.2 * 1.15))} ELS
+            </p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">
+              마진 대비 {((Math.round(500 * earnRate * 1.2 * 1.15) / (500 * 0.026)) * 100).toFixed(0)}%
+            </p>
+          </div>
+        </div>
+      </Card>
+
+      {/* USD 페그 */}
+      <Card className="p-5">
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <DollarSign className="h-4 w-4" style={{ color: "#FF6000" }} />
+              <h3 className="font-semibold">ELS ↔ USD 페그</h3>
+              <Badge className="text-[9px] text-white" style={{ background: IMPACT_COLOR.Critical }}>CRITICAL</Badge>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              1 ELS의 USD 상환 가치. 변경 시 전체 ELS 재고가 즉시 재산정됨 (breaking change).
+            </p>
+          </div>
+          <Button size="sm" onClick={savePeg} disabled={usdPeg === settings.elsUsdPeg}
+            style={usdPeg !== settings.elsUsdPeg ? { background: "#FF6000" } : undefined}
+            className={usdPeg !== settings.elsUsdPeg ? "text-white" : ""}
+          >
+            <Save className="h-3 w-3 mr-1" />저장
+          </Button>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="text-center px-3 py-2 rounded bg-[#FF6000]/10 font-bold text-lg" style={{ color: "#FF6000" }}>
+            1 ELS
+          </div>
+          <span className="text-lg">=</span>
+          <Input
+            type="number"
+            step="0.01"
+            min="0.01"
+            max="5"
+            value={usdPeg}
+            onChange={e => setUsdPeg(Number(e.target.value))}
+            className="w-32 font-mono"
+          />
+          <span className="text-lg">USD</span>
+        </div>
+      </Card>
+
+      {/* 월 예산 한도 */}
+      <Card className="p-5">
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <DollarSign className="h-4 w-4" style={{ color: "#FF6000" }} />
+              <h3 className="font-semibold">월 ELS 리워드 풀 예산 한도</h3>
+              <Badge className="text-[9px] text-white" style={{ background: IMPACT_COLOR.Critical }}>CRITICAL</Badge>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              월간 최대 지급 ELS. 한도 도달 시 차기 주기까지 신규 지급 일시중단.
+            </p>
+          </div>
+          <Button size="sm" onClick={saveBudget} disabled={budget === settings.rewardPoolBudgetKrw}
+            style={budget !== settings.rewardPoolBudgetKrw ? { background: "#FF6000" } : undefined}
+            className={budget !== settings.rewardPoolBudgetKrw ? "text-white" : ""}
+          >
+            <Save className="h-3 w-3 mr-1" />저장
+          </Button>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="text-xs font-medium flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={budget !== null}
+                onChange={e => setBudget(e.target.checked ? 50_000_000 : null)}
+                className="h-4 w-4 accent-[#FF6000]"
+              />
+              한도 설정 사용
+            </label>
+            {budget !== null && (
+              <div className="flex items-center gap-2 mt-2">
+                <span className="text-lg">₩</span>
+                <Input
+                  type="number"
+                  step="1000000"
+                  min="0"
+                  value={budget}
+                  onChange={e => setBudget(Number(e.target.value))}
+                  className="font-mono"
+                />
+                <span className="text-xs text-muted-foreground whitespace-nowrap">= ₩{(budget / 1_000_000).toFixed(0)}M</span>
+              </div>
+            )}
+            {budget === null && (
+              <p className="text-[11px] text-[#EF476F] mt-2">⚠ 현재 미설정 — Q2 성장 전 반드시 결정 필요</p>
+            )}
+          </div>
+          <div className="p-3 rounded-md bg-muted/40 space-y-1 text-xs">
+            <p className="font-semibold">예산 시나리오</p>
+            <p>• 보수적: ₩50M/월 (마진 15%)</p>
+            <p>• 현상유지: ₩120M/월 (현 수준)</p>
+            <p>• 성장형: ₩150M/월 (Q2 OP +30% 수용)</p>
+          </div>
+        </div>
+      </Card>
+
+      {/* 티어 배수 + 임계값 */}
+      <Card className="p-5">
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <Award className="h-4 w-4" style={{ color: "#FF6000" }} />
+              <h3 className="font-semibold">티어 배수 & 승급 임계값</h3>
+              <Badge className="text-[9px] text-white" style={{ background: IMPACT_COLOR.High }}>HIGH</Badge>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              5개 티어의 ELS 적립 배수와 승급에 필요한 누적 예약 수.
+            </p>
+          </div>
+          <Button
+            size="sm"
+            onClick={saveTiers}
+            disabled={
+              tierMults.every((m, i) => m === settings.tierMultipliers[i]) &&
+              tierThresh.every((t, i) => t === settings.tierThresholds[i])
+            }
+            style={{ background: "#FF6000" }}
+            className="text-white disabled:bg-muted disabled:text-muted-foreground"
+          >
+            <Save className="h-3 w-3 mr-1" />저장
+          </Button>
+        </div>
+
+        <div className="grid grid-cols-5 gap-2 mt-4">
+          {TIERS.map((t, i) => (
+            <div key={t.name} className="text-center p-3 rounded-md" style={{ background: `${t.color}10` }}>
+              <div className="text-2xl mb-1">{t.icon}</div>
+              <p className="font-bold text-sm" style={{ color: t.color }}>{t.name}</p>
+              <div className="mt-2">
+                <label className="text-[9px] uppercase text-muted-foreground">배수</label>
+                <Input
+                  type="number"
+                  step="0.05"
+                  min="1.0"
+                  max="3.0"
+                  value={tierMults[i]}
+                  onChange={e => {
+                    const v = Number(e.target.value);
+                    setTierMults(m => {
+                      const next = [...m] as typeof m;
+                      next[i] = v;
+                      return next;
+                    });
+                  }}
+                  className="mt-0.5 text-center font-bold font-mono h-8"
+                />
+              </div>
+              {i > 0 && (
+                <div className="mt-2">
+                  <label className="text-[9px] uppercase text-muted-foreground">승급 예약</label>
+                  <Input
+                    type="number"
+                    step="50"
+                    min="1"
+                    value={tierThresh[i - 1]}
+                    onChange={e => {
+                      const v = Number(e.target.value);
+                      setTierThresh(t => {
+                        const next = [...t] as typeof t;
+                        next[i - 1] = v;
+                        return next;
+                      });
+                    }}
+                    className="mt-0.5 text-center font-mono h-8 text-xs"
+                  />
+                </div>
+              )}
+              {i === 0 && (
+                <p className="text-[10px] text-muted-foreground mt-2">시작 티어</p>
+              )}
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      {/* ELS 만료 기간 */}
+      <Card className="p-5">
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <Calendar className="h-4 w-4" style={{ color: "#FF6000" }} />
+              <h3 className="font-semibold">ELS 만료 기간</h3>
+              <Badge className="text-[9px] text-white" style={{ background: IMPACT_COLOR.High }}>HIGH</Badge>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              미사용 ELS 자동 만료 기간 (적립일부터). 짧을수록 부채 감소, 길수록 OP 신뢰.
+            </p>
+          </div>
+          <Button size="sm" onClick={saveExpiry} disabled={expiry === settings.elsExpiryMonths}
+            style={expiry !== settings.elsExpiryMonths ? { background: "#FF6000" } : undefined}
+            className={expiry !== settings.elsExpiryMonths ? "text-white" : ""}
+          >
+            <Save className="h-3 w-3 mr-1" />저장
+          </Button>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
+          <div>
+            <div className="flex items-center gap-2">
+              <Input
+                type="number"
+                step="1"
+                min="6"
+                max="60"
+                value={expiry}
+                onChange={e => setExpiry(Number(e.target.value))}
+                className="w-24 font-mono text-center"
+              />
+              <span className="text-sm">개월</span>
+            </div>
+            <input
+              type="range"
+              min="6"
+              max="60"
+              step="1"
+              value={expiry}
+              onChange={e => setExpiry(Number(e.target.value))}
+              className="w-full mt-2 accent-[#FF6000]"
+            />
+            <div className="flex justify-between text-[9px] text-muted-foreground mt-0.5">
+              <span>6개월 (부채 -60%)</span>
+              <span>업계 표준 24</span>
+              <span>60개월 (신뢰 ++)</span>
+            </div>
+          </div>
+          <div className="p-3 rounded-md bg-muted/40 text-xs">
+            <p className="font-semibold mb-1">예상 영향</p>
+            {expiry <= 12 && <p className="text-amber-700">• OP 불만족 리스크 — 1년 내 소비 강제</p>}
+            {expiry >= 36 && <p className="text-amber-700">• 잠재 부채 {(((expiry - 24) / 24) * 100).toFixed(0)}% 증가</p>}
+            {expiry > 12 && expiry < 36 && <p className="text-green-700">• 업계 표준 범위 내</p>}
+          </div>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+/* ═════════════════════════════════════════════════
+ * 프로모션 탭
+ * ═════════════════════════════════════════════════ */
+function PromotionsTab({
+  settings, setSettings, recordChange,
+}: {
+  settings: LiveSettings;
+  setSettings: React.Dispatch<React.SetStateAction<LiveSettings>>;
+  recordChange: (key: string, label: string, before: string, after: string) => void;
+}) {
+  const [maxCap, setMaxCap] = useState(settings.promoMaxMultiplier);
+  const [boosts, setBoosts] = useState<HotelPointsBoost[]>(settings.hotelBoosts);
+  const [addingNew, setAddingNew] = useState(false);
+  const [newBoost, setNewBoost] = useState<HotelPointsBoost>({
+    hotelId: "", multiplier: 1.1, label: "+10% ELS", reason: "", expiresAt: "",
+  });
+
+  const saveBoosts = () => {
+    if (JSON.stringify(boosts) === JSON.stringify(settings.hotelBoosts)) return;
+    recordChange("HOTEL_POINTS_BOOSTS", "호텔 프로모",
+      `${settings.hotelBoosts.length}개 활성`,
+      `${boosts.length}개 활성 (수정됨)`
+    );
+    setSettings(s => ({ ...s, hotelBoosts: boosts }));
+  };
+
+  const saveMaxCap = () => {
+    if (maxCap === settings.promoMaxMultiplier) return;
+    recordChange("PROMO_MAX_MULTIPLIER", "프로모 배수 상한",
+      `${settings.promoMaxMultiplier}×`, `${maxCap}×`);
+    setSettings(s => ({ ...s, promoMaxMultiplier: maxCap }));
+  };
+
+  const deleteBoost = (hotelId: string) => {
+    setBoosts(list => list.filter(b => b.hotelId !== hotelId));
+  };
+  const updateBoost = (hotelId: string, field: keyof HotelPointsBoost, value: any) => {
+    setBoosts(list => list.map(b => b.hotelId === hotelId ? { ...b, [field]: value } : b));
+  };
+  const addBoost = () => {
+    if (!newBoost.hotelId || !newBoost.expiresAt) {
+      toast.error("호텔과 만료일은 필수");
+      return;
+    }
+    if (boosts.some(b => b.hotelId === newBoost.hotelId)) {
+      toast.error("이미 프로모 중인 호텔입니다");
+      return;
+    }
+    setBoosts(list => [...list, { ...newBoost }]);
+    setAddingNew(false);
+    setNewBoost({ hotelId: "", multiplier: 1.1, label: "+10% ELS", reason: "", expiresAt: "" });
+  };
+
+  const availableHotels = hotels.filter(h => !boosts.some(b => b.hotelId === h.id));
+
+  return (
+    <div className="space-y-4">
+      {/* Max cap */}
+      <Card className="p-5">
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <Percent className="h-4 w-4" style={{ color: "#FF6000" }} />
+              <h3 className="font-semibold">프로모 배수 상한 (Hard Cap)</h3>
+              <Badge className="text-[9px] text-white" style={{ background: IMPACT_COLOR.High }}>HIGH</Badge>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              단일 호텔 프로모 배수의 최대치. 이 값 이상은 시스템이 거부함.
+            </p>
+          </div>
+          <Button size="sm" onClick={saveMaxCap} disabled={maxCap === settings.promoMaxMultiplier}
+            style={maxCap !== settings.promoMaxMultiplier ? { background: "#FF6000" } : undefined}
+            className={maxCap !== settings.promoMaxMultiplier ? "text-white" : ""}
+          >
+            <Save className="h-3 w-3 mr-1" />저장
+          </Button>
+        </div>
+        <div className="flex items-center gap-3">
+          <Input
+            type="number"
+            step="0.05"
+            min="1.0"
+            max="2.0"
+            value={maxCap}
+            onChange={e => setMaxCap(Number(e.target.value))}
+            className="w-32 font-mono"
+          />
+          <span>×</span>
+          <input
+            type="range"
+            min="1.0"
+            max="2.0"
+            step="0.05"
+            value={maxCap}
+            onChange={e => setMaxCap(Number(e.target.value))}
+            className="flex-1 accent-[#FF6000]"
+          />
+          <span className="text-sm text-muted-foreground whitespace-nowrap">= +{((maxCap - 1) * 100).toFixed(0)}% 최대</span>
+        </div>
+      </Card>
+
+      {/* Hotel promo table */}
+      <Card className="p-5">
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <TrendingUp className="h-4 w-4" style={{ color: "#FF6000" }} />
+              <h3 className="font-semibold">활성 호텔 프로모 ({boosts.length}개)</h3>
+              <Badge className="text-[9px] text-white" style={{ background: IMPACT_COLOR.Medium }}>MEDIUM</Badge>
+              <Badge variant="outline" className="text-[9px]">CMO 결재</Badge>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              호텔별 ELS 적립 부스터. 만료일 지나면 자동 비활성. 테이블에서 직접 편집.
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setAddingNew(!addingNew)}
+            >
+              <Plus className="h-3 w-3 mr-1" />프로모 추가
+            </Button>
+            <Button size="sm" onClick={saveBoosts}
+              disabled={JSON.stringify(boosts) === JSON.stringify(settings.hotelBoosts)}
+              style={JSON.stringify(boosts) !== JSON.stringify(settings.hotelBoosts) ? { background: "#FF6000" } : undefined}
+              className={JSON.stringify(boosts) !== JSON.stringify(settings.hotelBoosts) ? "text-white" : ""}
+            >
+              <Save className="h-3 w-3 mr-1" />저장
+            </Button>
+          </div>
+        </div>
+
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>호텔</TableHead>
+              <TableHead className="w-24">배수</TableHead>
+              <TableHead className="w-28">라벨</TableHead>
+              <TableHead>사유</TableHead>
+              <TableHead className="w-36">만료일</TableHead>
+              <TableHead className="w-16"></TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {addingNew && (
+              <TableRow style={{ background: "#FF600008" }}>
+                <TableCell>
+                  <select
+                    value={newBoost.hotelId}
+                    onChange={e => setNewBoost(b => ({ ...b, hotelId: e.target.value }))}
+                    className="w-full border rounded px-2 py-1 text-sm bg-background"
+                  >
+                    <option value="">-- 호텔 선택 --</option>
+                    {availableHotels.map(h => <option key={h.id} value={h.id}>{h.name}</option>)}
+                  </select>
+                </TableCell>
+                <TableCell>
+                  <Input
+                    type="number"
+                    step="0.05"
+                    min="1.0"
+                    max={maxCap}
+                    value={newBoost.multiplier}
+                    onChange={e => setNewBoost(b => ({ ...b, multiplier: Number(e.target.value), label: `+${Math.round((Number(e.target.value) - 1) * 100)}% ELS` }))}
+                    className="h-8 font-mono text-center"
+                  />
+                </TableCell>
+                <TableCell><span className="text-xs font-mono">{newBoost.label}</span></TableCell>
+                <TableCell>
+                  <Input
+                    placeholder="예: Q2 봄 캠페인"
+                    value={newBoost.reason}
+                    onChange={e => setNewBoost(b => ({ ...b, reason: e.target.value }))}
+                    className="h-8"
+                  />
+                </TableCell>
+                <TableCell>
+                  <Input
+                    type="date"
+                    value={newBoost.expiresAt}
+                    onChange={e => setNewBoost(b => ({ ...b, expiresAt: e.target.value }))}
+                    className="h-8 text-xs"
+                  />
+                </TableCell>
+                <TableCell>
+                  <Button size="sm" className="h-7 text-[10px] text-white" style={{ background: "#06D6A0" }} onClick={addBoost}>
+                    추가
+                  </Button>
+                </TableCell>
+              </TableRow>
+            )}
+            {boosts.map(b => {
+              const hotel = hotels.find(h => h.id === b.hotelId);
+              return (
+                <TableRow key={b.hotelId}>
+                  <TableCell>
+                    <p className="font-medium text-sm">{hotel?.name || b.hotelId}</p>
+                    <p className="text-[10px] text-muted-foreground">{hotel?.area}</p>
+                  </TableCell>
+                  <TableCell>
+                    <Input
+                      type="number"
+                      step="0.05"
+                      min="1.0"
+                      max={maxCap}
+                      value={b.multiplier}
+                      onChange={e => {
+                        const v = Number(e.target.value);
+                        updateBoost(b.hotelId, "multiplier", v);
+                        updateBoost(b.hotelId, "label", `+${Math.round((v - 1) * 100)}% ELS`);
+                      }}
+                      className="h-8 font-mono text-center"
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <span
+                      className="text-[10px] font-bold px-2 py-1 rounded text-white"
+                      style={{
+                        background: b.multiplier >= 1.2 ? "linear-gradient(90deg,#EF476F,#FF6000)"
+                                 : b.multiplier >= 1.15 ? "linear-gradient(90deg,#FF6000,#FFD166)"
+                                 : "linear-gradient(90deg,#8b5cf6,#a855f7)",
+                      }}
+                    >
+                      {b.label}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <Input
+                      value={b.reason}
+                      onChange={e => updateBoost(b.hotelId, "reason", e.target.value)}
+                      className="h-8 text-xs"
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Input
+                      type="date"
+                      value={b.expiresAt}
+                      onChange={e => updateBoost(b.hotelId, "expiresAt", e.target.value)}
+                      className="h-8 text-xs"
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 w-7 p-0 text-destructive hover:bg-destructive/10"
+                      onClick={() => deleteBoost(b.hotelId)}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </Card>
+    </div>
+  );
+}
+
+/* ═════════════════════════════════════════════════
+ * 게임화 탭
+ * ═════════════════════════════════════════════════ */
+function GamificationTab({
+  settings, setSettings, recordChange,
+}: {
+  settings: LiveSettings;
+  setSettings: React.Dispatch<React.SetStateAction<LiveSettings>>;
+  recordChange: (key: string, label: string, before: string, after: string) => void;
+}) {
+  const [stampBonuses, setStampBonuses] = useState({ ...settings.stampBonuses });
+  const [reviewFormula, setReviewFormula] = useState({ ...settings.reviewRewardFormula });
+
+  const saveStamps = () => {
+    if (JSON.stringify(stampBonuses) === JSON.stringify(settings.stampBonuses)) return;
+    const before = Object.values(settings.stampBonuses).join(" / ");
+    const after = Object.values(stampBonuses).join(" / ");
+    recordChange("STAMP_BONUS_SCALE", "스탬프 희귀도별 보너스", before, after);
+    setSettings(s => ({ ...s, stampBonuses }));
+  };
+
+  const saveReview = () => {
+    if (JSON.stringify(reviewFormula) === JSON.stringify(settings.reviewRewardFormula)) return;
+    const { base, quality, photo, first, monthlyCap } = reviewFormula;
+    const b = settings.reviewRewardFormula;
+    recordChange("REVIEW_REWARD_FORMULA", "리뷰 보상 공식",
+      `+${b.base}/+${b.quality}/+${b.photo}/+${b.first} · 월 ${b.monthlyCap}`,
+      `+${base}/+${quality}/+${photo}/+${first} · 월 ${monthlyCap}`
+    );
+    setSettings(s => ({ ...s, reviewRewardFormula: reviewFormula }));
+  };
+
+  const rarities: Array<{ key: StampRarity; color: string; label: string }> = [
+    { key: "Common",    color: "#94a3b8", label: "Common" },
+    { key: "Rare",      color: "#3b82f6", label: "Rare" },
+    { key: "Epic",      color: "#a855f7", label: "Epic" },
+    { key: "Legendary", color: "#eab308", label: "Legendary" },
+    { key: "Mythic",    color: "#FF6000", label: "Mythic" },
+  ];
+
+  const maxStampTotal = 23 * 3295 / 25 /* approx */;
+  const currentStampTotal = rarities.reduce((sum, r) => sum + stampBonuses[r.key], 0);
+
+  const maxReviewReward = reviewFormula.base + reviewFormula.quality + reviewFormula.photo + reviewFormula.first;
+
+  return (
+    <div className="space-y-4">
+      {/* Stamp bonuses */}
+      <Card className="p-5">
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <Award className="h-4 w-4" style={{ color: "#FF6000" }} />
+              <h3 className="font-semibold">스탬프 희귀도별 보너스</h3>
+              <Badge className="text-[9px] text-white" style={{ background: IMPACT_COLOR.Medium }}>MEDIUM</Badge>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              각 희귀도 스탬프 획득 시 일회성 ELS 보너스.
+              현재 전 카탈로그 합산 최대: <strong>{currentStampTotal * 5} ELS</strong> (OP 평생, 23개 전부 획득 시).
+            </p>
+          </div>
+          <Button size="sm" onClick={saveStamps}
+            disabled={JSON.stringify(stampBonuses) === JSON.stringify(settings.stampBonuses)}
+            style={JSON.stringify(stampBonuses) !== JSON.stringify(settings.stampBonuses) ? { background: "#FF6000" } : undefined}
+            className={JSON.stringify(stampBonuses) !== JSON.stringify(settings.stampBonuses) ? "text-white" : ""}
+          >
+            <Save className="h-3 w-3 mr-1" />저장
+          </Button>
+        </div>
+        <div className="grid grid-cols-5 gap-2">
+          {rarities.map(r => (
+            <div key={r.key} className="p-3 rounded-md" style={{ background: `${r.color}15`, borderLeft: `3px solid ${r.color}` }}>
+              <p className="font-bold text-xs" style={{ color: r.color }}>{r.label}</p>
+              <div className="flex items-center gap-1 mt-2">
+                <Input
+                  type="number"
+                  step="1"
+                  min="0"
+                  max="5000"
+                  value={stampBonuses[r.key]}
+                  onChange={e => setStampBonuses(b => ({ ...b, [r.key]: Number(e.target.value) }))}
+                  className="font-mono text-center h-8"
+                />
+                <span className="text-xs">ELS</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      {/* Review reward formula */}
+      <Card className="p-5">
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <Edit className="h-4 w-4" style={{ color: "#FF6000" }} />
+              <h3 className="font-semibold">호텔 리뷰 보상 공식</h3>
+              <Badge className="text-[9px] text-white" style={{ background: IMPACT_COLOR.Low }}>LOW</Badge>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              OP가 리뷰 작성 시 받을 ELS. 현재 리뷰당 최대: <strong style={{ color: "#FF6000" }}>+{maxReviewReward} ELS</strong>
+            </p>
+          </div>
+          <Button size="sm" onClick={saveReview}
+            disabled={JSON.stringify(reviewFormula) === JSON.stringify(settings.reviewRewardFormula)}
+            style={JSON.stringify(reviewFormula) !== JSON.stringify(settings.reviewRewardFormula) ? { background: "#FF6000" } : undefined}
+            className={JSON.stringify(reviewFormula) !== JSON.stringify(settings.reviewRewardFormula) ? "text-white" : ""}
+          >
+            <Save className="h-3 w-3 mr-1" />저장
+          </Button>
+        </div>
+        <div className="grid grid-cols-5 gap-2">
+          {[
+            { key: "base",       label: "기본 (80자+, 1팁+)", color: "#64748b" },
+            { key: "quality",    label: "품질 (300자 or 4팁)", color: "#3b82f6" },
+            { key: "photo",      label: "사진 (1장+)",        color: "#06D6A0" },
+            { key: "first",      label: "첫 리뷰 (1회)",      color: "#FF6000" },
+            { key: "monthlyCap", label: "월 리뷰 한도 (건)",  color: "#8b5cf6" },
+          ].map(f => (
+            <div key={f.key} className="p-3 rounded-md" style={{ background: `${f.color}15`, borderLeft: `3px solid ${f.color}` }}>
+              <p className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: f.color }}>{f.label}</p>
+              <div className="flex items-center gap-1 mt-2">
+                <Input
+                  type="number"
+                  step="1"
+                  min="0"
+                  max="50"
+                  value={reviewFormula[f.key as keyof typeof reviewFormula]}
+                  onChange={e => setReviewFormula(r => ({ ...r, [f.key]: Number(e.target.value) }))}
+                  className="font-mono text-center h-8"
+                />
+                <span className="text-xs">{f.key === "monthlyCap" ? "건" : "ELS"}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      {/* Stamp catalog link */}
+      <Card className="p-4 bg-muted/30">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h4 className="font-semibold text-sm">스탬프 카탈로그 (23개)</h4>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              개별 스탬프 추가/수정/제거는 별도 관리 페이지에서 (Phase 2).
+              현재 프로토타입에선 stamps 시드 데이터(rewards.ts) 직접 편집 필요.
+            </p>
+          </div>
+          <Button variant="outline" size="sm" disabled>
+            <Package className="h-3 w-3 mr-1" />카탈로그 관리 (예정)
+          </Button>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+/* ═════════════════════════════════════════════════
+ * 정책 탭
+ * ═════════════════════════════════════════════════ */
+function PolicyTab({
+  settings, setSettings, recordChange, navigate,
+}: {
+  settings: LiveSettings;
+  setSettings: React.Dispatch<React.SetStateAction<LiveSettings>>;
+  recordChange: (key: string, label: string, before: string, after: string) => void;
+  navigate: (path: string) => void;
+}) {
+  return (
+    <div className="space-y-4">
+      {/* ELS Non-transferable toggle */}
+      <Card className="p-5">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex-1">
+            <div className="flex items-center gap-2">
+              <Shield className="h-4 w-4" style={{ color: "#FF6000" }} />
+              <h3 className="font-semibold">ELS 양도 가능 여부</h3>
+              <Badge className="text-[9px] text-white" style={{ background: IMPACT_COLOR.Critical }}>CRITICAL</Badge>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              현재 <strong>양도 불가</strong>가 원칙입니다 (OP 개인 귀속).
+              활성화 시 gift-laundering / 담합 리스크 + AML/KYC 의무 재도입.
+            </p>
+            {!settings.elsNonTransferable && (
+              <p className="text-[11px] text-[#EF476F] mt-2 font-semibold">⚠ 경고: 현재 양도 가능 — 법무·재무 검토 필수</p>
+            )}
+          </div>
+          <button
+            onClick={() => {
+              const newValue = !settings.elsNonTransferable;
+              recordChange("ELS_NON_TRANSFERABLE", "ELS 양도 가능 여부",
+                settings.elsNonTransferable ? "양도 불가" : "양도 가능",
+                newValue ? "양도 불가" : "양도 가능"
+              );
+              setSettings(s => ({ ...s, elsNonTransferable: newValue }));
+            }}
+            className={`relative inline-flex h-8 w-16 items-center rounded-full transition-colors ${
+              settings.elsNonTransferable ? "bg-[#06D6A0]" : "bg-[#EF476F]"
+            }`}
+          >
+            <span className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${
+              settings.elsNonTransferable ? "translate-x-1" : "translate-x-9"
+            }`} />
+            <span className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-white">
+              {settings.elsNonTransferable ? "OFF" : "ON"}
+            </span>
+          </button>
+        </div>
+      </Card>
+
+      {/* Review Moderation link */}
+      <Card className="p-5">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="h-4 w-4" style={{ color: "#FF6000" }} />
+              <h3 className="font-semibold">리뷰 모더레이션</h3>
+              <Badge className="text-[9px] text-white" style={{ background: IMPACT_COLOR.Low }}>LOW</Badge>
+              <Badge variant="outline" className="text-[9px]">Content Manager</Badge>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              호텔 리뷰의 Pending 큐 처리 + 승인된 리뷰 사후 takedown.
+              일일 처리 목표: 24시간 내 응답.
+            </p>
+          </div>
+          <Button
+            size="sm"
+            onClick={() => navigate("/app/admin/review-moderation")}
+            style={{ background: "#FF6000" }}
+            className="text-white"
+          >
+            모더레이션 큐 이동 <ExternalLink className="h-3 w-3 ml-1" />
+          </Button>
+        </div>
+      </Card>
+
+      {/* Supplier contracts (placeholder link) */}
+      <Card className="p-5">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <Package className="h-4 w-4 text-muted-foreground" />
+              <h3 className="font-semibold">공급사 계약 관리</h3>
+              <Badge className="text-[9px] text-white" style={{ background: IMPACT_COLOR.High }}>HIGH</Badge>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              기프티콘 공급사 (Giftishow, 카카오, Grab, Rakuten 등)와의 도매 단가 계약.
+            </p>
+          </div>
+          <Button size="sm" variant="outline" disabled>
+            계약 관리 (Phase 2)
+          </Button>
+        </div>
+      </Card>
+
+      {/* Shop product pricing (placeholder link) */}
+      <Card className="p-5">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <Package className="h-4 w-4 text-muted-foreground" />
+              <h3 className="font-semibold">Shop 상품 가격 관리 (32개)</h3>
+              <Badge className="text-[9px] text-white" style={{ background: IMPACT_COLOR.Medium }}>MEDIUM</Badge>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              상품 카탈로그의 ELS 가격 개별 편집. 6개국 × 32개 상품.
+            </p>
+          </div>
+          <Button size="sm" variant="outline" disabled>
+            상품 관리 (Phase 2)
+          </Button>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+/* ═════════════════════════════════════════════════
+ * 변경 이력 탭
+ * ═════════════════════════════════════════════════ */
+function HistoryTab({ changes }: { changes: ParameterChange[] }) {
+  return (
+    <div className="space-y-4">
+      <Alert>
+        <History className="h-4 w-4" />
+        <AlertTitle className="text-sm">변경 이력 (감사 로그)</AlertTitle>
+        <AlertDescription className="text-xs">
+          이 페이지에서 실행된 모든 파라미터 변경이 영구 기록됩니다. 감사 감리용 증빙 자료.
+        </AlertDescription>
+      </Alert>
+
+      <Card className="p-0 overflow-hidden">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-36">적용 시각</TableHead>
+              <TableHead>파라미터</TableHead>
+              <TableHead>이전 → 이후</TableHead>
+              <TableHead className="w-36">적용자</TableHead>
+              <TableHead className="w-32">결재 참조</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {changes.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={5} className="text-center text-sm text-muted-foreground py-8">
+                  변경 이력이 없습니다.
+                </TableCell>
+              </TableRow>
+            ) : changes.map(chg => (
+              <TableRow key={chg.id}>
+                <TableCell className="text-xs font-mono text-muted-foreground whitespace-nowrap">
+                  {chg.appliedAt.slice(0, 16).replace("T", " ")}
+                </TableCell>
+                <TableCell>
+                  <p className="text-sm font-medium">{chg.itemKey}</p>
+                </TableCell>
+                <TableCell>
+                  <div className="space-y-1">
+                    <p className="text-xs font-mono line-through text-muted-foreground">{chg.previousValue}</p>
+                    <p className="text-xs font-mono" style={{ color: "#FF6000" }}>↳ {chg.newValue}</p>
+                    {chg.reason && <p className="text-[10px] text-muted-foreground italic">{chg.reason}</p>}
+                  </div>
+                </TableCell>
+                <TableCell className="text-xs">
+                  <p className="font-medium">{chg.appliedByName}</p>
+                  <p className="text-[10px] text-muted-foreground font-mono">{chg.appliedBy}</p>
+                </TableCell>
+                <TableCell>
+                  {chg.approvalRef ? (
+                    <Badge variant="outline" className="text-[10px] font-mono" style={{ color: "#FF6000", borderColor: "#FF600055" }}>
+                      {chg.approvalRef}
+                    </Badge>
+                  ) : (
+                    <span className="text-[10px] text-muted-foreground">—</span>
+                  )}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </Card>
     </div>
   );
 }

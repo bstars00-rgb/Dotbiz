@@ -394,8 +394,10 @@ export interface ParameterChange {
   appliedAt: string;             /* ISO datetime */
   previousValue: string;
   newValue: string;
-  approvalRef: string;           /* apr-010 형식 — 필수 */
   reason?: string;               /* 선택 비고 */
+  /* 결재 참조는 이 프로토타입에서는 선택 — 실제 운영 시 감사 로그
+   * 완전성을 위해 별도 시스템의 결재 ID를 저장하면 좋음 */
+  approvalRef?: string;
 }
 
 export const parameterChanges: ParameterChange[] = [
