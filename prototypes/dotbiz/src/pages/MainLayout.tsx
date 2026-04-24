@@ -65,11 +65,20 @@ const navSections: NavSection[] = [
       { i18nKey: "nav.team",          label: "Master Account", icon: Users, path: "/app/client", roles: ["Master"] },
       { i18nKey: "nav.notifications", label: "Notifications", icon: Bell,  path: "/app/notifications" },
       { i18nKey: "nav.myAccount",     label: "My Account",     icon: User,  path: "/app/my-account" },
-      /* ── ELLIS internal admin pages — hidden from customers ──
-       * Gated to EllisAdmin role only. Even Master (customer) cannot
-       * see these because they expose internal economics / moderation. */
-      { i18nKey: "nav.elsEconomics",  label: "ELS Economics",     icon: Shield,      path: "/app/admin/els-economics",      roles: ["EllisAdmin"] },
-      { i18nKey: "nav.reviewMod",     label: "Review Moderation", icon: ShieldCheck, path: "/app/admin/review-moderation", roles: ["EllisAdmin"] },
+    ],
+  },
+  {
+    /* ── CMS (Content Management System) ──
+     * OhMyHotel 내부 스태프 전용. CTO 방침: ELLIS에 모든 걸 담기엔 무거우니
+     * 경제 정책 · 리뷰 · 블로그 등은 향후 별도 경량 CMS 앱으로 분리 예정.
+     * 현 프로토타입에는 경제 + 리뷰 2개 기능만 DOTBIZ에 임시 탑재.
+     * (블로그 관리 페이지는 CMS 착수 후 추가 예정) */
+    id: "cms",
+    i18nKey: "nav.section.cms",
+    label: "CMS",
+    items: [
+      { i18nKey: "nav.elsEconomics", label: "ELS 경제",       icon: Shield,      path: "/app/admin/els-economics",      roles: ["EllisAdmin"] },
+      { i18nKey: "nav.reviewMod",    label: "리뷰 모더레이션", icon: ShieldCheck, path: "/app/admin/review-moderation", roles: ["EllisAdmin"] },
     ],
   },
   {

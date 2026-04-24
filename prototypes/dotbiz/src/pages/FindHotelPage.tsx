@@ -99,7 +99,7 @@ export default function FindHotelPage() {
   const [rooms, setRooms] = useState("1");
   const [adults, setAdults] = useState("2");
   const [children, setChildren] = useState("0");
-  const [nationality, setNationality] = useState("Korean");
+  /* nationality: 현재 UI 제거. 분석용 필드로만 유지 (future use). */
   const [searchError, setSearchError] = useState<string | null>(null);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [destTab, setDestTab] = useState("Top Cities");
@@ -109,9 +109,6 @@ export default function FindHotelPage() {
   const [hoverDate, setHoverDate] = useState<string | null>(null);
   const [calMonth, setCalMonth] = useState(() => { const d = new Date(); return { year: d.getFullYear(), month: d.getMonth() }; });
   const datePickerRef = useRef<HTMLDivElement>(null);
-  const [showNationality, setShowNationality] = useState(false);
-  const [nationalitySearch, setNationalitySearch] = useState("");
-  const nationalityRef = useRef<HTMLDivElement>(null);
   const [showRoomPicker, setShowRoomPicker] = useState(false);
   const [childAges, setChildAges] = useState<number[]>([]);
   const roomPickerRef = useRef<HTMLDivElement>(null);
@@ -126,7 +123,6 @@ export default function FindHotelPage() {
     const handler = (e: MouseEvent) => {
       if (datePickerRef.current && !datePickerRef.current.contains(e.target as Node)) setShowDatePicker(false);
       if (roomPickerRef.current && !roomPickerRef.current.contains(e.target as Node)) setShowRoomPicker(false);
-      if (nationalityRef.current && !nationalityRef.current.contains(e.target as Node)) setShowNationality(false);
       if (destRef.current && !destRef.current.contains(e.target as Node)) setShowSuggestions(false);
     };
     document.addEventListener("mousedown", handler);
@@ -156,7 +152,7 @@ export default function FindHotelPage() {
     if (err) { setSearchError("Please enter a destination."); return; }
     if (nights < 1) { setSearchError("Check-out must be after check-in."); return; }
     setSearchError(null);
-    navigate(`/app/search-results?q=${encodeURIComponent(destination)}&checkin=${checkin}&checkout=${checkout}&rooms=${rooms}&adults=${adults}&children=${children}&nationality=${encodeURIComponent(nationality)}`);
+    navigate(`/app/search-results?q=${encodeURIComponent(destination)}&checkin=${checkin}&checkout=${checkout}&rooms=${rooms}&adults=${adults}&children=${children}`);
   };
 
   const selectCity = (name: string) => {
@@ -303,7 +299,7 @@ export default function FindHotelPage() {
                     placeholder="City/Landmark/District/Hotel"
                     value={destination}
                     onChange={e => { setDestination(e.target.value); setShowSuggestions(true); }}
-                    onFocus={() => { setShowSuggestions(true); setShowDatePicker(false); setShowRoomPicker(false); setShowNationality(false); }}
+                    onFocus={() => { setShowSuggestions(true); setShowDatePicker(false); setShowRoomPicker(false); }}
                   />
                 </div>
               </div>
@@ -392,68 +388,8 @@ export default function FindHotelPage() {
                 )}
               </div>
 
-              {/* Nationality */}
-              <div className="relative" ref={nationalityRef}>
-                <div className="px-4 py-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors" onClick={() => { setShowNationality(!showNationality); setShowDatePicker(false); setShowRoomPicker(false); setNationalitySearch(""); }}>
-                  <p className="text-xs font-semibold text-muted-foreground mb-1">Nationality</p>
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-sm font-medium">{nationality}</span>
-                    <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
-                  </div>
-                </div>
-
-                {showNationality && (
-                  <div className="absolute right-0 top-full mt-2 bg-white dark:bg-slate-800 border rounded-2xl shadow-2xl z-50 w-[260px] py-2">
-                    {/* Search */}
-                    <div className="px-3 pb-2">
-                      <div className="relative">
-                        <Search className="absolute left-2.5 top-2 h-3.5 w-3.5 text-muted-foreground" />
-                        <input
-                          className="w-full pl-8 pr-3 py-1.5 text-sm border rounded-lg bg-background outline-none focus:border-[#FF6000]"
-                          placeholder="Search nationality..."
-                          value={nationalitySearch}
-                          onChange={e => setNationalitySearch(e.target.value)}
-                          autoFocus
-                        />
-                      </div>
-                    </div>
-                    {/* Popular */}
-                    <p className="px-4 py-1 text-xs font-bold text-muted-foreground">Popular Nationalities</p>
-                    <div className="max-h-[240px] overflow-auto">
-                      {[
-                        { code: "AU", name: "Australian" },
-                        { code: "CN", name: "Chinese (Mainland)" },
-                        { code: "ES", name: "Spanish" },
-                        { code: "GB", name: "British" },
-                        { code: "HK", name: "Chinese (Hong Kong)" },
-                        { code: "JP", name: "Japanese" },
-                        { code: "KR", name: "Korean" },
-                        { code: "MY", name: "Malaysian" },
-                        { code: "SG", name: "Singaporean" },
-                        { code: "TH", name: "Thai" },
-                        { code: "US", name: "American" },
-                        { code: "VN", name: "Vietnamese" },
-                        { code: "ID", name: "Indonesian" },
-                        { code: "PH", name: "Filipino" },
-                        { code: "IN", name: "Indian" },
-                        { code: "TW", name: "Taiwanese" },
-                        { code: "DE", name: "German" },
-                        { code: "FR", name: "French" },
-                      ].filter(n => !nationalitySearch || n.name.toLowerCase().includes(nationalitySearch.toLowerCase()) || n.code.toLowerCase().includes(nationalitySearch.toLowerCase()))
-                      .map(n => (
-                        <button
-                          key={n.code}
-                          className={`w-full text-left px-4 py-2 text-sm hover:bg-[#FF6000]/5 transition-colors flex items-center justify-between ${nationality === n.name ? "text-[#FF6000] font-semibold bg-[#FF6000]/5" : ""}`}
-                          onClick={() => { setNationality(n.name); setShowNationality(false); }}
-                        >
-                          <span>{n.code} - {n.name}</span>
-                          {nationality === n.name && <span className="text-[#FF6000]">✓</span>}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
+              {/* Nationality dropdown 제거 — 국가별 요금 차등은 현재 트렌드 아님.
+               * 마케팅 목적 국가 수집이 필요하면 예약 단계에서 optional로 수집. */}
 
               {/* Search Button */}
               <div className="px-2 py-3">

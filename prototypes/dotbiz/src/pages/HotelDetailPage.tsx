@@ -716,12 +716,14 @@ export default function HotelDetailPage() {
             )}
           </TabsContent>
 
-          {/* ── Overview Tab ── */}
+          {/* ── Overview Tab ──
+           * AI-generated 섹션 모두 제거. 모든 호텔 정보는 CMS에서 직접
+           * 큐레이션 입력. ROI가 낮은 AI 요약보다 신뢰도 높은 수기 정보. */}
           <TabsContent value="overview" className="mt-4 space-y-4">
             <Card className="p-6">
               <div className="flex items-center gap-2 mb-4">
                 <h3 className="font-bold">Overview</h3>
-                <Badge variant="secondary" className="text-[9px] gap-1"><Sparkles className="h-3 w-3" />AI-Enhanced</Badge>
+                <Badge variant="outline" className="text-[9px]">Curated by OhMyHotel</Badge>
                 <Button
                   size="sm"
                   variant="outline"
@@ -741,61 +743,28 @@ export default function HotelDetailPage() {
                 <div className="p-3 bg-muted/50 rounded-lg"><p className="text-[10px] font-bold text-muted-foreground">Website</p><p className="text-sm font-medium text-primary cursor-pointer">Visit Site</p></div>
               </div>
 
-              {/* AI-generated Introduction */}
+              {/* Introduction — curated by CMS */}
               <div className="mb-5">
-                <h4 className="text-sm font-bold mb-2 flex items-center gap-1.5">Introduction</h4>
-                <p className="text-sm leading-relaxed text-muted-foreground">{hotel.description} The hotel features world-class amenities including {hotel.amenities.slice(0, 3).join(", ").toLowerCase()} and more. Conveniently located in {hotel.area}, guests enjoy easy access to major attractions, shopping districts, and transportation hubs. The property is known for its exceptional service standards and attention to detail, making it a preferred choice for both business and leisure travelers.</p>
+                <h4 className="text-sm font-bold mb-2">Introduction</h4>
+                <p className="text-sm leading-relaxed text-muted-foreground">{hotel.description} The hotel features amenities including {hotel.amenities.slice(0, 3).join(", ").toLowerCase()} and is located in {hotel.area}.</p>
               </div>
 
-              {/* AI Location Analysis */}
-              <div className="mb-5">
-                <h4 className="text-sm font-bold mb-2 flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5 text-[#FF6000]" />Location Insights <Badge variant="outline" className="text-[8px] ml-1">AI</Badge></h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div className="p-3 border rounded-lg">
-                    <p className="text-xs font-semibold">Nearby Transit</p>
-                    <p className="text-xs text-muted-foreground mt-1">Metro station within 5-min walk. Airport accessible via express train (35 min).</p>
-                  </div>
-                  <div className="p-3 border rounded-lg">
-                    <p className="text-xs font-semibold">Dining & Shopping</p>
-                    <p className="text-xs text-muted-foreground mt-1">15+ restaurants within 500m. Premium shopping mall adjacent to the property.</p>
-                  </div>
-                  <div className="p-3 border rounded-lg">
-                    <p className="text-xs font-semibold">Business District</p>
-                    <p className="text-xs text-muted-foreground mt-1">Located in the heart of {hotel.area.split(",")[0]} business area. Convention center within 2km.</p>
-                  </div>
-                  <div className="p-3 border rounded-lg">
-                    <p className="text-xs font-semibold">Tourist Attractions</p>
-                    <p className="text-xs text-muted-foreground mt-1">Major landmarks and cultural sites within 3km radius. Walking tours available.</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* AI Guest Reviews Summary */}
+              {/* OP-visible Hotel Tips (curated — replaces AI Location Insights) */}
               <div>
-                <h4 className="text-sm font-bold mb-2 flex items-center gap-1.5"><Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />Guest Reviews Summary <Badge variant="outline" className="text-[8px] ml-1">AI</Badge></h4>
-                <div className="flex items-center gap-4 mb-3">
-                  <div className="h-14 w-14 rounded-xl flex items-center justify-center text-lg font-bold text-white" style={{ background: hotel.reviewScore >= 9 ? "#009505" : "#0891b2" }}>{hotel.reviewScore}</div>
-                  <div>
-                    <p className="text-sm font-bold">{hotel.reviewScore >= 9.5 ? "Exceptional" : hotel.reviewScore >= 9 ? "Excellent" : hotel.reviewScore >= 8.5 ? "Very Good" : "Good"}</p>
-                    <p className="text-xs text-muted-foreground">{hotel.reviewCount.toLocaleString()} verified reviews</p>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  {[
-                    { label: "Cleanliness", score: (hotel.reviewScore - 0.1 + Math.random() * 0.3).toFixed(1) },
-                    { label: "Service", score: (hotel.reviewScore + Math.random() * 0.2).toFixed(1) },
-                    { label: "Location", score: (hotel.reviewScore - 0.2 + Math.random() * 0.4).toFixed(1) },
-                    { label: "Value", score: (hotel.reviewScore - 0.5 + Math.random() * 0.5).toFixed(1) },
-                  ].map(r => (
-                    <div key={r.label} className="text-center">
-                      <p className="text-lg font-bold" style={{ color: "#FF6000" }}>{r.score}</p>
-                      <p className="text-[10px] text-muted-foreground">{r.label}</p>
+                <h4 className="text-sm font-bold mb-2 flex items-center gap-1.5">
+                  <MapPin className="h-3.5 w-3.5 text-[#FF6000]" />
+                  Hotel Highlights
+                </h4>
+                <p className="text-[11px] text-muted-foreground mb-3">
+                  호텔 예약 운영 팁과 주요 정보는 <strong>OhMy OP Reviews 탭</strong>에서 확인하세요.
+                  실제 투숙한 OP들의 검증된 팁이 교차 집계되어 있습니다.
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {hotel.features.slice(0, 4).map(f => (
+                    <div key={f} className="p-3 border rounded-lg">
+                      <p className="text-xs font-semibold">✓ {f}</p>
                     </div>
                   ))}
-                </div>
-                <div className="mt-3 p-3 bg-muted/30 rounded-lg">
-                  <p className="text-xs italic text-muted-foreground">"Guests frequently praise the {hotel.starRating >= 5 ? "luxurious rooms and impeccable service" : "comfortable rooms and friendly staff"}. The {hotel.amenities[0]?.toLowerCase() || "facilities"} and {hotel.amenities[1]?.toLowerCase() || "dining"} receive consistently high marks. {hotel.hasFreeCancellation ? "The flexible cancellation policy is appreciated by many travelers." : "Ideal for confirmed travel plans."}"</p>
-                  <p className="text-[10px] text-muted-foreground mt-1 flex items-center gap-1"><Sparkles className="h-3 w-3" />AI-generated summary based on {hotel.reviewCount.toLocaleString()} reviews</p>
                 </div>
               </div>
             </Card>

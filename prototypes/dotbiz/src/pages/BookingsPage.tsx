@@ -992,19 +992,18 @@ export default function BookingsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* ── Cancel Dialog ── */}
+      {/* ── Cancel Dialog ──
+       * 취소 사유 입력 필드는 의도적으로 제거. OP들이 귀찮아서 "Other"만
+       * 선택하면 수집된 데이터 무의미. 취소 자체의 확인에만 집중. */}
       <AlertDialog open={cancelOpen} onOpenChange={setCancelOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Cancel Booking</AlertDialogTitle>
-            <AlertDialogDescription>Are you sure you want to cancel this booking? Cancellation fees may apply.</AlertDialogDescription>
+            <AlertDialogDescription>
+              Are you sure you want to cancel this booking? Cancellation fees may apply
+              according to the hotel policy.
+            </AlertDialogDescription>
           </AlertDialogHeader>
-          <div className="py-2">
-            <label className="text-sm font-medium">Cancellation Reason</label>
-            <select className="w-full border rounded px-2 py-1.5 text-sm bg-background mt-1">
-              {["Change of plans", "Found better option", "Guest cancelled", "Date change needed", "Other"].map(r => <option key={r}>{r}</option>)}
-            </select>
-          </div>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => {

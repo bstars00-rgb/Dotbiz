@@ -44,6 +44,8 @@ export default function BookingFormPage() {
   const [bookerName, setBookerName] = useState(() => { const s = loadSavedForm(); return s?.bookerName ?? user?.name ?? currentCompany.name; });
   const [bookerEmail, setBookerEmail] = useState(() => { const s = loadSavedForm(); return s?.bookerEmail ?? user?.email ?? currentCompany.email; });
   const [bookerMobile, setBookerMobile] = useState(() => loadSavedForm()?.bookerMobile ?? "");
+  /* Guest 국가 — 마케팅 분석 목적 optional 필드 (요금 차등 X) */
+  const [guestNationality, setGuestNationality] = useState<string>(() => loadSavedForm()?.guestNationality ?? "");
   const [bookerCode, setBookerCode] = useState(() => loadSavedForm()?.bookerCode ?? "");
   const [mobileCountry, setMobileCountry] = useState(() => loadSavedForm()?.mobileCountry ?? "82");
 
@@ -87,7 +89,7 @@ export default function BookingFormPage() {
   /* Auto-save form data + booking params to sessionStorage */
   useEffect(() => {
     const data = {
-      bookerName, bookerEmail, bookerMobile, bookerCode, mobileCountry,
+      bookerName, bookerEmail, bookerMobile, bookerCode, mobileCountry, guestNationality,
       travelers, specialReqs: Array.from(specialReqs), customRequest, expectedCheckIn,
     };
     sessionStorage.setItem(FORM_STORAGE_KEY, JSON.stringify(data));
@@ -95,7 +97,7 @@ export default function BookingFormPage() {
     sessionStorage.setItem("dotbiz_booking_room", roomId);
     sessionStorage.setItem("dotbiz_booking_checkin", checkIn);
     sessionStorage.setItem("dotbiz_booking_checkout", checkOut);
-  }, [bookerName, bookerEmail, bookerMobile, bookerCode, mobileCountry, travelers, specialReqs, customRequest, expectedCheckIn, hotelId, roomId, checkIn, checkOut]);
+  }, [bookerName, bookerEmail, bookerMobile, bookerCode, mobileCountry, guestNationality, travelers, specialReqs, customRequest, expectedCheckIn, hotelId, roomId, checkIn, checkOut]);
   const nights = Math.max(1, Math.round((new Date(checkOut).getTime() - new Date(checkIn).getTime()) / 86400000));
   const totalPrice = room ? room.price * nights : 0;
   const isFreeCancel = room?.cancellationPolicy === "free_cancel";
@@ -149,6 +151,26 @@ export default function BookingFormPage() {
           <div>
             <label className="text-sm font-medium">Hotel Confirmation No.</label>
             <Input value={bookerCode} onChange={e => setBookerCode(e.target.value)} className="mt-1" placeholder="Hotel Confirmation No." />
+          </div>
+          <div>
+            <label className="text-sm font-medium">
+              Guest Nationality <span className="text-muted-foreground text-xs font-normal">(선택 · 마케팅 분석용)</span>
+            </label>
+            <select
+              value={guestNationality}
+              onChange={e => setGuestNationality(e.target.value)}
+              className="mt-1 w-full border rounded-md px-3 py-2 text-sm bg-background"
+            >
+              <option value="">— 선택 안 함 —</option>
+              {[
+                "Korean", "Japanese", "Chinese (Mainland)", "Chinese (Hong Kong)", "Taiwanese",
+                "Vietnamese", "Thai", "Singaporean", "Malaysian", "Indonesian", "Filipino",
+                "American", "British", "Australian", "German", "French", "Indian", "Other",
+              ].map(n => <option key={n} value={n}>{n}</option>)}
+            </select>
+            <p className="text-[10px] text-muted-foreground mt-1">
+              요금 차등 없음 · 마케팅 타겟팅 분석 목적 · 미입력 가능
+            </p>
           </div>
         </div>
       </Card>

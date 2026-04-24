@@ -18,6 +18,7 @@ const strings: Record<string, Record<Locale, string>> = {
   "nav.blog": { EN: "OhMy Blog", KO: "OhMy 블로그", JA: "OhMyブログ", ZH: "OhMy博客", VI: "OhMy Blog" },
   "nav.section.work":      { EN: "Work",      KO: "업무",      JA: "業務",     ZH: "工作",   VI: "Công việc" },
   "nav.section.admin":     { EN: "Admin",     KO: "관리",      JA: "管理",     ZH: "管理",   VI: "Quản trị" },
+  "nav.section.cms":       { EN: "CMS",       KO: "CMS",       JA: "CMS",      ZH: "CMS",    VI: "CMS" },
   "nav.section.resources": { EN: "Resources", KO: "참고/지원", JA: "リソース", ZH: "资源",   VI: "Tài nguyên" },
   "nav.switchAccount": { EN: "Switch Account", KO: "계정 전환", JA: "アカウント切替", ZH: "切换账户", VI: "Chuyển tài khoản" },
   "nav.logout": { EN: "Logout", KO: "로그아웃", JA: "ログアウト", ZH: "退出登录", VI: "Đăng xuất" },
