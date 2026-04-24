@@ -3,8 +3,12 @@ import { useNavigate } from "react-router";
 import {
   Shield, AlertTriangle, ArrowRight, Edit, History, Save, Plus, Trash2,
   Coins, TrendingUp, Award, Settings, ShieldCheck, Package, ExternalLink,
-  DollarSign, Percent, Calendar, Users, X as XIcon,
+  DollarSign, Percent, Calendar, Users, X as XIcon, CheckCircle2, XCircle,
 } from "lucide-react";
+
+/* Inline mini-icons for Auto-mod section */
+const CheckIcon = () => <CheckCircle2 className="h-3.5 w-3.5" style={{ color: "#06D6A0" }} />;
+const XIcon2 = () => <XCircle className="h-3.5 w-3.5" style={{ color: "#EF476F" }} />;
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -29,6 +33,11 @@ import {
   type HotelPointsBoost,
   type StampRarity,
 } from "@/mocks/rewards";
+import {
+  loadAutoModRules, saveAutoModRules, DEFAULT_AUTO_MOD_RULES,
+  type AutoModerationRules,
+} from "@/mocks/reviews";
+import { Bot } from "lucide-react";
 import { toast } from "sonner";
 
 /* ──────────────────────────────────────────────────────────────────────
@@ -1038,8 +1047,256 @@ function PolicyTab({
   recordChange: (key: string, label: string, before: string, after: string) => void;
   navigate: (path: string) => void;
 }) {
+  /* 자동 모더레이션 규칙 — localStorage에서 로드 */
+  const [autoMod, setAutoMod] = useState<AutoModerationRules>(loadAutoModRules);
+  const [autoModDirty, setAutoModDirty] = useState(false);
+  const [savedRules, setSavedRules] = useState<AutoModerationRules>(autoMod);
+
+  const updateRule = <K extends keyof AutoModerationRules>(key: K, value: AutoModerationRules[K]) => {
+    setAutoMod(r => ({ ...r, [key]: value }));
+    setAutoModDirty(true);
+  };
+
+  const saveAutoMod = () => {
+    saveAutoModRules(autoMod);
+    /* 각 변경 추적: 어느 필드가 바뀌었는지 기록 */
+    const diffs: string[] = [];
+    (Object.keys(autoMod) as Array<keyof AutoModerationRules>).forEach(k => {
+      if (autoMod[k] !== savedRules[k]) {
+        diffs.push(`${k}: ${savedRules[k]} → ${autoMod[k]}`);
+      }
+    });
+    if (diffs.length > 0) {
+      recordChange(
+        "AUTO_MOD_RULES",
+        "자동 모더레이션 규칙",
+        diffs.length === 1 ? diffs[0].split(" → ")[0].split(": ")[1] : "복수 필드",
+        diffs.length === 1 ? diffs[0].split(" → ")[1] : diffs.join(" · ")
+      );
+    }
+    setSavedRules({ ...autoMod });
+    setAutoModDirty(false);
+  };
+
+  const resetToDefaults = () => {
+    setAutoMod({ ...DEFAULT_AUTO_MOD_RULES });
+    setAutoModDirty(JSON.stringify(savedRules) !== JSON.stringify(DEFAULT_AUTO_MOD_RULES));
+  };
+
   return (
     <div className="space-y-4">
+      {/* ── 자동 모더레이션 규칙 설정 (신규) ── */}
+      <Card className="p-5" style={{ borderLeft: `4px solid #FF6000` }}>
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <Bot className="h-4 w-4" style={{ color: "#FF6000" }} />
+              <h3 className="font-semibold">리뷰 자동 모더레이션 규칙</h3>
+              <Badge className="text-[9px] text-white" style={{ background: IMPACT_COLOR.Medium }}>MEDIUM</Badge>
+              <Badge variant="outline" className="text-[9px]">Content Manager 결재</Badge>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              리뷰가 어떤 조건일 때 자동 승인/반려/수동 검토로 분류될지 규칙 설정.
+              저장 시 즉시 Review Moderation 페이지에 반영됨.
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <Button size="sm" variant="outline" onClick={resetToDefaults}>
+              기본값으로
+            </Button>
+            <Button
+              size="sm"
+              onClick={saveAutoMod}
+              disabled={!autoModDirty}
+              style={autoModDirty ? { background: "#FF6000" } : undefined}
+              className={autoModDirty ? "text-white" : ""}
+            >
+              <Save className="h-3 w-3 mr-1" />저장
+            </Button>
+          </div>
+        </div>
+
+        {/* Global toggles */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
+          <div className="p-3 rounded-md border" style={{ background: autoMod.enabled ? "#06D6A010" : "#f8f8f8", borderColor: autoMod.enabled ? "#06D6A0" : undefined }}>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold">엔진 활성화</p>
+                <p className="text-[10px] text-muted-foreground">OFF 시 모든 리뷰가 수동 검수 대기로 감</p>
+              </div>
+              <button
+                onClick={() => updateRule("enabled", !autoMod.enabled)}
+                className={`relative inline-flex h-7 w-14 items-center rounded-full transition-colors ${
+                  autoMod.enabled ? "bg-[#06D6A0]" : "bg-muted"
+                }`}
+              >
+                <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
+                  autoMod.enabled ? "translate-x-8" : "translate-x-1"
+                }`} />
+              </button>
+            </div>
+          </div>
+          <div className="p-3 rounded-md border" style={{ background: autoMod.strictMode ? "#FF600010" : "#f8f8f8", borderColor: autoMod.strictMode ? "#FF6000" : undefined }}>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold">Strict 모드</p>
+                <p className="text-[10px] text-muted-foreground">사진 없는 리뷰도 수동 검수로 강제</p>
+              </div>
+              <button
+                onClick={() => updateRule("strictMode", !autoMod.strictMode)}
+                className={`relative inline-flex h-7 w-14 items-center rounded-full transition-colors ${
+                  autoMod.strictMode ? "bg-[#FF6000]" : "bg-muted"
+                }`}
+              >
+                <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
+                  autoMod.strictMode ? "translate-x-8" : "translate-x-1"
+                }`} />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Auto-Approve conditions */}
+        <div className="mb-4">
+          <p className="text-xs font-semibold mb-2 flex items-center gap-1.5">
+            <CheckIcon /> 자동 승인 조건 (모두 충족 시 즉시 승인 + ELS 지급)
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            {/* Min body length */}
+            <div className="p-3 rounded-md bg-muted/40">
+              <label className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                최소 본문 길이
+              </label>
+              <div className="flex items-center gap-2 mt-1">
+                <Input
+                  type="number"
+                  min="50"
+                  max="500"
+                  step="10"
+                  value={autoMod.autoApproveMinBody}
+                  onChange={e => updateRule("autoApproveMinBody", Number(e.target.value))}
+                  className="font-mono text-center h-8"
+                />
+                <span className="text-xs">자</span>
+              </div>
+              <input
+                type="range"
+                min="50"
+                max="500"
+                step="10"
+                value={autoMod.autoApproveMinBody}
+                onChange={e => updateRule("autoApproveMinBody", Number(e.target.value))}
+                className="w-full mt-2 accent-[#FF6000]"
+              />
+              <p className="text-[9px] text-muted-foreground mt-1">
+                ↑ 높을수록 자동 승인 까다로워짐
+              </p>
+            </div>
+
+            {/* Min tip count */}
+            <div className="p-3 rounded-md bg-muted/40">
+              <label className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                최소 팁 개수
+              </label>
+              <div className="flex items-center gap-2 mt-1">
+                <Input
+                  type="number"
+                  min="0"
+                  max="10"
+                  step="1"
+                  value={autoMod.autoApproveMinTips}
+                  onChange={e => updateRule("autoApproveMinTips", Number(e.target.value))}
+                  className="font-mono text-center h-8"
+                />
+                <span className="text-xs">개</span>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max="10"
+                step="1"
+                value={autoMod.autoApproveMinTips}
+                onChange={e => updateRule("autoApproveMinTips", Number(e.target.value))}
+                className="w-full mt-2 accent-[#FF6000]"
+              />
+              <p className="text-[9px] text-muted-foreground mt-1">
+                0이면 팁 없어도 자동 승인 가능
+              </p>
+            </div>
+
+            {/* Require verified stay */}
+            <div className="p-3 rounded-md bg-muted/40">
+              <label className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                투숙 검증 필수
+              </label>
+              <div className="flex items-center justify-between mt-2">
+                <p className="text-xs">{autoMod.autoApproveRequireVerified ? "검증된 투숙만 자동 승인" : "검증 없어도 자동 승인 가능"}</p>
+                <button
+                  onClick={() => updateRule("autoApproveRequireVerified", !autoMod.autoApproveRequireVerified)}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    autoMod.autoApproveRequireVerified ? "bg-[#06D6A0]" : "bg-muted"
+                  }`}
+                >
+                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    autoMod.autoApproveRequireVerified ? "translate-x-6" : "translate-x-1"
+                  }`} />
+                </button>
+              </div>
+              <p className="text-[9px] text-muted-foreground mt-2">
+                ⚠ OFF 시 스팸 위험 증가
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Auto-Reject conditions */}
+        <div>
+          <p className="text-xs font-semibold mb-2 flex items-center gap-1.5" style={{ color: "#EF476F" }}>
+            <XIcon2 /> 자동 반려 조건 (즉시 차단, OP에게 사유 통지)
+          </p>
+          <div className="p-3 rounded-md bg-muted/40 max-w-md">
+            <label className="text-[10px] uppercase tracking-wider text-muted-foreground">
+              스팸 플래그 개수 임계값
+            </label>
+            <div className="flex items-center gap-2 mt-1">
+              <Input
+                type="number"
+                min="1"
+                max="5"
+                step="1"
+                value={autoMod.autoRejectSpamFlagThreshold}
+                onChange={e => updateRule("autoRejectSpamFlagThreshold", Number(e.target.value))}
+                className="font-mono text-center h-8 w-20"
+              />
+              <span className="text-xs">개 이상</span>
+            </div>
+            <p className="text-[9px] text-muted-foreground mt-1">
+              스팸 패턴 / 반복어 / 홍보성 문구 감지 개수. 낮을수록 더 공격적으로 차단.
+            </p>
+          </div>
+        </div>
+
+        {/* Summary */}
+        <div className="mt-4 p-3 rounded-md border border-[#FF6000]/30" style={{ background: "#FF600008" }}>
+          <p className="text-[11px] font-semibold mb-1" style={{ color: "#FF6000" }}>현재 규칙 요약</p>
+          <ul className="text-[11px] space-y-0.5">
+            <li>
+              <strong>자동 승인</strong>: 본문 <strong>{autoMod.autoApproveMinBody}자+</strong> · 팁{" "}
+              <strong>{autoMod.autoApproveMinTips}개+</strong>
+              {autoMod.autoApproveRequireVerified && " · 검증된 투숙"}
+              {" · 플래그 없음"}
+              {autoMod.strictMode && " · 사진 1장+ (Strict)"}
+            </li>
+            <li>
+              <strong>자동 반려</strong>: 스팸/반복어/홍보 플래그 <strong>{autoMod.autoRejectSpamFlagThreshold}개 이상</strong> 감지
+            </li>
+            <li>
+              <strong>그 외</strong>: Manual Review 큐로 이동 (Content Manager 수동 처리)
+            </li>
+          </ul>
+        </div>
+      </Card>
+
       {/* ELS Non-transferable toggle */}
       <Card className="p-5">
         <div className="flex items-center justify-between gap-3">

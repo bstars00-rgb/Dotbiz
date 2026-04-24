@@ -432,6 +432,41 @@ export const DEFAULT_AUTO_MOD_RULES: AutoModerationRules = {
   strictMode: false,
 };
 
+/* ── 규칙 영속화 (localStorage) ──
+ * ELS 경제 관리에서 저장된 규칙을 리뷰 모더레이션 페이지가 읽음.
+ * 프로토타입에선 localStorage로 페이지 간 공유.
+ * 실제 운영에선 ELLIS DB에 저장되고 웹훅으로 전파. */
+const AUTO_MOD_STORAGE_KEY = "dotbiz_auto_mod_rules";
+
+export function loadAutoModRules(): AutoModerationRules {
+  if (typeof window === "undefined") return { ...DEFAULT_AUTO_MOD_RULES };
+  try {
+    const raw = window.localStorage.getItem(AUTO_MOD_STORAGE_KEY);
+    if (!raw) return { ...DEFAULT_AUTO_MOD_RULES };
+    const parsed = JSON.parse(raw);
+    /* 기본값과 병합해서 누락된 필드 보완 */
+    return { ...DEFAULT_AUTO_MOD_RULES, ...parsed };
+  } catch {
+    return { ...DEFAULT_AUTO_MOD_RULES };
+  }
+}
+
+export function saveAutoModRules(rules: AutoModerationRules): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(AUTO_MOD_STORAGE_KEY, JSON.stringify(rules));
+  } catch {
+    /* quota exceeded or disabled — fail silently in prototype */
+  }
+}
+
+export function resetAutoModRules(): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(AUTO_MOD_STORAGE_KEY);
+  } catch { /* ignore */ }
+}
+
 export type ModerationDecision = "AutoApprove" | "AutoReject" | "ManualReview";
 
 export interface AutoModerationResult {

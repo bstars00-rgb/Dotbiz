@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router";
 import {
   ShieldCheck, AlertTriangle, CheckCircle2, XCircle, Clock, Flag,
@@ -21,10 +21,10 @@ import { useAuth } from "@/contexts/AuthContext";
 import { hotels } from "@/mocks/hotels";
 import {
   hotelReviews, reviewsByStatus, pendingReviews,
-  autoModerateDecision, autoModerationStats, DEFAULT_AUTO_MOD_RULES,
+  autoModerateDecision, autoModerationStats, loadAutoModRules,
   type HotelReview, type ReviewStatus,
 } from "@/mocks/reviews";
-import { Zap, Bot, Gauge } from "lucide-react";
+import { Zap, Bot, Settings as SettingsIcon } from "lucide-react";
 import { toast } from "sonner";
 
 /* ──────────────────────────────────────────────────────────────────────
@@ -68,9 +68,25 @@ export default function AdminReviewsPage() {
   /* Local state mutates for demo — real system writes to DB */
   const [reviews, setReviews] = useState<HotelReview[]>(hotelReviews);
 
-  /* 자동 모더레이션 엔진 on/off + 룰 */
-  const [autoModEnabled, setAutoModEnabled] = useState(true);
-  const [autoRules] = useState(DEFAULT_AUTO_MOD_RULES);
+  /* 자동 모더레이션 엔진 — localStorage에서 설정 로드 (ELS 경제 관리에서 저장된 값) */
+  const [autoRules, setAutoRules] = useState(() => loadAutoModRules());
+  const [autoModEnabled, setAutoModEnabled] = useState(autoRules.enabled);
+
+  /* 다른 탭에서 설정 변경 시 storage 이벤트로 자동 반영 */
+  useEffect(() => {
+    const refresh = () => {
+      const fresh = loadAutoModRules();
+      setAutoRules(fresh);
+      setAutoModEnabled(fresh.enabled);
+    };
+    window.addEventListener("storage", refresh);
+    /* 같은 탭에서의 변경도 감지하기 위해 focus 이벤트로 재로드 */
+    window.addEventListener("focus", refresh);
+    return () => {
+      window.removeEventListener("storage", refresh);
+      window.removeEventListener("focus", refresh);
+    };
+  }, []);
 
   /* 각 pending 리뷰의 자동 판정 (엔진 on 상태에서만) */
   const autoDecisions = useMemo(() => {
@@ -301,14 +317,31 @@ export default function AdminReviewsPage() {
                 사람 검토 <strong className="text-amber-600">{autoStats.manualReview}</strong>
                 {" · "}약 <strong style={{ color: "#FF6000" }}>{autoStats.autoHandledPct}%</strong> 자동 처리 가능
               </p>
+              <p className="text-[10px] text-muted-foreground mt-0.5 font-mono">
+                현재 규칙: 본문 {autoRules.autoApproveMinBody}자+ · 팁 {autoRules.autoApproveMinTips}개+
+                {autoRules.autoApproveRequireVerified && " · 투숙 검증"}
+                · 스팸 플래그 {autoRules.autoRejectSpamFlagThreshold}개+ 반려
+                {autoRules.strictMode && " · Strict"}
+              </p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => navigate("/app/admin/els-economics?tab=policy")}
+              title="ELS 경제 관리 → 정책 탭에서 자동 모더레이션 규칙 편집"
+              className="h-7 text-[11px]"
+            >
+              <SettingsIcon className="h-3 w-3 mr-1" />
+              규칙 설정
+            </Button>
             <button
               onClick={() => setAutoModEnabled(!autoModEnabled)}
               className={`relative inline-flex h-7 w-14 items-center rounded-full transition-colors ${
                 autoModEnabled ? "bg-[#FF6000]" : "bg-muted"
               }`}
+              title="세션 내 임시 on/off. 영구 변경은 규칙 설정에서."
             >
               <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
                 autoModEnabled ? "translate-x-8" : "translate-x-1"
