@@ -3,9 +3,14 @@ import { createContext, useContext, useState, useCallback, type ReactNode } from
 interface User {
   email: string;
   name: string;
-  role: "Master" | "OP" | "Accounting";
+  role: "Master" | "OP" | "Accounting" | "EllisAdmin";
   company: string;
   billingType: "PREPAY" | "POSTPAY";
+  /** Internal OhMyHotel staff (ELLIS admin) vs external customer.
+   * Customers (Master/OP/Accounting) CANNOT see admin pages.
+   * Internal staff (EllisAdmin) sees admin pages and has limited customer
+   * visibility for support purposes. */
+  isInternal?: boolean;
 }
 
 interface AuthContextType {
@@ -37,6 +42,12 @@ const MOCK_USERS: { email: string; password: string; user: User }[] = [
   { email: "gotadi@dotbiz.com", password: "gotadi123", user: { email: "gotadi@dotbiz.com", name: "Nguyen Van An", role: "Master", company: "GOTADI", billingType: "POSTPAY" } },
   /* Vietnam Vacation Co — PREPAY with both SG and VN contracts */
   { email: "vvc@dotbiz.com", password: "vvc123", user: { email: "vvc@dotbiz.com", name: "Vu Thi Hoa", role: "Master", company: "Vietnam Vacation Co", billingType: "PREPAY" } },
+
+  /* ── INTERNAL OhMyHotel staff accounts (ELLIS admin console) ──
+   * Only these users see ELS Economics + Review Moderation pages.
+   * Customer-facing accounts (Master/OP/Accounting) have no visibility. */
+  { email: "ellis@ohmyhotel.com",    password: "ellis123",    user: { email: "ellis@ohmyhotel.com",    name: "Su-min Park",  role: "EllisAdmin", company: "OhMyHotel Inc.", billingType: "POSTPAY", isInternal: true } },
+  { email: "content@ohmyhotel.com",  password: "content123",  user: { email: "content@ohmyhotel.com",  name: "Ji-hoon Kim",  role: "EllisAdmin", company: "OhMyHotel Inc.", billingType: "POSTPAY", isInternal: true } },
 ];
 
 const STORAGE_KEY = "dotbiz_auth";
@@ -56,7 +67,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const setCurrentRole = useCallback((role: string) => {
     setCurrentRoleState(role);
     if (user) {
-      const updated = { ...user, role: role as "Master" | "OP" };
+      const updated = { ...user, role: role as "Master" | "OP" | "Accounting" | "EllisAdmin" };
       setUser(updated);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
     }

@@ -44,6 +44,28 @@ export default function AdminEconomicsPage() {
   const navigate = useNavigate();
   const [tab, setTab] = useTabParam("parameters");
 
+  /* ── Access guard: ELLIS internal staff only ──
+   * Even Master customers must not see this page. Direct URL access
+   * shows a polite denial. */
+  if (!user?.isInternal) {
+    return (
+      <div className="p-6 max-w-2xl mx-auto">
+        <Card className="p-8 text-center">
+          <Shield className="h-12 w-12 mx-auto mb-3 text-muted-foreground" />
+          <h2 className="text-lg font-bold">Restricted Area</h2>
+          <p className="text-sm text-muted-foreground mt-2">
+            This page is for <strong>OhMyHotel internal staff (ELLIS admin)</strong> only.
+            Customer accounts do not have access to internal economics configuration.
+          </p>
+          <Button className="mt-4" onClick={() => navigate("/app/dashboard")}>
+            Back to Dashboard
+          </Button>
+        </Card>
+        <StateToolbar state={state} setState={setState} />
+      </div>
+    );
+  }
+
   /* ── Request Change dialog state ── */
   const [rcItem, setRcItem] = useState<ApprovalItem | null>(null);
   const [rcProposed, setRcProposed] = useState("");

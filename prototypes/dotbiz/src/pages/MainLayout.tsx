@@ -65,8 +65,11 @@ const navSections: NavSection[] = [
       { i18nKey: "nav.team",          label: "Master Account", icon: Users, path: "/app/client", roles: ["Master"] },
       { i18nKey: "nav.notifications", label: "Notifications", icon: Bell,  path: "/app/notifications" },
       { i18nKey: "nav.myAccount",     label: "My Account",     icon: User,  path: "/app/my-account" },
-      { i18nKey: "nav.elsEconomics",  label: "ELS Economics",  icon: Shield, path: "/app/admin/els-economics", roles: ["Master"] },
-      { i18nKey: "nav.reviewMod",     label: "Review Moderation", icon: ShieldCheck, path: "/app/admin/review-moderation", roles: ["Master"] },
+      /* ── ELLIS internal admin pages — hidden from customers ──
+       * Gated to EllisAdmin role only. Even Master (customer) cannot
+       * see these because they expose internal economics / moderation. */
+      { i18nKey: "nav.elsEconomics",  label: "ELS Economics",     icon: Shield,      path: "/app/admin/els-economics",      roles: ["EllisAdmin"] },
+      { i18nKey: "nav.reviewMod",     label: "Review Moderation", icon: ShieldCheck, path: "/app/admin/review-moderation", roles: ["EllisAdmin"] },
     ],
   },
   {
@@ -638,9 +641,21 @@ export default function MainLayout() {
               <Avatar className="h-8 w-8"><AvatarFallback>{(user?.name || "U").slice(0, 2).toUpperCase()}</AvatarFallback></Avatar>
               <div className="min-w-0">
                 <p className="text-sm font-medium truncate">{user?.name || currentUser.fullName}</p>
-                <Badge variant="secondary" className="text-xs">{user?.role || currentUser.role}</Badge>
+                <Badge
+                  variant="secondary"
+                  className="text-xs"
+                  style={user?.isInternal ? { background: "#FF600022", color: "#FF6000" } : undefined}
+                >
+                  {user?.isInternal && <Shield className="h-2.5 w-2.5 mr-0.5 inline" />}
+                  {user?.role || currentUser.role}
+                </Badge>
               </div>
             </div>
+            {user?.isInternal && (
+              <p className="text-[9px] font-semibold mt-1 uppercase tracking-wider" style={{ color: "#FF6000" }}>
+                ⚠ ELLIS Internal Console
+              </p>
+            )}
             <p className="text-[10px] text-muted-foreground mt-2 leading-tight">
               Open the profile menu (top-right) to switch accounts or sign out.
             </p>

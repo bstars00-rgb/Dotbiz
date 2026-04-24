@@ -43,6 +43,26 @@ export default function AdminReviewsPage() {
   const navigate = useNavigate();
   const [tab, setTab] = useTabParam("pending");
 
+  /* Access guard — ELLIS Content Manager internal staff only */
+  if (!user?.isInternal) {
+    return (
+      <div className="p-6 max-w-2xl mx-auto">
+        <Card className="p-8 text-center">
+          <ShieldCheck className="h-12 w-12 mx-auto mb-3 text-muted-foreground" />
+          <h2 className="text-lg font-bold">Restricted Area</h2>
+          <p className="text-sm text-muted-foreground mt-2">
+            Review moderation is performed by <strong>OhMyHotel Content Managers (ELLIS internal)</strong>.
+            Customer accounts do not have access.
+          </p>
+          <Button className="mt-4" onClick={() => navigate("/app/dashboard")}>
+            Back to Dashboard
+          </Button>
+        </Card>
+        <StateToolbar state={state} setState={setState} />
+      </div>
+    );
+  }
+
   /* Local state mutates for demo — real system writes to DB */
   const [reviews, setReviews] = useState<HotelReview[]>(hotelReviews);
 
