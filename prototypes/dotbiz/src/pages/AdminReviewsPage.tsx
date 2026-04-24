@@ -21,8 +21,10 @@ import { useAuth } from "@/contexts/AuthContext";
 import { hotels } from "@/mocks/hotels";
 import {
   hotelReviews, reviewsByStatus, pendingReviews,
+  autoModerateDecision, autoModerationStats, DEFAULT_AUTO_MOD_RULES,
   type HotelReview, type ReviewStatus,
 } from "@/mocks/reviews";
+import { Zap, Bot, Gauge } from "lucide-react";
 import { toast } from "sonner";
 
 /* ──────────────────────────────────────────────────────────────────────
@@ -66,6 +68,27 @@ export default function AdminReviewsPage() {
   /* Local state mutates for demo — real system writes to DB */
   const [reviews, setReviews] = useState<HotelReview[]>(hotelReviews);
 
+  /* 자동 모더레이션 엔진 on/off + 룰 */
+  const [autoModEnabled, setAutoModEnabled] = useState(true);
+  const [autoRules] = useState(DEFAULT_AUTO_MOD_RULES);
+
+  /* 각 pending 리뷰의 자동 판정 (엔진 on 상태에서만) */
+  const autoDecisions = useMemo(() => {
+    const m = new Map<string, ReturnType<typeof autoModerateDecision>>();
+    for (const r of reviews) {
+      if (r.status === "Pending") {
+        m.set(r.id, autoModerateDecision(r, autoRules));
+      }
+    }
+    return m;
+  }, [reviews, autoRules]);
+
+  /* 통계: 전체 pending 중 자동 처리 가능 비율 */
+  const autoStats = useMemo(
+    () => autoModerationStats(reviews.filter(r => r.status === "Pending"), autoRules),
+    [reviews, autoRules]
+  );
+
   /* Review detail + action dialogs */
   const [detail, setDetail] = useState<HotelReview | null>(null);
   const [rejectOpen, setRejectOpen] = useState<HotelReview | null>(null);
@@ -94,6 +117,48 @@ export default function AdminReviewsPage() {
       (hotels.find(h => h.id === r.hotelId)?.name || "").toLowerCase().includes(q)
     );
   }, [tab, pending, approved, rejected, search]);
+
+  /** 자동 판정대로 일괄 처리 — Auto-Approve는 Approved로, Auto-Reject는 Rejected로 */
+  const applyAutoDecisions = () => {
+    const now = new Date().toISOString();
+    let approved = 0;
+    let rejected = 0;
+    setReviews(list => list.map(r => {
+      if (r.status !== "Pending") return r;
+      const dec = autoDecisions.get(r.id);
+      if (!dec) return r;
+      if (dec.decision === "AutoApprove") {
+        approved++;
+        return {
+          ...r,
+          status: "Approved",
+          approvedAt: now,
+          moderatedBy: "system-auto",
+          moderatedAt: now,
+          moderationNote: `자동 승인 (신뢰도 ${Math.round(dec.confidence * 100)}%) · ${dec.reasons.join(", ")}`,
+        };
+      }
+      if (dec.decision === "AutoReject") {
+        rejected++;
+        return {
+          ...r,
+          status: "Rejected",
+          moderatedBy: "system-auto",
+          moderatedAt: now,
+          moderationNote: `자동 반려 (신뢰도 ${Math.round(dec.confidence * 100)}%) · ${dec.reasons.join(", ")}`,
+          elsAwarded: 0,
+        };
+      }
+      return r;
+    }));
+    if (approved + rejected === 0) {
+      toast.info("자동 처리할 리뷰가 없습니다 (모두 수동 검토 필요)");
+    } else {
+      toast.success(`자동 처리 완료: ${approved}건 승인 + ${rejected}건 반려`, {
+        description: "경계선 케이스는 Manual Review로 남겨둠",
+      });
+    }
+  };
 
   const approveReview = (r: HotelReview) => {
     const now = new Date().toISOString();
@@ -183,39 +248,97 @@ export default function AdminReviewsPage() {
       {/* KPIs */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
         <Card className="p-4">
-          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Pending</p>
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">검수 대기 (Pending)</p>
           <p className="text-3xl font-bold mt-1" style={{ color: pending.length > 0 ? "#eab308" : "#64748b" }}>
             {pending.length}
           </p>
-          <p className="text-[10px] text-muted-foreground mt-1">awaiting review</p>
+          <p className="text-[10px] text-muted-foreground mt-1">
+            자동 처리 가능: <strong>{autoStats.autoApprove + autoStats.autoReject}건</strong>
+          </p>
         </Card>
         <Card className="p-4">
-          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Approved (total)</p>
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">자동 처리율</p>
+          <p className="text-3xl font-bold mt-1" style={{ color: "#FF6000" }}>{autoStats.autoHandledPct}%</p>
+          <p className="text-[10px] text-muted-foreground mt-1">
+            {autoStats.manualReview}건만 사람 검토 필요
+          </p>
+        </Card>
+        <Card className="p-4">
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">누적 승인</p>
           <p className="text-3xl font-bold mt-1 text-green-600">{approved.length}</p>
-          <p className="text-[10px] text-muted-foreground mt-1">live on B2B + B2C</p>
+          <p className="text-[10px] text-muted-foreground mt-1">B2B + B2C 노출</p>
         </Card>
         <Card className="p-4">
-          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Rejected</p>
-          <p className="text-3xl font-bold mt-1" style={{ color: "#EF476F" }}>{rejected.length}</p>
-          <p className="text-[10px] text-muted-foreground mt-1">with reasoning recorded</p>
-        </Card>
-        <Card className="p-4">
-          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Avg response time</p>
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">평균 응답 시간</p>
           <p className="text-3xl font-bold mt-1">~4h</p>
-          <p className="text-[10px] text-muted-foreground mt-1">target: &lt; 24h</p>
+          <p className="text-[10px] text-muted-foreground mt-1">목표: &lt; 24h</p>
         </Card>
       </div>
 
+      {/* 자동 모더레이션 컨트롤 배너 */}
+      <Card className="p-4" style={{ background: "linear-gradient(90deg, #FF600010, transparent)", borderColor: "#FF600055" }}>
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <div className="flex items-center gap-3">
+            <div
+              className="h-10 w-10 rounded-full flex items-center justify-center"
+              style={{ background: autoModEnabled ? "#FF6000" : "#64748b" }}
+            >
+              <Bot className="h-5 w-5 text-white" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="font-semibold text-sm">자동 모더레이션 엔진</h3>
+                <span
+                  className={`text-[10px] font-bold px-2 py-0.5 rounded ${autoModEnabled ? "text-white" : "text-muted-foreground border"}`}
+                  style={autoModEnabled ? { background: "#06D6A0" } : undefined}
+                >
+                  {autoModEnabled ? "● 작동 중" : "● OFF"}
+                </span>
+              </div>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                자동 판정: 승인 <strong className="text-green-600">{autoStats.autoApprove}</strong> ·
+                반려 <strong style={{ color: "#EF476F" }}>{autoStats.autoReject}</strong> ·
+                사람 검토 <strong className="text-amber-600">{autoStats.manualReview}</strong>
+                {" · "}약 <strong style={{ color: "#FF6000" }}>{autoStats.autoHandledPct}%</strong> 자동 처리 가능
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setAutoModEnabled(!autoModEnabled)}
+              className={`relative inline-flex h-7 w-14 items-center rounded-full transition-colors ${
+                autoModEnabled ? "bg-[#FF6000]" : "bg-muted"
+              }`}
+            >
+              <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
+                autoModEnabled ? "translate-x-8" : "translate-x-1"
+              }`} />
+            </button>
+            {autoModEnabled && (autoStats.autoApprove + autoStats.autoReject) > 0 && (
+              <Button
+                size="sm"
+                onClick={applyAutoDecisions}
+                style={{ background: "#FF6000" }}
+                className="text-white"
+              >
+                <Zap className="h-3 w-3 mr-1" />
+                자동 판정 일괄 적용 ({autoStats.autoApprove + autoStats.autoReject}건)
+              </Button>
+            )}
+          </div>
+        </div>
+      </Card>
+
       {/* High-volume pending warning */}
-      {pending.length >= 3 && (
+      {pending.length >= 3 && autoStats.manualReview >= 3 && (
         <Alert className="border-amber-500/50" style={{ background: "#fef3c7" }}>
           <AlertTriangle className="h-4 w-4 text-amber-700" />
           <AlertTitle className="text-sm text-amber-900">
-            {pending.length} reviews pending — queue building up
+            {autoStats.manualReview}건 사람 검수 누적 — SLA 초과 우려
           </AlertTitle>
           <AlertDescription className="text-xs text-amber-900/90">
-            Target response time is under 24h. OPs are notified about ELS credit only after approval.
-            Delay hurts engagement.
+            자동 엔진이 처리 못한 경계선 케이스. OP는 승인 전까지 ELS 받지 못하니 지연 시 engagement 감소.
+            24시간 내 처리 권장.
           </AlertDescription>
         </Alert>
       )}
@@ -326,8 +449,47 @@ export default function AdminReviewsPage() {
                       {/* Body preview */}
                       <p className="text-xs text-muted-foreground mt-2 line-clamp-2">{r.body}</p>
 
-                      {/* Auto-flags */}
-                      {r.autoFlags && r.autoFlags.length > 0 && (
+                      {/* ── 자동 모더레이션 판정 (Pending 상태에서만) ── */}
+                      {r.status === "Pending" && autoModEnabled && autoDecisions.get(r.id) && (() => {
+                        const dec = autoDecisions.get(r.id)!;
+                        const isApprove = dec.decision === "AutoApprove";
+                        const isReject = dec.decision === "AutoReject";
+                        const color = isApprove ? "#06D6A0" : isReject ? "#EF476F" : "#eab308";
+                        const bg = isApprove ? "#d1fae5" : isReject ? "#fee2e2" : "#fef3c7";
+                        const label = isApprove ? "자동 승인 권장" : isReject ? "자동 반려 권장" : "사람 검토 필요";
+                        return (
+                          <div className="mt-2 p-2 rounded-md border" style={{ background: bg, borderColor: color }}>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <Bot className="h-3.5 w-3.5" style={{ color }} />
+                              <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color }}>
+                                {label}
+                              </span>
+                              <span className="text-[9px] text-muted-foreground">
+                                신뢰도 <strong>{Math.round(dec.confidence * 100)}%</strong>
+                              </span>
+                            </div>
+                            <p className="text-[10px] mt-1" style={{ color }}>
+                              {dec.reasons.join(" · ")}
+                            </p>
+                            {dec.failedRules.length > 0 && (
+                              <div className="flex items-center gap-1 flex-wrap mt-1">
+                                {dec.failedRules.map((f, i) => (
+                                  <span
+                                    key={i}
+                                    className="text-[9px] px-1.5 py-0.5 rounded bg-white/60 border border-current/20"
+                                    style={{ color }}
+                                  >
+                                    ✗ {f}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
+
+                      {/* Auto-flags (legacy — kept for already-moderated items) */}
+                      {r.status !== "Pending" && r.autoFlags && r.autoFlags.length > 0 && (
                         <div className="flex items-center gap-1 flex-wrap mt-2">
                           <Flag className="h-3 w-3 text-amber-600" />
                           {r.autoFlags.map((f, i) => (
@@ -345,7 +507,12 @@ export default function AdminReviewsPage() {
                       {/* Moderation note (for Approved/Rejected) */}
                       {r.moderationNote && (
                         <p className="text-[10px] text-muted-foreground mt-2 pl-2 border-l-2 border-muted italic">
-                          <strong>Moderator:</strong> {r.moderationNote}
+                          {r.moderatedBy === "system-auto" ? (
+                            <><Bot className="h-3 w-3 inline mr-0.5" style={{ color: "#FF6000" }} /><strong className="text-[#FF6000]">자동 엔진:</strong></>
+                          ) : (
+                            <strong>모더레이터:</strong>
+                          )}{" "}
+                          {r.moderationNote}
                         </p>
                       )}
                     </div>

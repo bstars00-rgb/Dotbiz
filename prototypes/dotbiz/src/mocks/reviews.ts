@@ -397,6 +397,179 @@ export function autoFlagReview(params: {
   return flags;
 }
 
+/* ══════════════════════════════════════════════════════════════════════
+ * 자동 모더레이션 엔진 — Moderation Automation
+ *
+ * 목표: 전체 리뷰의 ~85%를 인간 개입 없이 자동 처리 (OTA 업계 표준).
+ *   • Auto-Approve: 명백히 통과 (품질 게이트 + 검증된 투숙 + flag 없음)
+ *   • Auto-Reject: 명백히 스팸 (스팸 패턴 + 홍보 문구)
+ *   • Manual Review: 경계선 케이스만 사람에게
+ *
+ * 처리 타겟: 90초 내 자동 판정 → 즉시 반영. 경계선은 <24h 사람 처리.
+ * ══════════════════════════════════════════════════════════════════════ */
+
+export interface AutoModerationRules {
+  /** 자동 승인 최소 본문 길이 */
+  autoApproveMinBody: number;
+  /** 자동 승인 최소 팁 개수 */
+  autoApproveMinTips: number;
+  /** 자동 승인에 verified stay 필수 여부 */
+  autoApproveRequireVerified: boolean;
+  /** 자동 반려: 스팸 flag 개수 임계값 */
+  autoRejectSpamFlagThreshold: number;
+  /** 시스템 ON/OFF */
+  enabled: boolean;
+  /** Strict 모드 — 모호할 때 manual로 보내는 경향 높임 */
+  strictMode: boolean;
+}
+
+export const DEFAULT_AUTO_MOD_RULES: AutoModerationRules = {
+  autoApproveMinBody: 150,
+  autoApproveMinTips: 2,
+  autoApproveRequireVerified: true,
+  autoRejectSpamFlagThreshold: 2,
+  enabled: true,
+  strictMode: false,
+};
+
+export type ModerationDecision = "AutoApprove" | "AutoReject" | "ManualReview";
+
+export interface AutoModerationResult {
+  decision: ModerationDecision;
+  confidence: number;           /* 0-1 */
+  reasons: string[];             /* 사람이 읽을 수 있는 판정 근거 */
+  passedRules: string[];
+  failedRules: string[];
+}
+
+/** 리뷰에 대한 자동 모더레이션 결정.
+ *
+ * 결정 트리:
+ *   1. Critical flag (spam-phrases, repeated-words, promotional) → Auto-Reject (confidence high)
+ *   2. 모든 quality 조건 통과 (body 150+, tips 2+, verified) + flag 없음 → Auto-Approve
+ *   3. 그 외 → Manual Review
+ */
+export function autoModerateDecision(
+  review: Pick<HotelReview, "body" | "tips" | "verifiedStay" | "photos" | "rating">,
+  rules: AutoModerationRules = DEFAULT_AUTO_MOD_RULES
+): AutoModerationResult {
+  const flags = autoFlagReview({
+    body: review.body,
+    tips: review.tips,
+    verifiedStay: review.verifiedStay,
+    hasPhotos: !!(review.photos && review.photos.length > 0),
+  });
+  const body = review.body.trim();
+  const passedRules: string[] = [];
+  const failedRules: string[] = [];
+  const reasons: string[] = [];
+
+  /* ── 단계 1: Auto-Reject 조건 ── */
+  const criticalFlags = flags.filter(f =>
+    f === "spam-phrases" || f === "repeated-words"
+  );
+  if (criticalFlags.length >= 1) {
+    return {
+      decision: "AutoReject",
+      confidence: 0.95,
+      reasons: [`스팸/홍보 패턴 감지: ${criticalFlags.join(", ")}`],
+      passedRules: [],
+      failedRules: criticalFlags,
+    };
+  }
+
+  /* 1점 별점 + 짧은 본문 + unverified = 악의적 리뷰 가능성 → Auto-Reject */
+  if (review.rating === 1 && body.length < 200 && !review.verifiedStay) {
+    return {
+      decision: "AutoReject",
+      confidence: 0.85,
+      reasons: ["1점 별점 + 짧은 본문 + 미검증 투숙 — 악의적 리뷰 가능성"],
+      passedRules: [],
+      failedRules: ["low-rating-unverified-short"],
+    };
+  }
+
+  /* ── 단계 2: Auto-Approve 조건 ── */
+  const checks = [
+    {
+      name: "본문 길이 ≥ " + rules.autoApproveMinBody,
+      passed: body.length >= rules.autoApproveMinBody,
+    },
+    {
+      name: `팁 개수 ≥ ${rules.autoApproveMinTips}`,
+      passed: review.tips.length >= rules.autoApproveMinTips,
+    },
+    {
+      name: "투숙 검증됨",
+      passed: !rules.autoApproveRequireVerified || review.verifiedStay,
+    },
+    {
+      name: "플래그 없음",
+      passed: flags.filter(f => f !== "no-photos" && f !== "unverified-stay").length === 0,
+    },
+  ];
+
+  checks.forEach(c => (c.passed ? passedRules : failedRules).push(c.name));
+
+  const allPass = checks.every(c => c.passed);
+
+  if (allPass) {
+    /* Strict mode에서는 사진 없으면 Manual */
+    if (rules.strictMode && (!review.photos || review.photos.length === 0)) {
+      return {
+        decision: "ManualReview",
+        confidence: 0.70,
+        reasons: ["Strict 모드: 사진 없는 리뷰는 사람 검토"],
+        passedRules,
+        failedRules: ["strict-no-photos"],
+      };
+    }
+    return {
+      decision: "AutoApprove",
+      confidence: 0.92,
+      reasons: ["모든 품질 게이트 통과"],
+      passedRules,
+      failedRules: [],
+    };
+  }
+
+  /* ── 단계 3: Manual Review ── */
+  reasons.push("경계선 케이스 — 사람 검수 필요");
+  if (failedRules.length > 0) {
+    reasons.push(`미충족: ${failedRules.join(", ")}`);
+  }
+
+  return {
+    decision: "ManualReview",
+    confidence: 0.50,
+    reasons,
+    passedRules,
+    failedRules,
+  };
+}
+
+/** 대량 리뷰에 대한 자동 모더레이션 통계 */
+export function autoModerationStats(reviews: HotelReview[], rules?: AutoModerationRules): {
+  total: number;
+  autoApprove: number;
+  autoReject: number;
+  manualReview: number;
+  autoHandledPct: number;
+} {
+  const decisions = reviews.map(r => autoModerateDecision(r, rules));
+  const autoApprove = decisions.filter(d => d.decision === "AutoApprove").length;
+  const autoReject = decisions.filter(d => d.decision === "AutoReject").length;
+  const manualReview = decisions.filter(d => d.decision === "ManualReview").length;
+  const total = reviews.length;
+  return {
+    total,
+    autoApprove,
+    autoReject,
+    manualReview,
+    autoHandledPct: total > 0 ? Math.round(((autoApprove + autoReject) / total) * 100) : 0,
+  };
+}
+
 /** Aggregate stats for a hotel — for summary row on detail page */
 export function reviewStatsFor(hotelId: string): {
   count: number; avgRating: number; topTips: string[];
