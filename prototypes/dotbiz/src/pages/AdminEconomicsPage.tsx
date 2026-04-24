@@ -52,13 +52,13 @@ export default function AdminEconomicsPage() {
       <div className="p-6 max-w-2xl mx-auto">
         <Card className="p-8 text-center">
           <Shield className="h-12 w-12 mx-auto mb-3 text-muted-foreground" />
-          <h2 className="text-lg font-bold">Restricted Area</h2>
+          <h2 className="text-lg font-bold">접근 권한 없음</h2>
           <p className="text-sm text-muted-foreground mt-2">
-            This page is for <strong>OhMyHotel internal staff (ELLIS admin)</strong> only.
-            Customer accounts do not have access to internal economics configuration.
+            이 페이지는 <strong>OhMyHotel 내부 스태프(ELLIS admin) 전용</strong>입니다.
+            고객 계정은 내부 경제 설정에 접근할 수 없습니다.
           </p>
           <Button className="mt-4" onClick={() => navigate("/app/dashboard")}>
-            Back to Dashboard
+            대시보드로 돌아가기
           </Button>
         </Card>
         <StateToolbar state={state} setState={setState} />
@@ -81,11 +81,11 @@ export default function AdminEconomicsPage() {
 
   const submitRequestChange = () => {
     if (!rcItem || !rcProposed.trim() || !rcJustification.trim()) {
-      toast.error("Please fill all required fields");
+      toast.error("필수 항목을 모두 입력해주세요");
       return;
     }
-    toast.success(`Change request submitted to ${rcItem.approvers[0]}`, {
-      description: `Awaiting sign-off from ${rcItem.approvers.join(" → ")}`,
+    toast.success(`변경 요청이 ${rcItem.approvers[0]}에게 접수되었습니다`, {
+      description: `결재 순서: ${rcItem.approvers.join(" → ")}`,
     });
     setRcItem(null);
   };
@@ -118,13 +118,13 @@ export default function AdminEconomicsPage() {
   const pending = pendingApprovals();
 
   const categories: Array<{ key: ApprovalCategory | "all"; label: string; count: number }> = [
-    { key: "all",           label: "All",            count: APPROVAL_ITEMS.length },
-    { key: "Economics",     label: "Economics",      count: APPROVAL_ITEMS.filter(i => i.category === "Economics").length },
-    { key: "Promotions",    label: "Promotions",     count: APPROVAL_ITEMS.filter(i => i.category === "Promotions").length },
-    { key: "Shop Catalog",  label: "Shop Catalog",   count: APPROVAL_ITEMS.filter(i => i.category === "Shop Catalog").length },
-    { key: "Gamification",  label: "Gamification",   count: APPROVAL_ITEMS.filter(i => i.category === "Gamification").length },
-    { key: "Policy",        label: "Policy",         count: APPROVAL_ITEMS.filter(i => i.category === "Policy").length },
-    { key: "Content",       label: "Content",        count: APPROVAL_ITEMS.filter(i => i.category === "Content").length },
+    { key: "all",           label: "전체",         count: APPROVAL_ITEMS.length },
+    { key: "Economics",     label: "경제 정책",    count: APPROVAL_ITEMS.filter(i => i.category === "Economics").length },
+    { key: "Promotions",    label: "프로모션",     count: APPROVAL_ITEMS.filter(i => i.category === "Promotions").length },
+    { key: "Shop Catalog",  label: "상품 카탈로그", count: APPROVAL_ITEMS.filter(i => i.category === "Shop Catalog").length },
+    { key: "Gamification",  label: "게임화",       count: APPROVAL_ITEMS.filter(i => i.category === "Gamification").length },
+    { key: "Policy",        label: "운영 정책",    count: APPROVAL_ITEMS.filter(i => i.category === "Policy").length },
+    { key: "Content",       label: "콘텐츠",       count: APPROVAL_ITEMS.filter(i => i.category === "Content").length },
   ];
 
   if (state === "loading") return (
@@ -141,45 +141,44 @@ export default function AdminEconomicsPage() {
       <div>
         <div className="flex items-center gap-2">
           <Shield className="h-6 w-6" style={{ color: "#FF6000" }} />
-          <h1 className="text-2xl font-bold">ELS Economics Admin</h1>
+          <h1 className="text-2xl font-bold">ELS 경제 관리</h1>
           <Badge variant="outline" className="text-[10px] ml-2" style={{ borderColor: "#FF6000", color: "#FF6000" }}>
-            ELLIS preview · Governance
+            ELLIS 내부 · 거버넌스
           </Badge>
         </div>
         <p className="text-sm text-muted-foreground mt-1">
-          Adjust ELS reward economics with required executive sign-off.
-          Every parameter below is tracked in an audit log. Changes take effect
-          only after all listed approvers have signed.
+          ELS 리워드 경제를 결재 체인 하에 조정합니다. 모든 파라미터는 감사 로그에 추적되며,
+          지정된 결재자 전원 서명 후에만 변경이 적용됩니다.
         </p>
       </div>
 
       {/* ── Critical KPIs ── */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
         <Card className="p-4">
-          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Pending Approvals</p>
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">결재 대기</p>
           <p className="text-3xl font-bold mt-1" style={{ color: pending.length > 0 ? "#EF476F" : "#64748b" }}>
             {pending.length}
           </p>
-          <p className="text-[10px] text-muted-foreground mt-1">awaiting sign-off</p>
+          <p className="text-[10px] text-muted-foreground mt-1">건의 서명 대기 중</p>
         </Card>
         <Card className="p-4">
-          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Tunable Parameters</p>
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">조정 가능 파라미터</p>
           <p className="text-3xl font-bold mt-1">{APPROVAL_ITEMS.length}</p>
-          <p className="text-[10px] text-muted-foreground mt-1">across 6 categories</p>
+          <p className="text-[10px] text-muted-foreground mt-1">6개 카테고리</p>
         </Card>
         <Card className="p-4">
           <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Critical Items</p>
           <p className="text-3xl font-bold mt-1" style={{ color: IMPACT_COLOR.Critical }}>
             {APPROVAL_ITEMS.filter(i => i.impact === "Critical").length}
           </p>
-          <p className="text-[10px] text-muted-foreground mt-1">CEO sign-off required</p>
+          <p className="text-[10px] text-muted-foreground mt-1">대표이사 결재 필수</p>
         </Card>
         <Card className="p-4">
-          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Budget Cap</p>
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">월 예산 한도</p>
           <p className="text-3xl font-bold mt-1" style={{ color: "#EF476F" }}>
             —
           </p>
-          <p className="text-[10px] text-muted-foreground mt-1">not yet set (critical)</p>
+          <p className="text-[10px] text-muted-foreground mt-1">미설정 (Critical)</p>
         </Card>
       </div>
 
@@ -188,10 +187,10 @@ export default function AdminEconomicsPage() {
         <Alert className="border-[#FF6000]/50" style={{ background: "#FF600010" }}>
           <AlertTriangle className="h-4 w-4" style={{ color: "#FF6000" }} />
           <AlertTitle className="text-sm">
-            {pending.filter(r => r.currentApprover === "CEO").length} request{pending.filter(r => r.currentApprover === "CEO").length === 1 ? "" : "s"} awaiting CEO sign-off
+            {pending.filter(r => r.currentApprover === "CEO").length}건이 대표이사 결재 대기 중
           </AlertTitle>
           <AlertDescription className="text-xs">
-            Critical-impact changes require 대표이사 approval. Review in the Requests tab.
+            Critical 등급 변경은 대표이사 결재가 필수입니다. "결재 요청" 탭에서 검토하세요.
           </AlertDescription>
         </Alert>
       )}
@@ -201,12 +200,12 @@ export default function AdminEconomicsPage() {
         <TabsList>
           <TabsTrigger value="parameters" className="gap-1.5">
             <Settings className="h-3.5 w-3.5" />
-            Parameters
+            파라미터
             <span className="ml-1 text-[9px] bg-muted px-1 rounded-full">{APPROVAL_ITEMS.length}</span>
           </TabsTrigger>
           <TabsTrigger value="requests" className="gap-1.5">
             <FileText className="h-3.5 w-3.5" />
-            Requests
+            결재 요청
             {pending.length > 0 && (
               <span className="ml-1 text-[9px] px-1 rounded-full text-white" style={{ background: "#EF476F" }}>
                 {pending.length}
@@ -215,7 +214,7 @@ export default function AdminEconomicsPage() {
           </TabsTrigger>
           <TabsTrigger value="matrix" className="gap-1.5">
             <Users className="h-3.5 w-3.5" />
-            Approval Matrix
+            결재 매트릭스
           </TabsTrigger>
         </TabsList>
       </Tabs>
@@ -228,7 +227,7 @@ export default function AdminEconomicsPage() {
             <div className="relative flex-1 min-w-[240px]">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search parameter name or key…"
+                placeholder="파라미터명 또는 키로 검색…"
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 className="pl-9"
@@ -277,12 +276,12 @@ export default function AdminEconomicsPage() {
                   {item.description}
                 </p>
                 <div className="p-2 rounded-md bg-muted/40 text-xs mb-2">
-                  <p className="text-[9px] uppercase tracking-wider text-muted-foreground">Current</p>
+                  <p className="text-[9px] uppercase tracking-wider text-muted-foreground">현재값</p>
                   <p className="font-mono text-xs">{item.currentValue}</p>
                 </div>
                 <div className="text-[10px] text-muted-foreground space-y-1 mb-3">
-                  <p><strong>Review:</strong> {item.reviewCadence}</p>
-                  <p className="line-clamp-2"><strong>Budget impact:</strong> {item.budgetImpactHint}</p>
+                  <p><strong>검토 주기:</strong> {item.reviewCadence}</p>
+                  <p className="line-clamp-2"><strong>예산 영향:</strong> {item.budgetImpactHint}</p>
                 </div>
                 <div className="flex items-center justify-between mt-auto pt-2 border-t">
                   <div className="flex items-center gap-1 flex-wrap">
@@ -307,7 +306,7 @@ export default function AdminEconomicsPage() {
                     className="h-6 text-[10px] gap-1 shrink-0"
                     onClick={() => openRequestChange(item)}
                   >
-                    Request change
+                    변경 요청
                   </Button>
                 </div>
               </Card>
@@ -322,29 +321,32 @@ export default function AdminEconomicsPage() {
           {/* Status filter */}
           <div className="flex items-center gap-2 flex-wrap">
             <Filter className="h-4 w-4 text-muted-foreground" />
-            {(["Pending", "Approved", "Rejected", "all"] as const).map(s => (
-              <button
-                key={s}
-                onClick={() => setStatusFilter(s)}
-                className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors ${
-                  statusFilter === s
-                    ? "bg-[#FF6000] text-white"
-                    : "bg-muted hover:bg-muted/60 text-foreground"
-                }`}
-              >
-                {s === "all" ? "All" : s}{" "}
-                <span className="opacity-70">
-                  ({s === "all" ? approvalRequests.length : approvalRequests.filter(r => r.status === s).length})
-                </span>
-              </button>
-            ))}
+            {(["Pending", "Approved", "Rejected", "all"] as const).map(s => {
+              const label = s === "all" ? "전체" : s === "Pending" ? "결재 대기" : s === "Approved" ? "승인 완료" : "반려";
+              return (
+                <button
+                  key={s}
+                  onClick={() => setStatusFilter(s)}
+                  className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors ${
+                    statusFilter === s
+                      ? "bg-[#FF6000] text-white"
+                      : "bg-muted hover:bg-muted/60 text-foreground"
+                  }`}
+                >
+                  {label}{" "}
+                  <span className="opacity-70">
+                    ({s === "all" ? approvalRequests.length : approvalRequests.filter(r => r.status === s).length})
+                  </span>
+                </button>
+              );
+            })}
           </div>
 
           {/* Request cards */}
           <div className="space-y-3">
             {filteredRequests.length === 0 ? (
               <Card className="p-10 text-center text-sm text-muted-foreground">
-                No requests match this filter.
+                해당 조건의 요청이 없습니다.
               </Card>
             ) : filteredRequests.map(req => {
               const item = getApprovalItem(req.itemKey);
@@ -364,14 +366,14 @@ export default function AdminEconomicsPage() {
                           {req.status === "Pending" && <Clock className="h-2.5 w-2.5 mr-0.5" />}
                           {req.status === "Approved" && <CheckCircle2 className="h-2.5 w-2.5 mr-0.5" />}
                           {req.status === "Rejected" && <XCircle className="h-2.5 w-2.5 mr-0.5" />}
-                          {req.status}
+                          {req.status === "Pending" ? "결재 대기" : req.status === "Approved" ? "승인 완료" : "반려"}
                         </Badge>
                         <span className="text-[10px] text-muted-foreground">#{req.id}</span>
                         {item && <Badge variant="outline" className="text-[9px]">{item.category}</Badge>}
                       </div>
                       <h3 className="font-semibold text-sm">{item?.label || req.itemKey}</h3>
                       <p className="text-[11px] text-muted-foreground">
-                        Requested by <strong>{req.requestedByName}</strong> · {req.requestedAt}
+                        <strong>{req.requestedByName}</strong> 요청 · {req.requestedAt}
                       </p>
                     </div>
                     {req.status === "Pending" && req.currentApprover && (
@@ -383,7 +385,7 @@ export default function AdminEconomicsPage() {
                           border: `1px solid ${APPROVER_COLOR[req.currentApprover]}55`,
                         }}
                       >
-                        Awaiting {req.currentApprover}
+                        {req.currentApprover} 결재 대기
                       </Badge>
                     )}
                   </div>
@@ -391,11 +393,11 @@ export default function AdminEconomicsPage() {
                   {/* Before → After */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-3">
                     <div className="p-2 rounded-md bg-muted/40">
-                      <p className="text-[9px] uppercase tracking-wider text-muted-foreground">Current</p>
+                      <p className="text-[9px] uppercase tracking-wider text-muted-foreground">현재값</p>
                       <p className="text-xs font-mono line-clamp-2">{req.currentValue}</p>
                     </div>
                     <div className="p-2 rounded-md" style={{ background: "#FF600010", border: "1px solid #FF600033" }}>
-                      <p className="text-[9px] uppercase tracking-wider text-[#FF6000]">Proposed</p>
+                      <p className="text-[9px] uppercase tracking-wider text-[#FF6000]">변경 제안</p>
                       <p className="text-xs font-mono line-clamp-2" style={{ color: "#FF6000" }}>{req.proposedValue}</p>
                     </div>
                   </div>
@@ -403,11 +405,11 @@ export default function AdminEconomicsPage() {
                   {/* Justification + Impact */}
                   <div className="mt-3 space-y-2">
                     <div>
-                      <p className="text-[9px] uppercase tracking-wider text-muted-foreground">Justification</p>
+                      <p className="text-[9px] uppercase tracking-wider text-muted-foreground">변경 사유</p>
                       <p className="text-xs">{req.justification}</p>
                     </div>
                     <div>
-                      <p className="text-[9px] uppercase tracking-wider text-muted-foreground">Impact analysis</p>
+                      <p className="text-[9px] uppercase tracking-wider text-muted-foreground">영향 분석</p>
                       <p className="text-xs italic text-muted-foreground">{req.impactAnalysis}</p>
                     </div>
                   </div>
@@ -415,7 +417,7 @@ export default function AdminEconomicsPage() {
                   {/* Signature chain */}
                   <div className="mt-3 pt-3 border-t">
                     <p className="text-[9px] uppercase tracking-wider text-muted-foreground mb-1.5">
-                      Signature chain
+                      결재 체인
                     </p>
                     <div className="flex items-center gap-1 flex-wrap">
                       {req.signatures.map((sig, i) => (
@@ -443,7 +445,7 @@ export default function AdminEconomicsPage() {
                             style={{ color: APPROVER_COLOR[a], borderColor: `${APPROVER_COLOR[a]}55` }}
                           >
                             <Clock className="h-2.5 w-2.5 mr-0.5 inline" />
-                            {a} pending
+                            {a} 대기
                           </span>
                         </span>
                       ))}
@@ -467,19 +469,19 @@ export default function AdminEconomicsPage() {
                         size="sm"
                         variant="outline"
                         className="h-7 text-[11px]"
-                        onClick={() => toast.info("Demo: would record rejection + notify requester")}
+                        onClick={() => toast.info("반려 처리 — 요청자에게 사유와 함께 통지됩니다")}
                       >
                         <XCircle className="h-3 w-3 mr-1" />
-                        Reject
+                        반려
                       </Button>
                       <Button
                         size="sm"
                         className="h-7 text-[11px] text-white"
                         style={{ background: "#06D6A0" }}
-                        onClick={() => toast.success(`Approved as ${req.currentApprover}`, { description: remainingApprovers.length > 1 ? `Next: ${remainingApprovers[1]}` : "All signatures collected — change will take effect" })}
+                        onClick={() => toast.success(`${req.currentApprover} 권한으로 승인되었습니다`, { description: remainingApprovers.length > 1 ? `다음 결재자: ${remainingApprovers[1]}` : "모든 서명 완료 — 변경이 적용됩니다" })}
                       >
                         <CheckCircle2 className="h-3 w-3 mr-1" />
-                        Approve as {req.currentApprover}
+                        {req.currentApprover} 승인
                       </Button>
                     </div>
                   )}
@@ -494,10 +496,10 @@ export default function AdminEconomicsPage() {
       {tab === "matrix" && (
         <div className="space-y-4">
           <Alert>
-            <AlertTitle className="text-sm">Approval Matrix</AlertTitle>
+            <AlertTitle className="text-sm">결재 매트릭스</AlertTitle>
             <AlertDescription className="text-xs">
-              Reference table: who must sign off on each type of change. Ordered by impact tier.
-              Changes cannot take effect until all listed approvers have approved in sequence.
+              참고용 테이블: 각 변경 유형별 결재자 체계. Impact 등급 순으로 정렬.
+              명시된 결재자가 순서대로 모두 승인해야 변경이 적용됩니다.
             </AlertDescription>
           </Alert>
 
@@ -505,11 +507,11 @@ export default function AdminEconomicsPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-32">Category</TableHead>
-                  <TableHead>Parameter</TableHead>
+                  <TableHead className="w-32">카테고리</TableHead>
+                  <TableHead>파라미터</TableHead>
                   <TableHead className="w-24">Impact</TableHead>
-                  <TableHead>Approvers (chain)</TableHead>
-                  <TableHead className="w-32">Cadence</TableHead>
+                  <TableHead>결재 체인</TableHead>
+                  <TableHead className="w-32">검토 주기</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -567,10 +569,10 @@ export default function AdminEconomicsPage() {
 
           {/* Legend */}
           <Card className="p-4">
-            <p className="text-sm font-semibold mb-3">Legend</p>
+            <p className="text-sm font-semibold mb-3">범례</p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">Impact levels</p>
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">Impact 등급</p>
                 <div className="space-y-1.5">
                   {(["Critical", "High", "Medium", "Low"] as const).map(imp => (
                     <div key={imp} className="flex items-center gap-2 text-xs">
@@ -580,17 +582,17 @@ export default function AdminEconomicsPage() {
                       />
                       <strong>{imp}</strong>
                       <span className="text-muted-foreground">
-                        {imp === "Critical" && "— moves money directly, CEO required"}
-                        {imp === "High" && "— material budget impact"}
-                        {imp === "Medium" && "— operational, CMO/CPO range"}
-                        {imp === "Low" && "— minor, single approver OK"}
+                        {imp === "Critical" && "— 돈이 직접 움직임, CEO 결재 필수"}
+                        {imp === "High" && "— 예산에 실질적 영향"}
+                        {imp === "Medium" && "— 운영 레벨, CMO/CPO 권한"}
+                        {imp === "Low" && "— 일상 운영, 단일 결재자"}
                       </span>
                     </div>
                   ))}
                 </div>
               </div>
               <div>
-                <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">Approver roles</p>
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">결재자 역할</p>
                 <div className="space-y-1.5">
                   {(Object.keys(APPROVER_COLOR) as Array<keyof typeof APPROVER_COLOR>).map(role => (
                     <div key={role} className="flex items-center gap-2 text-xs">
@@ -604,13 +606,13 @@ export default function AdminEconomicsPage() {
                         {role}
                       </span>
                       <span className="text-muted-foreground">
-                        {role === "CEO" && "대표이사 · final authority on critical changes"}
-                        {role === "CFO" && "재무이사 · budget + liability sign-off"}
-                        {role === "CMO" && "마케팅이사 · promo + gamification strategy"}
-                        {role === "CPO" && "상품이사 · catalog + supplier deals"}
-                        {role === "Marketing Manager" && "promo execution + shop pricing"}
-                        {role === "Content Manager" && "review moderation + takedowns"}
-                        {role === "ELLIS Admin" && "operational parameters"}
+                        {role === "CEO" && "대표이사 · Critical 변경 최종 결재"}
+                        {role === "CFO" && "재무이사 · 예산/부채 결재"}
+                        {role === "CMO" && "마케팅이사 · 프로모션·게임화 전략"}
+                        {role === "CPO" && "상품이사 · 카탈로그·공급사 계약"}
+                        {role === "Marketing Manager" && "마케팅팀 · 프로모 실행·상품 가격"}
+                        {role === "Content Manager" && "콘텐츠팀 · 리뷰 검수·takedown"}
+                        {role === "ELLIS Admin" && "시스템 운영 파라미터"}
                       </span>
                     </div>
                   ))}
@@ -627,7 +629,7 @@ export default function AdminEconomicsPage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Send className="h-4 w-4" style={{ color: "#FF6000" }} />
-              Request Change · {rcItem?.label}
+              변경 요청 · {rcItem?.label}
             </DialogTitle>
           </DialogHeader>
 
@@ -648,14 +650,14 @@ export default function AdminEconomicsPage() {
                   </span>
                 </div>
                 <p className="text-[11px] text-muted-foreground mb-2">{rcItem.description}</p>
-                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Current value</p>
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">현재값</p>
                 <p className="text-sm font-mono">{rcItem.currentValue}</p>
               </div>
 
               {/* Approval chain preview */}
               <div>
                 <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
-                  Will require sign-off from
+                  결재자 (순서대로)
                 </p>
                 <div className="flex items-center gap-1 flex-wrap">
                   {rcItem.approvers.map((a, i) => (
@@ -678,43 +680,42 @@ export default function AdminEconomicsPage() {
 
               {/* Proposed value */}
               <div>
-                <label className="text-xs font-medium">Proposed new value <span className="text-destructive">*</span></label>
+                <label className="text-xs font-medium">변경 제안값 <span className="text-destructive">*</span></label>
                 <Input
                   className="mt-1"
                   value={rcProposed}
                   onChange={e => setRcProposed(e.target.value)}
-                  placeholder={`e.g. ${rcItem.currentValue.split(" ")[0]} → …`}
+                  placeholder={`예: ${rcItem.currentValue.split(" ")[0]} → …`}
                 />
               </div>
 
               {/* Justification */}
               <div>
-                <label className="text-xs font-medium">Justification <span className="text-destructive">*</span></label>
+                <label className="text-xs font-medium">변경 사유 <span className="text-destructive">*</span></label>
                 <Textarea
                   className="mt-1"
                   rows={3}
                   value={rcJustification}
                   onChange={e => setRcJustification(e.target.value)}
-                  placeholder="Why is this change needed? What triggered it?"
+                  placeholder="왜 변경이 필요한가요? 어떤 계기로?"
                 />
               </div>
 
               {/* Impact */}
               <div>
-                <label className="text-xs font-medium">Impact analysis (quantified)</label>
+                <label className="text-xs font-medium">영향 분석 (정량적)</label>
                 <Textarea
                   className="mt-1"
                   rows={3}
                   value={rcImpact}
                   onChange={e => setRcImpact(e.target.value)}
-                  placeholder={`Est. budget / liability / volume effect. Ref: ${rcItem.budgetImpactHint}`}
+                  placeholder={`예상 예산 / 부채 / 볼륨 영향. 참고: ${rcItem.budgetImpactHint}`}
                 />
               </div>
 
               <div className="p-2.5 rounded-md bg-blue-50 text-[10px] text-blue-900">
-                <strong>Audit trail:</strong> this request will be logged with your name
-                ({user?.name}) and distributed to approvers. Changes only take effect
-                after all signatures are collected.
+                <strong>감사 로그:</strong> 이 요청은 요청자명({user?.name})과 함께 기록되어
+                결재자에게 전달됩니다. 모든 서명이 완료되어야 변경이 적용됩니다.
               </div>
             </div>
           )}
@@ -722,7 +723,7 @@ export default function AdminEconomicsPage() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setRcItem(null)}>
               <XIcon className="h-3 w-3 mr-1" />
-              Cancel
+              취소
             </Button>
             <Button
               onClick={submitRequestChange}
@@ -730,7 +731,7 @@ export default function AdminEconomicsPage() {
               className="text-white"
             >
               <Send className="h-3 w-3 mr-1" />
-              Submit for approval
+              결재 요청 제출
             </Button>
           </DialogFooter>
         </DialogContent>
