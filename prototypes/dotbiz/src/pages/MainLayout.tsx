@@ -2,6 +2,7 @@ import { Outlet, useNavigate, useLocation } from "react-router";
 import { useState, useEffect, useRef } from "react";
 import { AnimatePresence } from "framer-motion";
 import PageTransition from "@/components/PageTransition";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import Footer from "@/components/Footer";
 import { Search, Moon, Sun, Bell, User, LogOut, LayoutDashboard, CalendarCheck, Wallet, HelpCircle, Gift, Pen, Menu, Users, Ticket, Heart, Phone, ChevronDown, ChevronRight, PieChart, UserCog, Network, ArrowRightLeft, PanelLeftClose, PanelLeftOpen, Shield, ShieldCheck } from "lucide-react";
 import { creditSummary } from "@/mocks/clientManagement";
@@ -677,7 +678,11 @@ export default function MainLayout() {
           <div className="flex-1">
             <AnimatePresence mode="wait">
               <PageTransition key={location.pathname}>
-                <Outlet />
+                {/* 한 페이지의 예기치 않은 크래시가 앱 전체를 날리지 않도록 격리.
+                 * key={location.pathname}로 라우트 변경 시 boundary 리셋. */}
+                <ErrorBoundary label={location.pathname} key={location.pathname}>
+                  <Outlet />
+                </ErrorBoundary>
               </PageTransition>
             </AnimatePresence>
           </div>

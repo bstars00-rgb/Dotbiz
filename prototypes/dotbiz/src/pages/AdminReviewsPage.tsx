@@ -45,26 +45,7 @@ export default function AdminReviewsPage() {
   const navigate = useNavigate();
   const [tab, setTab] = useTabParam("pending");
 
-  /* Access guard — ELLIS Content Manager internal staff only */
-  if (!user?.isInternal) {
-    return (
-      <div className="p-6 max-w-2xl mx-auto">
-        <Card className="p-8 text-center">
-          <ShieldCheck className="h-12 w-12 mx-auto mb-3 text-muted-foreground" />
-          <h2 className="text-lg font-bold">Restricted Area</h2>
-          <p className="text-sm text-muted-foreground mt-2">
-            Review moderation is performed by <strong>OhMyHotel Content Managers (ELLIS internal)</strong>.
-            Customer accounts do not have access.
-          </p>
-          <Button className="mt-4" onClick={() => navigate("/app/dashboard")}>
-            Back to Dashboard
-          </Button>
-        </Card>
-        <StateToolbar state={state} setState={setState} />
-      </div>
-    );
-  }
-
+  /* ── 모든 hooks를 조건부 return 이전에 선언 (Rules of Hooks 준수) ── */
   /* Local state mutates for demo — real system writes to DB */
   const [reviews, setReviews] = useState<HotelReview[]>(hotelReviews);
 
@@ -234,6 +215,26 @@ export default function AdminReviewsPage() {
       description: `Review removed from B2B and B2C. ELS clawback flagged (${r.elsAwarded} ELS).`,
     });
   };
+
+  /* ── Access guard (모든 hooks 선언 이후) ── */
+  if (!user?.isInternal) {
+    return (
+      <div className="p-6 max-w-2xl mx-auto">
+        <Card className="p-8 text-center">
+          <ShieldCheck className="h-12 w-12 mx-auto mb-3 text-muted-foreground" />
+          <h2 className="text-lg font-bold">접근 권한 없음</h2>
+          <p className="text-sm text-muted-foreground mt-2">
+            리뷰 모더레이션은 <strong>OhMyHotel Content Managers (ELLIS 내부 스태프)</strong>가 담당합니다.
+            고객 계정은 접근할 수 없습니다.
+          </p>
+          <Button className="mt-4" onClick={() => navigate("/app/dashboard")}>
+            대시보드로 돌아가기
+          </Button>
+        </Card>
+        <StateToolbar state={state} setState={setState} />
+      </div>
+    );
+  }
 
   if (state === "loading") return (
     <div className="p-6 max-w-[1400px] mx-auto space-y-4">

@@ -82,27 +82,8 @@ export default function AdminEconomicsPage() {
   const navigate = useNavigate();
   const [tab, setTab] = useTabParam("economics");
 
-  /* Access guard — 내부 스태프 전용 */
-  if (!user?.isInternal) {
-    return (
-      <div className="p-6 max-w-2xl mx-auto">
-        <Card className="p-8 text-center">
-          <Shield className="h-12 w-12 mx-auto mb-3 text-muted-foreground" />
-          <h2 className="text-lg font-bold">접근 권한 없음</h2>
-          <p className="text-sm text-muted-foreground mt-2">
-            이 페이지는 <strong>OhMyHotel 내부 스태프(ELLIS admin) 전용</strong>입니다.
-            고객 계정은 내부 경제 설정에 접근할 수 없습니다.
-          </p>
-          <Button className="mt-4" onClick={() => navigate("/app/dashboard")}>
-            대시보드로 돌아가기
-          </Button>
-        </Card>
-        <StateToolbar state={state} setState={setState} />
-      </div>
-    );
-  }
-
-  /* ── Live editable settings ── */
+  /* ── 모든 hooks를 조건부 return 이전에 선언 (Rules of Hooks 준수) ── */
+  /* Live editable settings */
   const [settings, setSettings] = useState<LiveSettings>({
     elsBookingEarnRate: 0.01,
     elsUsdPeg: 1.0,
@@ -145,6 +126,26 @@ export default function AdminEconomicsPage() {
   const todayChanges = combinedChanges.filter(
     c => c.appliedAt.slice(0, 10) === new Date().toISOString().slice(0, 10)
   ).length;
+
+  /* ── Access guard (모든 hooks 선언 이후) ── */
+  if (!user?.isInternal) {
+    return (
+      <div className="p-6 max-w-2xl mx-auto">
+        <Card className="p-8 text-center">
+          <Shield className="h-12 w-12 mx-auto mb-3 text-muted-foreground" />
+          <h2 className="text-lg font-bold">접근 권한 없음</h2>
+          <p className="text-sm text-muted-foreground mt-2">
+            이 페이지는 <strong>OhMyHotel 내부 스태프(ELLIS admin) 전용</strong>입니다.
+            고객 계정은 내부 경제 설정에 접근할 수 없습니다.
+          </p>
+          <Button className="mt-4" onClick={() => navigate("/app/dashboard")}>
+            대시보드로 돌아가기
+          </Button>
+        </Card>
+        <StateToolbar state={state} setState={setState} />
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 max-w-[1400px] mx-auto space-y-5">
