@@ -1,8 +1,8 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router";
 import {
-  Shield, Settings, FileText, CheckCircle2, XCircle, Clock, ArrowRight,
-  AlertTriangle, Users, Send, Search, Filter, X as XIcon,
+  Shield, Settings, ArrowRight,
+  AlertTriangle, Users, Send, Search, X as XIcon, Edit, History,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -18,24 +18,29 @@ import { useTabParam } from "@/hooks/useTabParam";
 import { StateToolbar } from "@/components/StateToolbar";
 import { useAuth } from "@/contexts/AuthContext";
 import {
-  APPROVAL_ITEMS, approvalRequests, pendingApprovals, approvalHistory, getApprovalItem,
+  APPROVAL_ITEMS, getApprovalItem,
   IMPACT_COLOR, APPROVER_COLOR,
-  type ApprovalItem, type ApprovalRequest, type ApprovalStatus, type ApprovalCategory,
+  allParameterChanges, changesForItem,
+  type ApprovalItem, type ApprovalCategory, type ParameterChange,
 } from "@/mocks/approvals";
 import { toast } from "sonner";
 
 /* ──────────────────────────────────────────────────────────────────────
- * AdminEconomicsPage — ELLIS admin preview for DOTBIZ
+ * AdminEconomicsPage — ELLIS admin 실제 관리 페이지
  *
- * Not part of the customer-facing DOTBIZ app proper. This page represents
- * what ELLIS admin staff (OhMyHotel internal) would use to manage ELS
- * economics, with governance baked in (nothing can change without the
- * right chain of approvals).
+ * 이 페이지는 **결재가 이미 완료된 변경을 실제 프로덕션에 반영**하는 도구.
+ * 결재 요청/서명 워크플로우는 별도 결재 시스템(이메일·Slack·전자결재 등)에서
+ * 처리되며, 여기서는 **승인 번호를 참조하여 값을 즉시 수정**한다.
+ *
+ * 변경 시 주의:
+ *   1. 반드시 해당 결재 문서 번호(apr-xxx) 참조
+ *   2. 즉시 시스템 전체에 반영 (고객 앱 포함)
+ *   3. 전체 변경 이력이 영구 감사 로그에 기록됨
  *
  * Three tabs:
- *   • Parameters — all tunable configs with current values + Request Change
- *   • Requests   — active queue + historical audit log
- *   • Matrix     — "who approves what" reference table
+ *   • 파라미터 — 모든 설정 값을 직접 수정 (결재 참조 필수)
+ *   • 변경 이력 — 이 페이지로 실행된 모든 변경의 감사 로그
+ *   • 결재 매트릭스 — 사전 결재 체계 참고 (읽기 전용)
  * ────────────────────────────────────────────────────────────────────── */
 
 export default function AdminEconomicsPage() {
@@ -66,29 +71,73 @@ export default function AdminEconomicsPage() {
     );
   }
 
-  /* ── Request Change dialog state ── */
-  const [rcItem, setRcItem] = useState<ApprovalItem | null>(null);
-  const [rcProposed, setRcProposed] = useState("");
-  const [rcJustification, setRcJustification] = useState("");
-  const [rcImpact, setRcImpact] = useState("");
+  /* ── Live-editable parameter values (세션 시뮬레이션) ──
+   * 실제로는 ELLIS DB에 write되고 전 시스템 재설정 트리거.
+   * 프로토타입에선 페이지 내 local state로 변경을 즉각 반영. */
+  const [liveValues, setLiveValues] = useState<Record<string, string>>(
+    Object.fromEntries(APPROVAL_ITEMS.map(i => [i.key, i.currentValue]))
+  );
+  const [sessionChanges, setSessionChanges] = useState<ParameterChange[]>([]);
 
-  const openRequestChange = (item: ApprovalItem) => {
-    setRcItem(item);
-    setRcProposed("");
-    setRcJustification("");
-    setRcImpact("");
+  /* ── Edit Value dialog state ── */
+  const [editItem, setEditItem] = useState<ApprovalItem | null>(null);
+  const [editNewValue, setEditNewValue] = useState("");
+  const [editApprovalRef, setEditApprovalRef] = useState("");
+  const [editReason, setEditReason] = useState("");
+  const [editConfirm, setEditConfirm] = useState(false);
+
+  const openEditValue = (item: ApprovalItem) => {
+    setEditItem(item);
+    setEditNewValue(liveValues[item.key] || item.currentValue);
+    setEditApprovalRef("");
+    setEditReason("");
+    setEditConfirm(false);
   };
 
-  const submitRequestChange = () => {
-    if (!rcItem || !rcProposed.trim() || !rcJustification.trim()) {
-      toast.error("필수 항목을 모두 입력해주세요");
+  const submitEditValue = () => {
+    if (!editItem) return;
+    if (!editNewValue.trim()) {
+      toast.error("새 값을 입력해주세요");
       return;
     }
-    toast.success(`변경 요청이 ${rcItem.approvers[0]}에게 접수되었습니다`, {
-      description: `결재 순서: ${rcItem.approvers.join(" → ")}`,
+    if (!editApprovalRef.trim()) {
+      toast.error("결재 번호 참조는 필수입니다 (apr-xxx 형식)");
+      return;
+    }
+    if (!/^apr-\d+$/.test(editApprovalRef.trim())) {
+      toast.error("결재 번호 형식이 잘못되었습니다 (예: apr-010)");
+      return;
+    }
+    if (!editConfirm) {
+      toast.error("즉시 프로덕션 반영 확인 체크박스가 필요합니다");
+      return;
+    }
+    const previousValue = liveValues[editItem.key] || editItem.currentValue;
+    const now = new Date().toISOString();
+    const change: ParameterChange = {
+      id: `chg-local-${Date.now()}`,
+      itemKey: editItem.key,
+      appliedBy: user?.email || "unknown",
+      appliedByName: user?.name || "Unknown",
+      appliedAt: now,
+      previousValue,
+      newValue: editNewValue.trim(),
+      approvalRef: editApprovalRef.trim(),
+      reason: editReason.trim() || undefined,
+    };
+    setLiveValues(v => ({ ...v, [editItem.key]: editNewValue.trim() }));
+    setSessionChanges(list => [change, ...list]);
+    toast.success(`${editItem.label} 적용 완료`, {
+      description: `${previousValue} → ${editNewValue.trim()} · 전 시스템에 즉시 반영`,
     });
-    setRcItem(null);
+    setEditItem(null);
   };
+
+  /* 시드 변경 + 세션 변경 합친 전체 이력 */
+  const combinedChanges = useMemo(
+    () => [...sessionChanges, ...allParameterChanges()].sort((a, b) => b.appliedAt.localeCompare(a.appliedAt)),
+    [sessionChanges]
+  );
 
   /* ── Category filter on Parameters tab ── */
   const [catFilter, setCatFilter] = useState<ApprovalCategory | "all">("all");
@@ -108,14 +157,6 @@ export default function AdminEconomicsPage() {
     return list;
   }, [catFilter, search]);
 
-  /* ── Requests filter ── */
-  const [statusFilter, setStatusFilter] = useState<ApprovalStatus | "all">("Pending");
-  const filteredRequests = useMemo(() => {
-    if (statusFilter === "all") return approvalRequests;
-    return approvalRequests.filter(r => r.status === statusFilter);
-  }, [statusFilter]);
-
-  const pending = pendingApprovals();
 
   const categories: Array<{ key: ApprovalCategory | "all"; label: string; count: number }> = [
     { key: "all",           label: "전체",         count: APPROVAL_ITEMS.length },
@@ -147,19 +188,33 @@ export default function AdminEconomicsPage() {
           </Badge>
         </div>
         <p className="text-sm text-muted-foreground mt-1">
-          ELS 리워드 경제를 결재 체인 하에 조정합니다. 모든 파라미터는 감사 로그에 추적되며,
-          지정된 결재자 전원 서명 후에만 변경이 적용됩니다.
+          ELS 리워드 경제 <strong>실제 적용 도구</strong>. 결재 완료된 변경을 시스템에 반영하며,
+          모든 변경은 자동으로 감사 로그에 기록됩니다. 결재 워크플로우(서명·결정)는 별도 시스템에서
+          처리되어 있어야 하며, 여기서는 <strong>결재 번호(apr-xxx)를 반드시 참조</strong>해야 합니다.
         </p>
       </div>
+
+      {/* ── 중요 경고 배너 ── */}
+      <Alert className="border-[#EF476F]/50" style={{ background: "#EF476F08" }}>
+        <AlertTriangle className="h-4 w-4 text-[#EF476F]" />
+        <AlertTitle className="text-sm text-[#EF476F]">
+          ⚠ 실시간 프로덕션 반영 — 변경 전 반드시 결재 완료 확인
+        </AlertTitle>
+        <AlertDescription className="text-xs">
+          이 페이지에서 수정한 값은 <strong>즉시 전 시스템에 반영</strong>됩니다 (고객 앱 포함).
+          결재 문서(apr-xxx)가 모든 서명을 수집 완료했는지 반드시 확인 후 변경하세요.
+          잘못된 변경은 전체 고객에게 영향을 미칠 수 있으며, 롤백은 별도 절차가 필요합니다.
+        </AlertDescription>
+      </Alert>
 
       {/* ── Critical KPIs ── */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
         <Card className="p-4">
-          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">결재 대기</p>
-          <p className="text-3xl font-bold mt-1" style={{ color: pending.length > 0 ? "#EF476F" : "#64748b" }}>
-            {pending.length}
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">오늘 적용 변경</p>
+          <p className="text-3xl font-bold mt-1" style={{ color: "#FF6000" }}>
+            {combinedChanges.filter(c => c.appliedAt.slice(0, 10) === new Date().toISOString().slice(0, 10)).length}
           </p>
-          <p className="text-[10px] text-muted-foreground mt-1">건의 서명 대기 중</p>
+          <p className="text-[10px] text-muted-foreground mt-1">건 (전체 {combinedChanges.length}건)</p>
         </Card>
         <Card className="p-4">
           <p className="text-[10px] uppercase tracking-wider text-muted-foreground">조정 가능 파라미터</p>
@@ -182,19 +237,6 @@ export default function AdminEconomicsPage() {
         </Card>
       </div>
 
-      {/* ── CEO-level pending alert ── */}
-      {pending.filter(r => r.currentApprover === "CEO").length > 0 && (
-        <Alert className="border-[#FF6000]/50" style={{ background: "#FF600010" }}>
-          <AlertTriangle className="h-4 w-4" style={{ color: "#FF6000" }} />
-          <AlertTitle className="text-sm">
-            {pending.filter(r => r.currentApprover === "CEO").length}건이 대표이사 결재 대기 중
-          </AlertTitle>
-          <AlertDescription className="text-xs">
-            Critical 등급 변경은 대표이사 결재가 필수입니다. "결재 요청" 탭에서 검토하세요.
-          </AlertDescription>
-        </Alert>
-      )}
-
       {/* ── Tabs ── */}
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
@@ -203,14 +245,10 @@ export default function AdminEconomicsPage() {
             파라미터
             <span className="ml-1 text-[9px] bg-muted px-1 rounded-full">{APPROVAL_ITEMS.length}</span>
           </TabsTrigger>
-          <TabsTrigger value="requests" className="gap-1.5">
-            <FileText className="h-3.5 w-3.5" />
-            결재 요청
-            {pending.length > 0 && (
-              <span className="ml-1 text-[9px] px-1 rounded-full text-white" style={{ background: "#EF476F" }}>
-                {pending.length}
-              </span>
-            )}
+          <TabsTrigger value="history" className="gap-1.5">
+            <History className="h-3.5 w-3.5" />
+            변경 이력
+            <span className="ml-1 text-[9px] bg-muted px-1 rounded-full">{combinedChanges.length}</span>
           </TabsTrigger>
           <TabsTrigger value="matrix" className="gap-1.5">
             <Users className="h-3.5 w-3.5" />
@@ -252,243 +290,176 @@ export default function AdminEconomicsPage() {
 
           {/* Parameter grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            {filteredItems.map(item => (
-              <Card key={item.key} className="p-4 flex flex-col">
-                <div className="flex items-start justify-between gap-2 mb-2">
-                  <div className="min-w-0">
-                    <Badge variant="outline" className="text-[9px] mb-1">
-                      {item.category}
-                    </Badge>
-                    <h3 className="font-semibold text-sm">{item.label}</h3>
-                  </div>
-                  <span
-                    className="text-[9px] font-bold px-1.5 py-0.5 rounded uppercase whitespace-nowrap"
-                    style={{
-                      background: `${IMPACT_COLOR[item.impact]}22`,
-                      color: IMPACT_COLOR[item.impact],
-                      border: `1px solid ${IMPACT_COLOR[item.impact]}55`,
-                    }}
-                  >
-                    {item.impact}
-                  </span>
-                </div>
-                <p className="text-[11px] text-muted-foreground line-clamp-2 mb-2">
-                  {item.description}
-                </p>
-                <div className="p-2 rounded-md bg-muted/40 text-xs mb-2">
-                  <p className="text-[9px] uppercase tracking-wider text-muted-foreground">현재값</p>
-                  <p className="font-mono text-xs">{item.currentValue}</p>
-                </div>
-                <div className="text-[10px] text-muted-foreground space-y-1 mb-3">
-                  <p><strong>검토 주기:</strong> {item.reviewCadence}</p>
-                  <p className="line-clamp-2"><strong>예산 영향:</strong> {item.budgetImpactHint}</p>
-                </div>
-                <div className="flex items-center justify-between mt-auto pt-2 border-t">
-                  <div className="flex items-center gap-1 flex-wrap">
-                    {item.approvers.map((a, i) => (
-                      <span key={a} className="flex items-center gap-0.5">
-                        <span
-                          className="text-[9px] font-bold px-1.5 py-0.5 rounded"
-                          style={{
-                            background: `${APPROVER_COLOR[a]}22`,
-                            color: APPROVER_COLOR[a],
-                          }}
-                        >
-                          {a}
-                        </span>
-                        {i < item.approvers.length - 1 && <ArrowRight className="h-2.5 w-2.5 text-muted-foreground" />}
-                      </span>
-                    ))}
-                  </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-6 text-[10px] gap-1 shrink-0"
-                    onClick={() => openRequestChange(item)}
-                  >
-                    변경 요청
-                  </Button>
-                </div>
-              </Card>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* ═══════════ REQUESTS TAB ═══════════ */}
-      {tab === "requests" && (
-        <div className="space-y-4">
-          {/* Status filter */}
-          <div className="flex items-center gap-2 flex-wrap">
-            <Filter className="h-4 w-4 text-muted-foreground" />
-            {(["Pending", "Approved", "Rejected", "all"] as const).map(s => {
-              const label = s === "all" ? "전체" : s === "Pending" ? "결재 대기" : s === "Approved" ? "승인 완료" : "반려";
+            {filteredItems.map(item => {
+              const lastChange = [...sessionChanges, ...changesForItem(item.key)][0];
+              const currentLive = liveValues[item.key] || item.currentValue;
+              const isChanged = currentLive !== item.currentValue;
               return (
-                <button
-                  key={s}
-                  onClick={() => setStatusFilter(s)}
-                  className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors ${
-                    statusFilter === s
-                      ? "bg-[#FF6000] text-white"
-                      : "bg-muted hover:bg-muted/60 text-foreground"
-                  }`}
+                <Card
+                  key={item.key}
+                  className={`p-4 flex flex-col ${isChanged ? "border-[#FF6000]" : ""}`}
+                  style={isChanged ? { borderWidth: 2 } : undefined}
                 >
-                  {label}{" "}
-                  <span className="opacity-70">
-                    ({s === "all" ? approvalRequests.length : approvalRequests.filter(r => r.status === s).length})
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Request cards */}
-          <div className="space-y-3">
-            {filteredRequests.length === 0 ? (
-              <Card className="p-10 text-center text-sm text-muted-foreground">
-                해당 조건의 요청이 없습니다.
-              </Card>
-            ) : filteredRequests.map(req => {
-              const item = getApprovalItem(req.itemKey);
-              const statusColor =
-                req.status === "Pending" ? "#eab308" :
-                req.status === "Approved" ? "#06D6A0" :
-                req.status === "Rejected" ? "#EF476F" : "#64748b";
-              const remainingApprovers = item
-                ? item.approvers.filter(a => !req.signatures.some(s => s.approver === a))
-                : [];
-              return (
-                <Card key={req.id} className="p-4">
-                  <div className="flex items-start justify-between gap-3 flex-wrap">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap mb-1">
-                        <Badge variant="outline" className="text-[10px]" style={{ color: statusColor, borderColor: statusColor }}>
-                          {req.status === "Pending" && <Clock className="h-2.5 w-2.5 mr-0.5" />}
-                          {req.status === "Approved" && <CheckCircle2 className="h-2.5 w-2.5 mr-0.5" />}
-                          {req.status === "Rejected" && <XCircle className="h-2.5 w-2.5 mr-0.5" />}
-                          {req.status === "Pending" ? "결재 대기" : req.status === "Approved" ? "승인 완료" : "반려"}
-                        </Badge>
-                        <span className="text-[10px] text-muted-foreground">#{req.id}</span>
-                        {item && <Badge variant="outline" className="text-[9px]">{item.category}</Badge>}
-                      </div>
-                      <h3 className="font-semibold text-sm">{item?.label || req.itemKey}</h3>
-                      <p className="text-[11px] text-muted-foreground">
-                        <strong>{req.requestedByName}</strong> 요청 · {req.requestedAt}
-                      </p>
-                    </div>
-                    {req.status === "Pending" && req.currentApprover && (
-                      <Badge
-                        className="text-[10px] shrink-0"
-                        style={{
-                          background: `${APPROVER_COLOR[req.currentApprover]}22`,
-                          color: APPROVER_COLOR[req.currentApprover],
-                          border: `1px solid ${APPROVER_COLOR[req.currentApprover]}55`,
-                        }}
-                      >
-                        {req.currentApprover} 결재 대기
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <div className="min-w-0">
+                      <Badge variant="outline" className="text-[9px] mb-1">
+                        {item.category}
                       </Badge>
-                    )}
+                      <h3 className="font-semibold text-sm">{item.label}</h3>
+                    </div>
+                    <span
+                      className="text-[9px] font-bold px-1.5 py-0.5 rounded uppercase whitespace-nowrap"
+                      style={{
+                        background: `${IMPACT_COLOR[item.impact]}22`,
+                        color: IMPACT_COLOR[item.impact],
+                        border: `1px solid ${IMPACT_COLOR[item.impact]}55`,
+                      }}
+                    >
+                      {item.impact}
+                    </span>
                   </div>
-
-                  {/* Before → After */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-3">
-                    <div className="p-2 rounded-md bg-muted/40">
-                      <p className="text-[9px] uppercase tracking-wider text-muted-foreground">현재값</p>
-                      <p className="text-xs font-mono line-clamp-2">{req.currentValue}</p>
-                    </div>
-                    <div className="p-2 rounded-md" style={{ background: "#FF600010", border: "1px solid #FF600033" }}>
-                      <p className="text-[9px] uppercase tracking-wider text-[#FF6000]">변경 제안</p>
-                      <p className="text-xs font-mono line-clamp-2" style={{ color: "#FF6000" }}>{req.proposedValue}</p>
-                    </div>
-                  </div>
-
-                  {/* Justification + Impact */}
-                  <div className="mt-3 space-y-2">
-                    <div>
-                      <p className="text-[9px] uppercase tracking-wider text-muted-foreground">변경 사유</p>
-                      <p className="text-xs">{req.justification}</p>
-                    </div>
-                    <div>
-                      <p className="text-[9px] uppercase tracking-wider text-muted-foreground">영향 분석</p>
-                      <p className="text-xs italic text-muted-foreground">{req.impactAnalysis}</p>
-                    </div>
-                  </div>
-
-                  {/* Signature chain */}
-                  <div className="mt-3 pt-3 border-t">
-                    <p className="text-[9px] uppercase tracking-wider text-muted-foreground mb-1.5">
-                      결재 체인
+                  <p className="text-[11px] text-muted-foreground line-clamp-2 mb-2">
+                    {item.description}
+                  </p>
+                  <div
+                    className="p-2 rounded-md text-xs mb-2"
+                    style={{ background: isChanged ? "#FF600015" : undefined }}
+                  >
+                    <p className="text-[9px] uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+                      현재 적용값
+                      {isChanged && <span className="text-[8px] font-bold text-[#FF6000]">· 세션 내 변경</span>}
                     </p>
-                    <div className="flex items-center gap-1 flex-wrap">
-                      {req.signatures.map((sig, i) => (
-                        <span key={i} className="flex items-center gap-0.5">
-                          <span
-                            className="text-[10px] font-medium px-2 py-0.5 rounded-md flex items-center gap-1"
-                            style={{
-                              background: sig.decision === "Approved" ? "#06D6A022" : "#EF476F22",
-                              color: sig.decision === "Approved" ? "#059669" : "#EF476F",
-                              border: `1px solid ${sig.decision === "Approved" ? "#06D6A055" : "#EF476F55"}`,
-                            }}
-                            title={sig.comment}
-                          >
-                            {sig.decision === "Approved" ? <CheckCircle2 className="h-2.5 w-2.5" /> : <XCircle className="h-2.5 w-2.5" />}
-                            {sig.approver} · {sig.signedAt.slice(0, 10)}
-                          </span>
-                          {i < req.signatures.length - 1 && <ArrowRight className="h-2.5 w-2.5 text-muted-foreground" />}
-                        </span>
-                      ))}
-                      {remainingApprovers.map((a, i) => (
-                        <span key={a} className="flex items-center gap-0.5">
-                          {(req.signatures.length > 0 || i > 0) && <ArrowRight className="h-2.5 w-2.5 text-muted-foreground" />}
-                          <span
-                            className="text-[10px] px-2 py-0.5 rounded-md border border-dashed"
-                            style={{ color: APPROVER_COLOR[a], borderColor: `${APPROVER_COLOR[a]}55` }}
-                          >
-                            <Clock className="h-2.5 w-2.5 mr-0.5 inline" />
-                            {a} 대기
-                          </span>
-                        </span>
-                      ))}
-                    </div>
-                    {/* Comments from signatures */}
-                    {req.signatures.filter(s => s.comment).length > 0 && (
-                      <div className="mt-2 space-y-1">
-                        {req.signatures.filter(s => s.comment).map((sig, i) => (
-                          <p key={i} className="text-[10px] text-muted-foreground pl-2 border-l-2 border-muted italic">
-                            <strong>{sig.approverName}:</strong> {sig.comment}
-                          </p>
-                        ))}
-                      </div>
-                    )}
+                    <p className="font-mono text-xs" style={isChanged ? { color: "#FF6000" } : undefined}>
+                      {currentLive}
+                    </p>
                   </div>
-
-                  {/* Pending actions */}
-                  {req.status === "Pending" && (
-                    <div className="mt-3 pt-3 border-t flex items-center justify-end gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-7 text-[11px]"
-                        onClick={() => toast.info("반려 처리 — 요청자에게 사유와 함께 통지됩니다")}
-                      >
-                        <XCircle className="h-3 w-3 mr-1" />
-                        반려
-                      </Button>
-                      <Button
-                        size="sm"
-                        className="h-7 text-[11px] text-white"
-                        style={{ background: "#06D6A0" }}
-                        onClick={() => toast.success(`${req.currentApprover} 권한으로 승인되었습니다`, { description: remainingApprovers.length > 1 ? `다음 결재자: ${remainingApprovers[1]}` : "모든 서명 완료 — 변경이 적용됩니다" })}
-                      >
-                        <CheckCircle2 className="h-3 w-3 mr-1" />
-                        {req.currentApprover} 승인
-                      </Button>
+                  <div className="text-[10px] text-muted-foreground space-y-1 mb-2">
+                    <p><strong>검토 주기:</strong> {item.reviewCadence}</p>
+                    <p className="line-clamp-2"><strong>예산 영향:</strong> {item.budgetImpactHint}</p>
+                  </div>
+                  {lastChange && (
+                    <div className="text-[9px] text-muted-foreground mb-2 pl-2 border-l-2 border-muted">
+                      <strong>최근 변경:</strong> {lastChange.appliedAt.slice(0, 10)} by {lastChange.appliedByName.split(" ")[0]}
+                      {" · "}<span className="text-[#FF6000] font-mono">{lastChange.approvalRef}</span>
                     </div>
                   )}
+                  <div className="flex items-center justify-between mt-auto pt-2 border-t">
+                    <div className="flex items-center gap-1 flex-wrap" title="사전 결재가 필요한 체인">
+                      {item.approvers.map((a, i) => (
+                        <span key={a} className="flex items-center gap-0.5">
+                          <span
+                            className="text-[9px] font-bold px-1.5 py-0.5 rounded"
+                            style={{
+                              background: `${APPROVER_COLOR[a]}22`,
+                              color: APPROVER_COLOR[a],
+                            }}
+                          >
+                            {a}
+                          </span>
+                          {i < item.approvers.length - 1 && <ArrowRight className="h-2.5 w-2.5 text-muted-foreground" />}
+                        </span>
+                      ))}
+                    </div>
+                    <Button
+                      size="sm"
+                      className="h-6 text-[10px] gap-1 shrink-0 text-white"
+                      style={{ background: "#FF6000" }}
+                      onClick={() => openEditValue(item)}
+                    >
+                      <Edit className="h-3 w-3" />
+                      값 수정
+                    </Button>
+                  </div>
                 </Card>
               );
             })}
           </div>
+        </div>
+      )}
+
+      {/* ═══════════ HISTORY TAB ═══════════ */}
+      {tab === "history" && (
+        <div className="space-y-4">
+          <Alert>
+            <History className="h-4 w-4" />
+            <AlertTitle className="text-sm">변경 이력 (감사 로그)</AlertTitle>
+            <AlertDescription className="text-xs">
+              이 페이지에서 실행된 모든 파라미터 변경이 영구 기록됩니다.
+              각 변경은 사전 결재 문서(apr-xxx)를 참조하며, 변경자·시각·전후 값이 함께 저장됩니다.
+              감사 감리 시 증빙 자료로 사용됩니다.
+            </AlertDescription>
+          </Alert>
+
+          <Card className="p-0 overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-32">적용 시각</TableHead>
+                  <TableHead>파라미터</TableHead>
+                  <TableHead>변경 내역 (이전 → 이후)</TableHead>
+                  <TableHead className="w-28">결재 참조</TableHead>
+                  <TableHead className="w-36">적용자</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {combinedChanges.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center text-sm text-muted-foreground py-8">
+                      변경 이력이 없습니다.
+                    </TableCell>
+                  </TableRow>
+                ) : combinedChanges.map(chg => {
+                  const item = getApprovalItem(chg.itemKey);
+                  return (
+                    <TableRow key={chg.id}>
+                      <TableCell className="text-xs font-mono text-muted-foreground whitespace-nowrap">
+                        {chg.appliedAt.slice(0, 16).replace("T", " ")}
+                      </TableCell>
+                      <TableCell>
+                        <div>
+                          <p className="text-sm font-medium">{item?.label || chg.itemKey}</p>
+                          {item && (
+                            <div className="flex items-center gap-1 mt-0.5">
+                              <Badge variant="outline" className="text-[9px]">{item.category}</Badge>
+                              <span
+                                className="text-[9px] font-bold px-1 py-0.5 rounded"
+                                style={{
+                                  background: `${IMPACT_COLOR[item.impact]}22`,
+                                  color: IMPACT_COLOR[item.impact],
+                                }}
+                              >
+                                {item.impact}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="space-y-1">
+                          <p className="text-xs font-mono line-through text-muted-foreground">{chg.previousValue}</p>
+                          <p className="text-xs font-mono" style={{ color: "#FF6000" }}>
+                            ↳ {chg.newValue}
+                          </p>
+                          {chg.reason && (
+                            <p className="text-[10px] text-muted-foreground italic">{chg.reason}</p>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="text-[10px] font-mono" style={{ color: "#FF6000", borderColor: "#FF600055" }}>
+                          {chg.approvalRef}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-xs">
+                        <p className="font-medium">{chg.appliedByName}</p>
+                        <p className="text-[10px] text-muted-foreground font-mono">{chg.appliedBy}</p>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </Card>
         </div>
       )}
 
@@ -623,44 +594,56 @@ export default function AdminEconomicsPage() {
         </div>
       )}
 
-      {/* ── Request Change Dialog ── */}
-      <Dialog open={!!rcItem} onOpenChange={(o) => { if (!o) setRcItem(null); }}>
+      {/* ── Edit Value Dialog (직접 값 수정) ── */}
+      <Dialog open={!!editItem} onOpenChange={(o) => { if (!o) setEditItem(null); }}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Send className="h-4 w-4" style={{ color: "#FF6000" }} />
-              변경 요청 · {rcItem?.label}
+              <Edit className="h-4 w-4" style={{ color: "#FF6000" }} />
+              값 수정 · {editItem?.label}
             </DialogTitle>
           </DialogHeader>
 
-          {rcItem && (
+          {editItem && (
             <div className="space-y-3">
+              {/* 상단 경고 — 이 변경은 실시간 반영 */}
+              <div className="p-2.5 rounded-md border border-[#EF476F]/50" style={{ background: "#EF476F08" }}>
+                <p className="text-[11px] text-[#EF476F] font-semibold flex items-center gap-1">
+                  <AlertTriangle className="h-3.5 w-3.5" />
+                  즉시 반영 경고
+                </p>
+                <p className="text-[10px] text-[#EF476F]/90 mt-0.5">
+                  이 값은 저장 즉시 전 시스템(고객 앱 포함)에 반영됩니다.
+                  반드시 해당 결재(apr-xxx)가 모든 서명 수집 완료된 상태여야 합니다.
+                </p>
+              </div>
+
               {/* Item context */}
               <div className="p-3 rounded-md bg-muted/40">
                 <div className="flex items-center justify-between mb-1">
-                  <Badge variant="outline" className="text-[9px]">{rcItem.category}</Badge>
+                  <Badge variant="outline" className="text-[9px]">{editItem.category}</Badge>
                   <span
                     className="text-[9px] font-bold px-1.5 py-0.5 rounded uppercase"
                     style={{
-                      background: `${IMPACT_COLOR[rcItem.impact]}22`,
-                      color: IMPACT_COLOR[rcItem.impact],
+                      background: `${IMPACT_COLOR[editItem.impact]}22`,
+                      color: IMPACT_COLOR[editItem.impact],
                     }}
                   >
-                    {rcItem.impact}
+                    {editItem.impact}
                   </span>
                 </div>
-                <p className="text-[11px] text-muted-foreground mb-2">{rcItem.description}</p>
-                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">현재값</p>
-                <p className="text-sm font-mono">{rcItem.currentValue}</p>
+                <p className="text-[11px] text-muted-foreground mb-2">{editItem.description}</p>
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">현재 적용값</p>
+                <p className="text-sm font-mono">{liveValues[editItem.key] || editItem.currentValue}</p>
               </div>
 
-              {/* Approval chain preview */}
+              {/* Pre-approval chain (read-only) — "이 사람들이 미리 사인했어야 함" */}
               <div>
                 <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
-                  결재자 (순서대로)
+                  이 변경의 필수 사전 결재자 체인 (모두 서명 완료 확인)
                 </p>
                 <div className="flex items-center gap-1 flex-wrap">
-                  {rcItem.approvers.map((a, i) => (
+                  {editItem.approvers.map((a, i) => (
                     <span key={a} className="flex items-center gap-0.5">
                       <span
                         className="text-[11px] font-bold px-2 py-1 rounded-md"
@@ -670,68 +653,86 @@ export default function AdminEconomicsPage() {
                           border: `1px solid ${APPROVER_COLOR[a]}55`,
                         }}
                       >
-                        {a}
+                        {a} ✓
                       </span>
-                      {i < rcItem.approvers.length - 1 && <ArrowRight className="h-3 w-3 text-muted-foreground" />}
+                      {i < editItem.approvers.length - 1 && <ArrowRight className="h-3 w-3 text-muted-foreground" />}
                     </span>
                   ))}
                 </div>
               </div>
 
-              {/* Proposed value */}
+              {/* New value */}
               <div>
-                <label className="text-xs font-medium">변경 제안값 <span className="text-destructive">*</span></label>
+                <label className="text-xs font-medium">새 값 <span className="text-destructive">*</span></label>
                 <Input
-                  className="mt-1"
-                  value={rcProposed}
-                  onChange={e => setRcProposed(e.target.value)}
-                  placeholder={`예: ${rcItem.currentValue.split(" ")[0]} → …`}
+                  className="mt-1 font-mono"
+                  value={editNewValue}
+                  onChange={e => setEditNewValue(e.target.value)}
+                  placeholder="결재 승인된 정확한 값"
                 />
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  형식은 현재값과 동일하게 (단위·표기 일치). 결재 문서와 정확히 동일해야 함.
+                </p>
               </div>
 
-              {/* Justification */}
+              {/* Approval reference */}
               <div>
-                <label className="text-xs font-medium">변경 사유 <span className="text-destructive">*</span></label>
+                <label className="text-xs font-medium">결재 문서 번호 <span className="text-destructive">*</span></label>
+                <Input
+                  className="mt-1 font-mono"
+                  value={editApprovalRef}
+                  onChange={e => setEditApprovalRef(e.target.value)}
+                  placeholder="예: apr-010"
+                />
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  사전에 모든 서명 수집을 완료한 결재 문서 번호를 입력.
+                  감사 로그 영구 기록.
+                </p>
+              </div>
+
+              {/* Reason (optional) */}
+              <div>
+                <label className="text-xs font-medium">적용 비고 (선택)</label>
                 <Textarea
                   className="mt-1"
-                  rows={3}
-                  value={rcJustification}
-                  onChange={e => setRcJustification(e.target.value)}
-                  placeholder="왜 변경이 필요한가요? 어떤 계기로?"
+                  rows={2}
+                  value={editReason}
+                  onChange={e => setEditReason(e.target.value)}
+                  placeholder="예: 결재 완료 후 즉시 반영. 이관 계획 동봉."
                 />
               </div>
 
-              {/* Impact */}
-              <div>
-                <label className="text-xs font-medium">영향 분석 (정량적)</label>
-                <Textarea
-                  className="mt-1"
-                  rows={3}
-                  value={rcImpact}
-                  onChange={e => setRcImpact(e.target.value)}
-                  placeholder={`예상 예산 / 부채 / 볼륨 영향. 참고: ${rcItem.budgetImpactHint}`}
+              {/* Final confirmation checkbox */}
+              <label className="flex items-start gap-2 cursor-pointer p-2.5 rounded-md bg-amber-50 border border-amber-300">
+                <input
+                  type="checkbox"
+                  checked={editConfirm}
+                  onChange={e => setEditConfirm(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 accent-[#EF476F]"
                 />
-              </div>
-
-              <div className="p-2.5 rounded-md bg-blue-50 text-[10px] text-blue-900">
-                <strong>감사 로그:</strong> 이 요청은 요청자명({user?.name})과 함께 기록되어
-                결재자에게 전달됩니다. 모든 서명이 완료되어야 변경이 적용됩니다.
-              </div>
+                <span className="text-[11px] text-amber-900 leading-snug">
+                  <strong>최종 확인</strong>: 위 결재 문서의 모든 서명을 확인했으며,
+                  이 변경이 <strong>즉시 전 시스템에 반영</strong>됨을 이해했습니다.
+                  본 수정 이력은 감사 로그에 <strong>영구 기록</strong>되며, 잘못된 변경에 대한
+                  책임은 적용자({user?.name})에게 있음을 인지합니다.
+                </span>
+              </label>
             </div>
           )}
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setRcItem(null)}>
+            <Button variant="outline" onClick={() => setEditItem(null)}>
               <XIcon className="h-3 w-3 mr-1" />
               취소
             </Button>
             <Button
-              onClick={submitRequestChange}
-              style={{ background: "#FF6000" }}
-              className="text-white"
+              onClick={submitEditValue}
+              disabled={!editConfirm || !editNewValue.trim() || !editApprovalRef.trim()}
+              style={editConfirm && editNewValue.trim() && editApprovalRef.trim() ? { background: "#FF6000" } : undefined}
+              className={editConfirm && editNewValue.trim() && editApprovalRef.trim() ? "text-white" : ""}
             >
-              <Send className="h-3 w-3 mr-1" />
-              결재 요청 제출
+              <Edit className="h-3 w-3 mr-1" />
+              즉시 프로덕션 반영
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -382,6 +382,70 @@ export const approvalRequests: ApprovalRequest[] = [
   },
 ];
 
+/* ═══════════ 직접 변경 이력 (parameter changelog) ═══════════
+ * 이것이 실제로 프로덕트에 반영된 변경 기록. ELS 경제 관리 페이지의
+ * "값 수정" 버튼으로 입력된 모든 변경이 여기 쌓인다.
+ * 변경 전 반드시 승인번호(apr-xxx)를 참조해야 함. */
+export interface ParameterChange {
+  id: string;
+  itemKey: string;
+  appliedBy: string;            /* 적용한 ELLIS admin */
+  appliedByName: string;
+  appliedAt: string;             /* ISO datetime */
+  previousValue: string;
+  newValue: string;
+  approvalRef: string;           /* apr-010 형식 — 필수 */
+  reason?: string;               /* 선택 비고 */
+}
+
+export const parameterChanges: ParameterChange[] = [
+  {
+    id: "chg-001",
+    itemKey: "ELS_BOOKING_EARN_RATE",
+    appliedBy: "ellis@ohmyhotel.com",
+    appliedByName: "박수민 (ELLIS Admin)",
+    appliedAt: "2026-04-16 17:00:00",
+    previousValue: "0.05 ELS / $1",
+    newValue: "0.01 ELS / $1",
+    approvalRef: "apr-010",
+    reason: "결재 완료 후 즉시 프로덕션 반영. CEO 이태훈 서명 확인.",
+  },
+  {
+    id: "chg-002",
+    itemKey: "HOTEL_POINTS_BOOSTS",
+    appliedBy: "ellis@ohmyhotel.com",
+    appliedByName: "박수민 (ELLIS Admin)",
+    appliedAt: "2026-04-12 15:30:00",
+    previousValue: "2× / 3× / 5× (6개 호텔)",
+    newValue: "1.1× / 1.15× / 1.2× (6개 호텔)",
+    approvalRef: "apr-011",
+    reason: "3단 결재 완료 후 6개 호텔 일괄 재설정.",
+  },
+  {
+    id: "chg-003",
+    itemKey: "SHOP_PRODUCT_PRICE",
+    appliedBy: "content@ohmyhotel.com",
+    appliedByName: "김지훈 (Content Manager)",
+    appliedAt: "2026-04-17 14:00:00",
+    previousValue: "한국 5~30 ELS",
+    newValue: "한국 3~20 ELS (30% 인하)",
+    approvalRef: "apr-012",
+    reason: "32개 상품 일괄 업데이트. Giftishow 동기화 완료.",
+  },
+];
+
+/* 특정 파라미터의 변경 이력 (최신순) */
+export function changesForItem(itemKey: string): ParameterChange[] {
+  return parameterChanges
+    .filter(c => c.itemKey === itemKey)
+    .sort((a, b) => b.appliedAt.localeCompare(a.appliedAt));
+}
+
+/* 전체 이력 (최신순) */
+export function allParameterChanges(): ParameterChange[] {
+  return [...parameterChanges].sort((a, b) => b.appliedAt.localeCompare(a.appliedAt));
+}
+
 /* ═══════════ Helpers ═══════════ */
 
 export function pendingApprovals(): ApprovalRequest[] {
