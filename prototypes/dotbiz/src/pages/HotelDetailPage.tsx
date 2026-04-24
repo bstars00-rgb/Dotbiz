@@ -14,7 +14,7 @@ import {
   ParkingCircle, Tv, Wind, Bath, Ban, Baby, Dog, CigaretteOff, Globe,
   CheckCircle2, XCircle, AlertTriangle, ChevronDown, Copy, Maximize2, AlertOctagon
 } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -82,6 +82,8 @@ export default function HotelDetailPage() {
   const [rvBody, setRvBody] = useState("");
   const [rvTipsText, setRvTipsText] = useState("");   /* one tip per line */
   const [rvPhotos, setRvPhotos] = useState<string[]>([]);  /* data URLs */
+  const [rvConsent, setRvConsent] = useState(false);
+  const [rvConsentDialogOpen, setRvConsentDialogOpen] = useState(false);
   const [rvLightbox, setRvLightbox] = useState<string | null>(null);
   const [localReviews, setLocalReviews] = useState<HotelReview[]>([]);
   const [votedIds, setVotedIds] = useState<Set<string>>(new Set());
@@ -138,7 +140,12 @@ export default function HotelDetailPage() {
       toast.error("Review doesn't meet quality criteria. Check the hints below.");
       return;
     }
+    if (!rvConsent) {
+      toast.error("B2C syndication consent is required. Please review and accept the terms below.");
+      return;
+    }
     if (!user) return;
+    const now = new Date().toISOString();
     const newReview: HotelReview = {
       id: `rev-local-${Date.now()}`,
       hotelId: hotel.id,
@@ -153,14 +160,18 @@ export default function HotelDetailPage() {
       photos: rvPhotos.length > 0 ? [...rvPhotos] : undefined,
       verifiedStay: true,
       helpfulVotes: 0,
-      submittedAt: new Date().toISOString(),
-      approvedAt: new Date().toISOString(),
+      submittedAt: now,
+      /* Real flow: status=Pending, moderation credits ELS on approve.
+       * For prototype demo we auto-approve so the user sees their post. */
+      approvedAt: now,
       status: "Approved",
       elsAwarded: rvReward.els,
+      syndicationConsent: true,
+      consentedAt: now,
     };
     setLocalReviews(prev => [newReview, ...prev]);
     setReviewFormOpen(false);
-    setRvTitle(""); setRvBody(""); setRvTipsText(""); setRvRating(5); setRvPhotos([]);
+    setRvTitle(""); setRvBody(""); setRvTipsText(""); setRvRating(5); setRvPhotos([]); setRvConsent(false);
     toast.success(`Review submitted · +${rvReward.els} ELS credited`, {
       description: "Your tips will help other OPs pick the right hotel.",
     });
@@ -1139,33 +1150,56 @@ export default function HotelDetailPage() {
                   </div>
                 </div>
 
-                {/* Footer: syndication hint + actions */}
-                <div className="mt-4 pt-4 border-t flex items-center justify-between gap-3 flex-wrap">
-                  <p className="text-[10px] text-muted-foreground italic max-w-md">
-                    💡 Approved reviews are syndicated (anonymized) to our B2C layer —
-                    your insights strengthen DOTBIZ's discovery edge.
+                {/* Consent + moderation notice */}
+                <div className="mt-4 pt-4 border-t space-y-2">
+                  <label className="flex items-start gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={rvConsent}
+                      onChange={e => setRvConsent(e.target.checked)}
+                      className="mt-0.5 h-4 w-4 accent-[#FF6000]"
+                    />
+                    <span className="text-[11px] leading-snug">
+                      I consent to the publication of this review on DOTBIZ (B2B) and its{" "}
+                      <strong>anonymized syndication to the B2C discovery layer</strong>. I have read the{" "}
+                      <button
+                        type="button"
+                        onClick={() => setRvConsentDialogOpen(true)}
+                        className="underline text-[#FF6000] hover:text-[#FF6000]/80 font-medium"
+                      >
+                        Review Publication Terms & Privacy Policy
+                      </button>
+                      .{" "}
+                      <span className="text-muted-foreground">Required — we cannot publish without consent.</span>
+                    </span>
+                  </label>
+                  <p className="text-[10px] text-muted-foreground italic pl-6">
+                    ⏳ Reviews go through moderation before publishing. ELS is credited once approved.
+                    Typical turnaround &lt; 24h.
                   </p>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setReviewFormOpen(false);
-                        setRvTitle(""); setRvBody(""); setRvTipsText(""); setRvRating(5); setRvPhotos([]);
-                      }}
-                    >
-                      Discard
-                    </Button>
-                    <Button
-                      size="sm"
-                      onClick={submitReview}
-                      disabled={rvReward.els === 0}
-                      style={rvReward.els > 0 ? { background: "#FF6000" } : undefined}
-                      className={rvReward.els > 0 ? "text-white" : ""}
-                    >
-                      Submit · earn {rvReward.els} ELS
-                    </Button>
-                  </div>
+                </div>
+
+                {/* Footer actions */}
+                <div className="mt-3 pt-3 border-t flex items-center justify-end gap-2 flex-wrap">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setReviewFormOpen(false);
+                      setRvTitle(""); setRvBody(""); setRvTipsText(""); setRvRating(5); setRvPhotos([]); setRvConsent(false);
+                    }}
+                  >
+                    Discard
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={submitReview}
+                    disabled={rvReward.els === 0 || !rvConsent}
+                    style={rvReward.els > 0 && rvConsent ? { background: "#FF6000" } : undefined}
+                    className={rvReward.els > 0 && rvConsent ? "text-white" : ""}
+                  >
+                    Submit · earn {rvReward.els} ELS
+                  </Button>
                 </div>
               </Card>
             )}
@@ -1323,6 +1357,110 @@ export default function HotelDetailPage() {
       )}
 
       <div className="h-8" />
+
+      {/* ── Review Publication Terms & Privacy Policy Dialog ── */}
+      <Dialog open={rvConsentDialogOpen} onOpenChange={setRvConsentDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ShieldCheck className="h-4 w-4" style={{ color: "#FF6000" }} />
+              Review Publication Terms & Privacy Policy
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 text-sm">
+            <p className="text-xs text-muted-foreground">
+              Version 1.0 · Effective 2026-04-24 · Applies to all OP-authored hotel reviews on DOTBIZ.
+            </p>
+
+            <div>
+              <h4 className="font-bold mb-1">1. What we publish</h4>
+              <p className="text-xs leading-relaxed">
+                Once approved by moderation, your review (title, body, tips, photos, star rating, verified-stay
+                status, helpful vote count) is published to:
+                <br />• <strong>DOTBIZ B2B</strong>: visible to other OPs for booking decisions, with your
+                name + company + country displayed.
+                <br />• <strong>B2C discovery layer</strong>: syndicated anonymously — your review content
+                is shown but reviewer identity is reduced to "Verified Travel Professional" with country
+                only. Individual name and employer are <strong>not</strong> exposed to consumers.
+              </p>
+            </div>
+
+            <div>
+              <h4 className="font-bold mb-1">2. Data we collect at submission</h4>
+              <ul className="text-xs space-y-0.5 pl-4 list-disc">
+                <li>Review content (all fields you entered)</li>
+                <li>Photos (stored on DOTBIZ CDN, displayed at reduced resolution on B2C)</li>
+                <li>Your DOTBIZ user ID + company ID (for moderation + audit trail)</li>
+                <li>Booking reference (if verified-stay) — not shown publicly</li>
+                <li>Submission timestamp + IP (audit only, not published)</li>
+              </ul>
+            </div>
+
+            <div>
+              <h4 className="font-bold mb-1">3. Moderation & approval</h4>
+              <p className="text-xs leading-relaxed">
+                All reviews go through automated pre-screening (spam, NSFW, policy language) followed by
+                human review by DOTBIZ Content Managers. Typical approval time is under 24 hours.
+                Rejection reasons are disclosed to you by email. ELS rewards are credited only after
+                approval.
+              </p>
+            </div>
+
+            <div>
+              <h4 className="font-bold mb-1">4. Your rights</h4>
+              <ul className="text-xs space-y-0.5 pl-4 list-disc">
+                <li><strong>Edit</strong>: Minor corrections allowed within 30 days of approval.</li>
+                <li><strong>Delete</strong>: You may request review removal anytime. Upon deletion,
+                  any related ELS reward may be reclaimed (clawback).</li>
+                <li><strong>Takedown</strong>: DOTBIZ may remove reviews for policy violations, legal
+                  requests, or hotel disputes with documented evidence. You will be notified with reason.</li>
+                <li><strong>Access</strong>: You can download all your reviews as CSV from My Account.</li>
+              </ul>
+            </div>
+
+            <div>
+              <h4 className="font-bold mb-1">5. Compensation (ELS rewards)</h4>
+              <p className="text-xs leading-relaxed">
+                ELS rewards (up to +12 ELS per approved review, subject to quality gates and monthly
+                caps) are compensation for your knowledge contribution. ELS is personal, non-transferable,
+                and subject to <strong>24-month expiry</strong> from earn date.
+              </p>
+            </div>
+
+            <div>
+              <h4 className="font-bold mb-1">6. Personal information (개인정보)</h4>
+              <p className="text-xs leading-relaxed">
+                OhMyHotel processes your review data under the Korean Personal Information Protection Act
+                (개인정보보호법). Retention: as long as review is published + 3 years for audit. Cross-border
+                transfer (B2C CDN): only anonymized review content, no PII. For detailed terms see{" "}
+                <a href="#" className="underline text-[#FF6000]">Privacy Policy</a>.
+              </p>
+            </div>
+
+            <div>
+              <h4 className="font-bold mb-1">7. Contact</h4>
+              <p className="text-xs leading-relaxed">
+                Privacy inquiries: <a href="mailto:privacy@ohmyhotel.com" className="underline">privacy@ohmyhotel.com</a>
+                <br />
+                Content moderation appeal: <a href="mailto:moderation@ohmyhotel.com" className="underline">moderation@ohmyhotel.com</a>
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRvConsentDialogOpen(false)}>
+              Close
+            </Button>
+            <Button
+              onClick={() => { setRvConsent(true); setRvConsentDialogOpen(false); }}
+              style={{ background: "#FF6000" }}
+              className="text-white"
+            >
+              <ShieldCheck className="h-3 w-3 mr-1" />
+              I agree — enable consent
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* ── Photo Lightbox ── */}
       <Dialog open={!!rvLightbox} onOpenChange={(o) => { if (!o) setRvLightbox(null); }}>

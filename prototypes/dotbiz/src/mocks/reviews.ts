@@ -51,6 +51,16 @@ export interface HotelReview {
   approvedAt?: string;
   status: ReviewStatus;
   elsAwarded: number;             /* how much ELS was credited after approval */
+  /* Legal consent (for B2C syndication) — required at submission.
+   * If false, review visible in B2B context only (not syndicated). */
+  syndicationConsent: boolean;
+  consentedAt?: string;            /* ISO datetime of consent */
+  /* Moderation record (set on Approve/Reject by Content Manager) */
+  moderatedBy?: string;            /* email of moderator */
+  moderatedAt?: string;
+  moderationNote?: string;         /* reason (esp. for Reject) or comment */
+  /* Auto-flags raised during pre-moderation (AI + heuristics) */
+  autoFlags?: string[];            /* e.g. "short-body", "no-tips", "low-confidence-spam" */
 }
 
 /* Generated SVG "photo" placeholders for seeded demo reviews.
@@ -89,6 +99,7 @@ export const hotelReviews: HotelReview[] = [
     ],
     submittedAt: "2026-03-18 14:20:00", approvedAt: "2026-03-18 22:00:00",
     status: "Approved", elsAwarded: 12,
+    syndicationConsent: true, consentedAt: "2026-03-18 14:20:00",
   },
   {
     id: "rev-002", hotelId: "htl-001",
@@ -105,6 +116,7 @@ export const hotelReviews: HotelReview[] = [
     helpfulVotes: 23,
     submittedAt: "2026-02-14 10:15:00", approvedAt: "2026-02-14 18:30:00",
     status: "Approved", elsAwarded: 8,
+    syndicationConsent: true,
   },
   {
     id: "rev-003", hotelId: "htl-001",
@@ -121,6 +133,7 @@ export const hotelReviews: HotelReview[] = [
     helpfulVotes: 31,
     submittedAt: "2026-02-02 09:00:00", approvedAt: "2026-02-02 16:45:00",
     status: "Approved", elsAwarded: 8,
+    syndicationConsent: true,
   },
 
   /* Mandarin Oriental Tokyo (htl-005) — 2 reviews */
@@ -144,6 +157,7 @@ export const hotelReviews: HotelReview[] = [
     ],
     submittedAt: "2026-03-30 13:00:00", approvedAt: "2026-03-30 20:15:00",
     status: "Approved", elsAwarded: 12,
+    syndicationConsent: true, consentedAt: "2026-03-18 14:20:00",
   },
   {
     id: "rev-011", hotelId: "htl-005",
@@ -160,6 +174,7 @@ export const hotelReviews: HotelReview[] = [
     helpfulVotes: 19,
     submittedAt: "2026-03-07 11:20:00", approvedAt: "2026-03-07 19:40:00",
     status: "Approved", elsAwarded: 8,
+    syndicationConsent: true,
   },
 
   /* Peninsula Shanghai (htl-007) — 2 reviews */
@@ -179,6 +194,7 @@ export const hotelReviews: HotelReview[] = [
     helpfulVotes: 44,
     submittedAt: "2026-02-22 15:00:00", approvedAt: "2026-02-22 21:30:00",
     status: "Approved", elsAwarded: 10,
+    syndicationConsent: true,
   },
   {
     id: "rev-021", hotelId: "htl-007",
@@ -195,6 +211,7 @@ export const hotelReviews: HotelReview[] = [
     helpfulVotes: 27,
     submittedAt: "2026-01-28 17:00:00", approvedAt: "2026-01-28 22:00:00",
     status: "Approved", elsAwarded: 8,
+    syndicationConsent: true,
   },
 
   /* Lotte Hotel Hanoi (htl-006) — 1 review */
@@ -219,6 +236,7 @@ export const hotelReviews: HotelReview[] = [
     ],
     submittedAt: "2026-03-10 10:00:00", approvedAt: "2026-03-10 18:00:00",
     status: "Approved", elsAwarded: 12,
+    syndicationConsent: true, consentedAt: "2026-03-18 14:20:00",
   },
 
   /* Shilla Stay Mapo (htl-002) — 1 review (mid-tier) */
@@ -237,6 +255,7 @@ export const hotelReviews: HotelReview[] = [
     helpfulVotes: 15,
     submittedAt: "2026-02-18 12:00:00", approvedAt: "2026-02-18 20:00:00",
     status: "Approved", elsAwarded: 8,
+    syndicationConsent: true,
   },
 
   /* Park Hyatt Shanghai (htl-009) — 1 review */
@@ -256,9 +275,10 @@ export const hotelReviews: HotelReview[] = [
     helpfulVotes: 33,
     submittedAt: "2026-03-01 14:00:00", approvedAt: "2026-03-01 21:00:00",
     status: "Approved", elsAwarded: 10,
+    syndicationConsent: true,
   },
 
-  /* Pending review (for moderation demo) */
+  /* ═════════ Pending queue — demo moderation ═════════ */
   {
     id: "rev-099", hotelId: "htl-001",
     reviewerEmail: "accounting@dotbiz.com", reviewerName: "Daniel Choi",
@@ -270,6 +290,60 @@ export const hotelReviews: HotelReview[] = [
     helpfulVotes: 0,
     submittedAt: "2026-04-22 17:00:00",
     status: "Pending", elsAwarded: 0,
+    syndicationConsent: true, consentedAt: "2026-04-22 17:00:00",
+    autoFlags: ["short-body (94 chars, borderline)", "unverified-stay"],
+  },
+  {
+    id: "rev-100", hotelId: "htl-004",
+    reviewerEmail: "kevin@travelco.com", reviewerName: "Kevin Lee",
+    reviewerCompany: "TravelCo International", reviewerCountry: "🇰🇷 Korea",
+    rating: 5, title: "Best biz hotel ever!!!",
+    body: "Amazing amazing amazing hotel. Best hotel ever. Everyone should book here. Click here for discount!!!",
+    tips: ["Amazing", "Best"],
+    verifiedStay: false,
+    helpfulVotes: 0,
+    submittedAt: "2026-04-23 11:30:00",
+    status: "Pending", elsAwarded: 0,
+    syndicationConsent: true, consentedAt: "2026-04-23 11:30:00",
+    autoFlags: ["spam-phrases (repeated superlatives)", "promotional-language", "unverified-stay", "low-info-tips"],
+  },
+  {
+    id: "rev-101", hotelId: "htl-007",
+    reviewerEmail: "mai@gotadi.com", reviewerName: "Tran Thi Mai",
+    reviewerCompany: "GOTADI", reviewerCountry: "🇻🇳 Vietnam",
+    rating: 5, title: "Peninsula Shanghai — Vietnamese VIP standard",
+    body: "Hosted 5 C-suite delegations from Ho Chi Minh here in Q1. Staff handles Chinese + Vietnamese fluently. Bund view rooms are worth the 25% premium. Afternoon tea at The Lobby books up 1 week out — reserve early.",
+    tips: [
+      "Request Bund-facing room (East Wing, 9F+)",
+      "Afternoon tea requires 7-day advance booking",
+      "VN-language concierge on duty during business hours",
+      "Free Rolls Royce transfer within 3km radius",
+    ],
+    verifiedStay: true, stayedAt: "2026-03-28",
+    helpfulVotes: 0,
+    submittedAt: "2026-04-24 08:15:00",
+    status: "Pending", elsAwarded: 0,
+    syndicationConsent: true, consentedAt: "2026-04-24 08:15:00",
+    autoFlags: [],
+  },
+
+  /* ═════════ Rejected — example with reason ═════════ */
+  {
+    id: "rev-200", hotelId: "htl-005",
+    reviewerEmail: "emma@travelco.com", reviewerName: "Emma Wilson",
+    reviewerCompany: "TravelCo International", reviewerCountry: "🇰🇷 Korea",
+    rating: 1, title: "I hate this hotel",
+    body: "Terrible terrible terrible. Staff was rude. I asked for upgrade and they said no. Worst experience ever. Do not book.",
+    tips: ["Avoid"],
+    verifiedStay: false,
+    helpfulVotes: 0,
+    submittedAt: "2026-04-10 14:00:00",
+    status: "Rejected", elsAwarded: 0,
+    syndicationConsent: true, consentedAt: "2026-04-10 14:00:00",
+    autoFlags: ["unverified-stay", "low-info-tips", "potentially-biased"],
+    moderatedBy: "content@ohmyhotel.com",
+    moderatedAt: "2026-04-11 09:30:00",
+    moderationNote: "Unverified stay + complaint appears to stem from upgrade refusal (policy compliance), not objective hotel quality. OP advised to resubmit with verified booking record if genuine issue. No ELS credited per policy.",
   },
 ];
 
@@ -280,6 +354,47 @@ export function reviewsFor(hotelId: string): HotelReview[] {
   return hotelReviews
     .filter(r => r.hotelId === hotelId && r.status === "Approved")
     .sort((a, b) => b.helpfulVotes - a.helpfulVotes);
+}
+
+/** Reviews by status — for moderation queue */
+export function reviewsByStatus(status: ReviewStatus): HotelReview[] {
+  return hotelReviews
+    .filter(r => r.status === status)
+    .sort((a, b) => b.submittedAt.localeCompare(a.submittedAt));
+}
+
+/** Pending queue — what moderators need to act on */
+export function pendingReviews(): HotelReview[] {
+  return reviewsByStatus("Pending");
+}
+
+/** Auto-flag heuristics for a newly submitted review.
+ * Real implementation combines: ML NSFW classifier, text similarity
+ * detection, user history, hotel context embedding, etc. */
+export function autoFlagReview(params: {
+  body: string;
+  tips: string[];
+  verifiedStay: boolean;
+  hasPhotos: boolean;
+}): string[] {
+  const flags: string[] = [];
+  const body = params.body.trim();
+  /* Length */
+  if (body.length < 100) flags.push("short-body");
+  /* Promotional / spammy language */
+  const spamPatterns = /(click here|discount|promo code|amazing amazing|best ever|do not book|horrible horrible)/i;
+  if (spamPatterns.test(body)) flags.push("spam-phrases");
+  /* Repeated superlatives */
+  const repeats = body.match(/\b(\w+)(?:\s+\1){2,}\b/gi);
+  if (repeats) flags.push("repeated-words");
+  /* Low-info tips */
+  const avgTipLen = params.tips.reduce((s, t) => s + t.length, 0) / Math.max(1, params.tips.length);
+  if (params.tips.length > 0 && avgTipLen < 20) flags.push("low-info-tips");
+  /* Unverified stay */
+  if (!params.verifiedStay) flags.push("unverified-stay");
+  /* No photos — less actionable for B2C */
+  if (!params.hasPhotos) flags.push("no-photos");
+  return flags;
 }
 
 /** Aggregate stats for a hotel — for summary row on detail page */

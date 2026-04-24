@@ -203,13 +203,13 @@ export const APPROVAL_ITEMS: ApprovalItem[] = [
   {
     key: "ELS_EXPIRY_POLICY",
     category: "Policy",
-    label: "ELS Expiration",
-    description: "How long until unused ELS expires (currently: no expiry).",
-    currentValue: "No expiry (indefinite)",
+    label: "ELS Expiration Period",
+    description: "How long until unused ELS expires. Default 24 months from earn date — balances active use incentive with OP trust.",
+    currentValue: "24 months (default)",
     approvers: ["CFO", "CEO"],
     impact: "High",
     reviewCadence: "Annual",
-    budgetImpactHint: "Adding 2-year expiry could reduce liability ₩100M+",
+    budgetImpactHint: "Shortening to 12m: liability -40%. Lengthening to 36m: +30% dormant balance risk.",
   },
   {
     key: "REWARD_POOL_BUDGET",

@@ -361,6 +361,40 @@ export const userPointsState: Record<string, UserPointsState> = {
  * reward pool attribution clean. */
 export const ELS_USD_PEG = 1;                   /* 1 ELS = 1 USD */
 
+/* ELS 만료 정책 — 부채 관리 + 활성 사용 장려 차원.
+ * Earn-Booking 거래로부터 N개월 후 미사용 ELS는 자동 만료.
+ * Transfer·Stamp 보너스도 동일 규칙 적용.
+ * 24개월 = 업계 표준 (항공마일 1-3년, 백화점 포인트 5년 등 평균).
+ *
+ * 이 값은 ELS_EXPIRY_POLICY 승인 항목으로 CFO→CEO 결재 후 변경. */
+export const ELS_EXPIRY_MONTHS = 24;
+
+/** 한 거래(=earn)의 만료일 반환. */
+export function elsExpiryDate(earnedDate: string): string {
+  const d = new Date(earnedDate);
+  d.setMonth(d.getMonth() + ELS_EXPIRY_MONTHS);
+  return d.toISOString().slice(0, 10);
+}
+
+/** 만료 임박(default: 90일 이내) ELS 합계 계산. */
+export function expiringElsFor(userEmail: string, daysThreshold = 90): { amount: number; soonestDate: string | null } {
+  const now = new Date();
+  const threshold = new Date(now.getTime() + daysThreshold * 86400000);
+  let amount = 0;
+  let soonest: string | null = null;
+  for (const t of pointsTransactions) {
+    if (t.userEmail !== userEmail) continue;
+    if (t.amount <= 0) continue;    /* only positive earn transactions can expire */
+    const exp = elsExpiryDate(t.date);
+    const expD = new Date(exp);
+    if (expD >= now && expD <= threshold) {
+      amount += t.amount;
+      if (!soonest || exp < soonest) soonest = exp;
+    }
+  }
+  return { amount, soonestDate: soonest };
+}
+
 /* ══════════════════════════════════════════════════════════════════════
  * STAMPS — passport-style achievement trail
  *

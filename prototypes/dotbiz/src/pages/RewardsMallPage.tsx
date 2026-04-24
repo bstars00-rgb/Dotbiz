@@ -22,7 +22,7 @@ import { hotels } from "@/mocks/hotels";
 import {
   rewardProducts, userPointsState, pointsHistoryFor, vouchersFor,
   countryCodeFor, TIERS, tierDivisionFor,
-  formatEls, earnedStampsFor,
+  formatEls, earnedStampsFor, expiringElsFor, ELS_EXPIRY_MONTHS,
   STAMPS, RARITY_META, type StampRarity,
   HOTEL_POINTS_BOOSTS, hotelPointsBoost,
   type RewardProduct, type UserPointsState, type RedeemedVoucher,
@@ -636,6 +636,38 @@ export default function RewardsMallPage() {
       {/* ─────────── WALLET tab ─────────── */}
       {tab === "wallet" && (
         <div className="space-y-4">
+          {/* ─── ELS expiring-soon banner (≤ 90 days from earn+24mo) ─── */}
+          {(() => {
+            const exp = expiringElsFor(userEmail, 90);
+            if (exp.amount === 0) return null;
+            const daysLeft = exp.soonestDate
+              ? Math.max(1, Math.ceil((new Date(exp.soonestDate).getTime() - Date.now()) / 86400000))
+              : 0;
+            return (
+              <Alert className="border-[#FF6000]/50" style={{ background: "#FF600008" }}>
+                <AlertTitle className="flex items-center gap-2" style={{ color: "#FF6000" }}>
+                  <Clock className="h-4 w-4" />
+                  {exp.amount.toLocaleString()} ELS expiring in {daysLeft} day{daysLeft === 1 ? "" : "s"}
+                </AlertTitle>
+                <AlertDescription className="text-[11px] flex items-center justify-between gap-3 flex-wrap">
+                  <span>
+                    ELS expires <strong>{ELS_EXPIRY_MONTHS} months</strong> after earn date.
+                    Use before <strong>{exp.soonestDate}</strong> to avoid loss.
+                  </span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setTab("shop")}
+                    className="border-[#FF6000]/50"
+                    style={{ color: "#FF6000" }}
+                  >
+                    Shop now <ArrowRight className="h-3 w-3 ml-1" />
+                  </Button>
+                </AlertDescription>
+              </Alert>
+            );
+          })()}
+
           {/* ─── Expiry warning banner (coupons expiring ≤ 14d) ─── */}
           {(() => {
             const now = new Date();
