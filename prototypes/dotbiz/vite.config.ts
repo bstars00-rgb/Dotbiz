@@ -1,6 +1,7 @@
 import { defineConfig } from "vite"
 import react from "@vitejs/plugin-react"
 import tailwindcss from "@tailwindcss/vite"
+import { visualizer } from "rollup-plugin-visualizer"
 import path from "path"
 
 /**
@@ -17,7 +18,15 @@ import path from "path"
  */
 export default defineConfig({
   base: "/Dotbiz/",
-  plugins: [react(), tailwindcss()],
+  plugins: [
+    react(),
+    tailwindcss(),
+    /* 번들 분석 — `npm run build` 후 dist/stats.html 열어서 확인.
+     * ANALYZE=1 환경 변수로만 활성화. 일반 빌드는 비활성. */
+    ...(process.env.ANALYZE
+      ? [visualizer({ filename: "dist/stats.html", template: "treemap", gzipSize: true, brotliSize: true, open: false }) as any]
+      : []),
+  ],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
@@ -48,6 +57,19 @@ export default defineConfig({
             if (id.includes("/framer-motion/")) return "animation";
             /* 기타 vendor */
             return "vendor";
+          }
+          /* Mock 데이터 — 페이지별 chunk에 자동 포함되지 않고 공유 chunk로 분리.
+           * MainLayout이 statically import하는 alerts/rewards는 어차피 eager에 들어가지만,
+           * 그 외 큰 mock은 본인 chunk로 빠져 페이지 코드와 분리됨. */
+          if (id.includes("/src/mocks/")) {
+            const m = id.match(/\/src\/mocks\/([^./]+)/);
+            if (m) {
+              const name = m[1];
+              /* 가장 큰 mock들만 별도 chunk로 — 작은 것은 인라인 OK */
+              if (["rewards", "settlement", "dashboard", "alerts", "approvals", "reviews", "bookings"].includes(name)) {
+                return `mock-${name}`;
+              }
+            }
           }
         },
       },
