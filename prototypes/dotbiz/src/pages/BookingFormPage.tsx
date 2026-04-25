@@ -206,18 +206,14 @@ export default function BookingFormPage() {
                   </div>
                 </TableCell>
                 <TableCell>
-                  <select
+                  {/* 자유 입력 — select 대신 text input. 빈 칸으로 시작, OP가 직접 타이핑.
+                   * 일부 호텔에서 비표준 표기를 요구할 수 있어 enum 강제하지 않음. */}
+                  <Input
+                    placeholder=""
                     value={t.nationality || ""}
                     onChange={e => updateTraveler(i, "nationality", e.target.value)}
-                    className="w-full border rounded px-2 py-1.5 text-xs bg-background"
-                  >
-                    <option value="">—</option>
-                    {[
-                      "Korean", "Japanese", "Chinese (Mainland)", "Chinese (Hong Kong)", "Taiwanese",
-                      "Vietnamese", "Thai", "Singaporean", "Malaysian", "Indonesian", "Filipino",
-                      "American", "British", "Australian", "German", "French", "Indian", "Other",
-                    ].map(n => <option key={n} value={n}>{n}</option>)}
-                  </select>
+                    className="text-xs"
+                  />
                 </TableCell>
                 <TableCell>
                   {parseInt(searchParams.get("children") || "0") > 0 ? (

@@ -239,6 +239,14 @@ export default function MainLayout() {
 
   return (
     <div className="flex flex-col h-full">
+      {/* A11y: 키보드 사용자가 헤더/사이드바 건너뛰고 본문으로 바로 이동.
+       * Tab 키로 처음 누르면 보이는 'Skip to content' 버튼. */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[100] focus:px-3 focus:py-2 focus:bg-primary focus:text-primary-foreground focus:rounded focus:shadow-lg"
+      >
+        본문으로 건너뛰기
+      </a>
       {/* Top Bar (DIDA style) */}
       <header ref={headerRef} className="flex items-center h-12 px-4 gap-1 shrink-0 text-white relative" style={{ background: "linear-gradient(90deg, #1a1a2e, #16213e)" }} role="banner">
         {/* Left: Menu toggle (mobile only — opens the sheet).
@@ -674,7 +682,7 @@ export default function MainLayout() {
         )}
 
         {/* Content */}
-        <main className="flex-1 overflow-auto flex flex-col">
+        <main id="main-content" tabIndex={-1} className="flex-1 overflow-auto flex flex-col">
           <div className="flex-1">
             <AnimatePresence mode="wait">
               <PageTransition key={location.pathname}>

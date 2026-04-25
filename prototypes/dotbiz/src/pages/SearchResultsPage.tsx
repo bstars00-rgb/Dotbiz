@@ -136,7 +136,7 @@ export default function SearchResultsPage() {
   const [barRooms, setBarRooms] = useState(searchParams.get("rooms") || "1");
   const [barAdults, setBarAdults] = useState(searchParams.get("adults") || "2");
   const [barChildren, setBarChildren] = useState(searchParams.get("children") || "0");
-  const [barNationality, setBarNationality] = useState(searchParams.get("nationality") || "South Korea");
+  /* Nationality는 검색창에서 제거 — 예약 페이지에서 traveler별로 직접 입력. */
   const baseUrl = `${window.location.origin}${window.location.pathname}`;
   const dateParams = `&checkin=${barCheckIn}&checkout=${barCheckOut}`;
   const handleBarSelectCity = (city: string) => { navigate(`/app/search-results?q=${encodeURIComponent(city)}${dateParams}`); };
@@ -257,16 +257,6 @@ export default function SearchResultsPage() {
             <div className="flex items-center gap-1 text-sm font-medium">
               <span>{barRooms} Rooms, {barAdults} Adults{parseInt(barChildren) > 0 ? ` ${barChildren} Children` : ""}</span>
               <ChevronDown className="h-3.5 w-3.5 text-muted-foreground ml-1" />
-            </div>
-          </div>
-          {/* Nationality */}
-          <div className="px-4 py-3 hover:bg-muted/40 transition-colors">
-            <p className="text-xs font-semibold text-muted-foreground mb-1">Nationality</p>
-            <div className="flex items-center gap-1 text-sm font-medium">
-              <select value={barNationality} onChange={e => setBarNationality(e.target.value)} className="font-medium text-sm bg-transparent border-none outline-none cursor-pointer appearance-none pr-1">
-                {["South Korea", "Japan", "China", "Thailand", "Vietnam", "United States", "United Kingdom", "Australia", "Singapore", "Indonesia"].map(n => <option key={n}>{n}</option>)}
-              </select>
-              <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
             </div>
           </div>
           {/* Search Button */}

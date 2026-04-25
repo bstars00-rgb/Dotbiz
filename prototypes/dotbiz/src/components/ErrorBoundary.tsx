@@ -39,7 +39,16 @@ export class ErrorBoundary extends Component<Props, State> {
   public componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
     console.error("[ErrorBoundary]", this.props.label || "unknown", error, errorInfo);
     this.setState({ errorInfo });
-    /* 프로덕션: Sentry.captureException(error, { extra: errorInfo }); */
+    /* 텔레메트리 hook — 프로덕션에서 Sentry/Datadog SDK가 window.__dotbizTelemetry로 주입됨.
+     * 프로토타입에선 정의되지 않아 noop. SDK 도입 시 main.tsx에서 등록만 하면 됨:
+     *   window.__dotbizTelemetry = { captureException: (e, ctx) => Sentry.captureException(e, ctx) }
+     */
+    try {
+      const tel = (window as unknown as { __dotbizTelemetry?: { captureException(e: Error, ctx?: unknown): void } }).__dotbizTelemetry;
+      tel?.captureException(error, { extra: { ...errorInfo, label: this.props.label } });
+    } catch {
+      /* 텔레메트리 자체가 throw해도 에러 UI 표시는 계속 */
+    }
   }
 
   private handleReset = () => {
