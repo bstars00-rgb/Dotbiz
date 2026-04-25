@@ -1,15 +1,58 @@
 import { defineConfig } from "vite"
 import react from "@vitejs/plugin-react"
 import tailwindcss from "@tailwindcss/vite"
-import { viteSingleFile } from "vite-plugin-singlefile"
 import path from "path"
 
+/**
+ * Vite 설정 — Code splitting 적용 (gh-pages 호환)
+ *
+ * 변경 이력:
+ *   • 이전: vite-plugin-singlefile로 모든 JS/CSS를 index.html에 inline
+ *     → 단일 파일 배포는 단순했으나 초기 로드 2.4MB 강제
+ *   • 현재: 다중 파일 빌드 + React.lazy로 라우트별 청크 분리
+ *     → 초기 ~400KB, 페이지 진입 시 추가 청크 (~50-150KB)
+ *
+ * gh-pages 베이스: /Dotbiz/ (저장소 이름)
+ * HashRouter 사용 중이므로 base 경로만 정확하면 라우팅은 OK.
+ */
 export default defineConfig({
-  plugins: [react(), tailwindcss(), viteSingleFile()],
+  base: "/Dotbiz/",
+  plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
+  },
+  build: {
+    /* modulepreload 비활성화 — 라우트별 lazy 청크가 초기 HTML에서 preload되면
+     * code splitting 효과가 사라짐. 사용자가 해당 라우트로 이동할 때만 fetch. */
+    modulePreload: false,
+    /* 청크 분할 전략: 큰 의존성을 vendor로 분리.
+     * Vite 8(rolldown)는 manualChunks를 함수 형태로 요구. */
+    rollupOptions: {
+      output: {
+        manualChunks(id: string) {
+          if (id.includes("node_modules")) {
+            /* React 코어 — 대부분 페이지에서 공유, 별도 청크로 캐시 효율 ↑ */
+            if (
+              id.includes("/react/") ||
+              id.includes("/react-dom/") ||
+              id.includes("/react-router/") ||
+              id.includes("/scheduler/")
+            ) return "react-vendor";
+            /* 차트 — Dashboard에서만 필요 */
+            if (id.includes("/recharts/") || id.includes("/d3-")) return "charts";
+            /* 지도 — Map Search에서만 필요 */
+            if (id.includes("/leaflet")) return "maps";
+            /* 애니메이션 */
+            if (id.includes("/framer-motion/")) return "animation";
+            /* 기타 vendor */
+            return "vendor";
+          }
+        },
+      },
+    },
+    chunkSizeWarningLimit: 600,
   },
   test: {
     globals: true,
