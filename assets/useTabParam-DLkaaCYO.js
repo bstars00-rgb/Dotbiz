@@ -1,0 +1,1 @@
+import{a as e}from"./rolldown-runtime-COnpUsM8.js";import{i as t}from"./animation-DWMP8Gx3.js";import{F as n}from"./react-vendor-B7C_CFkz.js";var r=e(t(),1);function i(e,t=`tab`){let[i,a]=n();return[i.get(t)||e,(0,r.useCallback)(n=>{a(r=>{let i=new URLSearchParams(r);return n===e?i.delete(t):i.set(t,n),i},{replace:!0})},[e,t,a])]}export{i as t};
