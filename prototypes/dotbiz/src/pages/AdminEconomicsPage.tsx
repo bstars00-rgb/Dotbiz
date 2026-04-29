@@ -32,9 +32,13 @@ import {
   STAMP_BONUS_BY_RARITY,
   riskSnapshot,
   fraudFlags,
+  rewardProducts,
+  DEFAULT_COMPOSITE_WEIGHTS,
+  DEFAULT_ROLLING_CONFIG,
   type HotelPointsBoost,
   type StampRarity,
   type FraudFlag,
+  type Tier,
 } from "@/mocks/rewards";
 import {
   loadAutoModRules, saveAutoModRules, DEFAULT_AUTO_MOD_RULES,
@@ -77,6 +81,18 @@ interface LiveSettings {
   };
   elsNonTransferable: boolean;
   elsExpiryMonths: number;
+  /* ── Tier 정책 v2 (2026-04 신규) ──
+   * 복합 지표 가중치 / 매출 정규화 / 강등 윈도우 / Retention grace.
+   * 실제로는 DB write 후 rewards.ts의 helper들이 이 값을 읽음. */
+  tierPolicy: {
+    bookingWeight: number;        /* 0..1, revenueWeight = 1 - this */
+    usdPerBookingEq: number;      /* 매출 정규화 단가 */
+    rollingWindowMonths: number;  /* 3 / 6 / 12 */
+    retentionGraceMonths: number; /* 0 / 6 / 12 */
+    rollingEnabled: boolean;      /* false = 평생 누적 (legacy) */
+  };
+  /* 상품별 minTier 매핑 — 마케팅팀이 운용. 키는 product.id */
+  tierLocks: Record<string, "Bronze" | "Silver" | "Gold" | "Platinum" | "Diamond" | "none">;
 }
 
 export default function AdminEconomicsPage() {
@@ -99,6 +115,17 @@ export default function AdminEconomicsPage() {
     reviewRewardFormula: { base: 3, quality: 2, photo: 2, first: 5, monthlyCap: 5 },
     elsNonTransferable: true,
     elsExpiryMonths: 24,
+    tierPolicy: {
+      bookingWeight: DEFAULT_COMPOSITE_WEIGHTS.bookingWeight,
+      usdPerBookingEq: DEFAULT_COMPOSITE_WEIGHTS.usdPerBookingEq,
+      rollingWindowMonths: DEFAULT_ROLLING_CONFIG.windowMonths,
+      retentionGraceMonths: DEFAULT_ROLLING_CONFIG.gracePeriodMonths,
+      rollingEnabled: DEFAULT_ROLLING_CONFIG.enabled,
+    },
+    tierLocks: rewardProducts.reduce((acc, p) => {
+      acc[p.id] = (p.minTier || "none") as LiveSettings["tierLocks"][string];
+      return acc;
+    }, {} as LiveSettings["tierLocks"]),
   });
 
   const [sessionChanges, setSessionChanges] = useState<ParameterChange[]>([]);
@@ -1100,74 +1127,11 @@ function PolicyTab({
 
   return (
     <div className="space-y-4">
-      {/* ── Tier 정책 v2 요약 (2026-04 신규) ── */}
-      <Card className="p-5" style={{ borderLeft: `4px solid #8b5cf6` }}>
-        <div className="flex items-center justify-between mb-3">
-          <div>
-            <h3 className="font-bold flex items-center gap-2">
-              <Award className="h-4 w-4 text-purple-500" />
-              Tier 정책 v2 (2026-04 적용)
-            </h3>
-            <p className="text-xs text-muted-foreground mt-1">
-              승급 축 · 강등 정책 · 보상 일원화 · Shop 잠금 — 4가지 핵심 결정.
-              구체 수치는 마케팅·CFO 협의 후 본 페이지에서 튜닝.
-            </p>
-          </div>
-          <Badge variant="outline" className="text-[10px]">정책 골격 확정</Badge>
-        </div>
+      {/* ── Tier 정책 v2 — 편집 가능한 튜닝 UI ── */}
+      <TierPolicyV2Editor settings={settings} setSettings={setSettings} recordChange={recordChange} />
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-          <div className="border rounded p-3 bg-muted/30">
-            <p className="font-semibold mb-1">① 승급 축 — 복합 지표</p>
-            <p className="text-muted-foreground mb-1">booking 수 + 매출 가산</p>
-            <p className="font-mono text-[10px]">
-              score = bookings × <strong>0.7</strong> + (revenue $ / <strong>$200</strong>) × <strong>0.3</strong>
-            </p>
-            <p className="text-[10px] text-muted-foreground mt-1">
-              가중치 70:30, USD/booking-eq $200 (잠정 — 추후 결정)
-            </p>
-          </div>
-          <div className="border rounded p-3 bg-muted/30">
-            <p className="font-semibold mb-1">② 강등 정책 — Rolling 12mo + Retention</p>
-            <p className="text-muted-foreground mb-1">최근 12개월 실적 기준 재계산</p>
-            <p className="text-[10px] text-muted-foreground">
-              · Status retention: 한 단계 강등 시 12개월 grace 부여<br />
-              · 2단계 이상 강등은 즉시 적용<br />
-              · 휴면 OP의 영구 Diamond 부채 방지
-            </p>
-          </div>
-          <div className="border rounded p-3 bg-muted/30">
-            <p className="font-semibold mb-1">③ 보상 일원화 — Stamp만 지급</p>
-            <p className="text-muted-foreground mb-1">Tier 도달 시 별도 ELS 보너스 X</p>
-            <p className="text-[10px] text-muted-foreground">
-              · 지속 혜택: multiplier (1.0× ~ 1.5×) + Tier 잠금 상품 해제<br />
-              · 일회성: tier-* Stamp + Stamp 보너스 (Rare~Mythic)
-            </p>
-          </div>
-          <div className="border rounded p-3 bg-muted/30">
-            <p className="font-semibold mb-1">④ Shop 잠금 — 가시적 보상</p>
-            <p className="text-muted-foreground mb-1">Tier별 점진적 상품 해제</p>
-            <p className="text-[10px] text-muted-foreground">
-              · Bronze: 기본 카탈로그<br />
-              · Silver+: Streaming/Shopping 일부<br />
-              · Gold+: 프리미엄 상품권<br />
-              · Platinum+: 부티크/스파 라인<br />
-              · Diamond+: Apex Experience (미쉐린 등)
-            </p>
-          </div>
-        </div>
-
-        <div className="mt-3 p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-300/40 rounded text-[11px] text-amber-900 dark:text-amber-200">
-          <p className="font-medium mb-1">⏳ 다음 작업 (튜닝 UI 추가 필요)</p>
-          <ul className="list-disc list-inside space-y-0.5">
-            <li>composite weight slider (booking : revenue)</li>
-            <li>USD per booking-eq 조정</li>
-            <li>Rolling window 길이 (3/6/12개월)</li>
-            <li>Retention grace 길이 (0/6/12개월)</li>
-            <li>Tier별 잠금 상품 매트릭스 (마케팅팀 매핑)</li>
-          </ul>
-        </div>
-      </Card>
+      {/* ── Shop Tier 잠금 매트릭스 ── */}
+      <TierLockMatrix settings={settings} setSettings={setSettings} recordChange={recordChange} />
 
       {/* ── 자동 모더레이션 규칙 설정 (신규) ── */}
       <Card className="p-5" style={{ borderLeft: `4px solid #FF6000` }}>
@@ -1713,5 +1677,338 @@ function RiskTab() {
         </ul>
       </Card>
     </div>
+  );
+}
+
+/* ═════════════════════════════════════════════════
+ * Tier 정책 v2 편집 UI
+ *
+ * 4가지 핵심 정책 (2026-04 결정):
+ *   ① 복합 지표 가중치 (booking : revenue)
+ *   ② USD per booking-eq (매출 정규화 단가)
+ *   ③ Rolling 윈도우 길이 (강등 산정 기간)
+ *   ④ Retention grace 길이 (강등 유예)
+ *
+ * 변경 즉시 recordChange 로그 기록 + 토스트.
+ * 실제 시스템 적용은 ELLIS DB write 후 helper 함수가 새 값 사용.
+ * ═════════════════════════════════════════════════ */
+function TierPolicyV2Editor({
+  settings, setSettings, recordChange,
+}: {
+  settings: LiveSettings;
+  setSettings: React.Dispatch<React.SetStateAction<LiveSettings>>;
+  recordChange: (key: string, label: string, before: string, after: string) => void;
+}) {
+  const tp = settings.tierPolicy;
+
+  const updatePolicy = <K extends keyof LiveSettings["tierPolicy"]>(
+    key: K, value: LiveSettings["tierPolicy"][K], label: string,
+  ) => {
+    const before = String(tp[key]);
+    const after = String(value);
+    setSettings(s => ({ ...s, tierPolicy: { ...s.tierPolicy, [key]: value } }));
+    recordChange(`TIER_POLICY_${String(key).toUpperCase()}`, label, before, after);
+  };
+
+  const bookingPct = Math.round(tp.bookingWeight * 100);
+  const revenuePct = 100 - bookingPct;
+
+  const sampleBookings = 100;
+  const sampleRevenue = 20000;
+  const sampleScore = sampleBookings * tp.bookingWeight + (sampleRevenue / tp.usdPerBookingEq) * (1 - tp.bookingWeight);
+
+  return (
+    <Card className="p-5" style={{ borderLeft: "4px solid #8b5cf6" }}>
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h3 className="font-bold flex items-center gap-2">
+            <Award className="h-4 w-4 text-purple-500" />
+            Tier 정책 v2 — 튜닝
+          </h3>
+          <p className="text-xs text-muted-foreground mt-1">
+            승급 축 · 강등 정책 4가지 핵심 파라미터. 변경 즉시 전 시스템에 적용.
+          </p>
+        </div>
+        <Badge variant="outline" className="text-[10px]">실시간 반영</Badge>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="border rounded p-4 bg-muted/30">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-sm font-semibold">① 복합 지표 가중치</p>
+            <Badge variant="outline" className="text-[10px]">booking : revenue</Badge>
+          </div>
+          <p className="text-[11px] text-muted-foreground mb-3">
+            booking 수와 매출의 상대적 중요도. 70:30이 기본.
+          </p>
+          <div className="space-y-2">
+            <input
+              type="range"
+              min={0} max={100} step={5}
+              value={bookingPct}
+              onChange={e => updatePolicy("bookingWeight", Number(e.target.value) / 100, "복합 지표 booking 가중치")}
+              className="w-full"
+            />
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-medium">Booking <span className="text-purple-500">{bookingPct}%</span></span>
+              <span className="font-medium">Revenue <span className="text-orange-500">{revenuePct}%</span></span>
+            </div>
+            <div className="grid grid-cols-3 gap-1 text-[10px]">
+              {[
+                { label: "100:0", v: 100 },
+                { label: "70:30", v: 70 },
+                { label: "50:50", v: 50 },
+              ].map(p => (
+                <button
+                  key={p.label}
+                  onClick={() => updatePolicy("bookingWeight", p.v / 100, "복합 지표 booking 가중치")}
+                  className={`border rounded px-1.5 py-1 ${bookingPct === p.v ? "border-purple-500 bg-purple-50 dark:bg-purple-950/30" : "border-border hover:bg-muted"}`}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="border rounded p-4 bg-muted/30">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-sm font-semibold">② 매출 정규화 단가</p>
+            <Badge variant="outline" className="text-[10px]">USD per booking-eq</Badge>
+          </div>
+          <p className="text-[11px] text-muted-foreground mb-3">
+            매출 $X = booking-eq 1건. 글로벌 평균 객단가에 맞춰 설정.
+          </p>
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+              <Input
+                type="number"
+                min={50} max={1000} step={10}
+                value={tp.usdPerBookingEq}
+                onChange={e => updatePolicy("usdPerBookingEq", Math.max(50, Number(e.target.value) || 200), "USD per booking-eq")}
+                className="text-sm font-mono"
+              />
+              <span className="text-xs text-muted-foreground">USD</span>
+            </div>
+            <div className="grid grid-cols-4 gap-1 text-[10px]">
+              {[100, 150, 200, 300].map(v => (
+                <button
+                  key={v}
+                  onClick={() => updatePolicy("usdPerBookingEq", v, "USD per booking-eq")}
+                  className={`border rounded px-1.5 py-1 ${tp.usdPerBookingEq === v ? "border-purple-500 bg-purple-50 dark:bg-purple-950/30" : "border-border hover:bg-muted"}`}
+                >
+                  ${v}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="border rounded p-4 bg-muted/30">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-sm font-semibold">③ 강등 산정 윈도우</p>
+            <Badge variant={tp.rollingEnabled ? "default" : "outline"} className="text-[10px]">
+              {tp.rollingEnabled ? "활성" : "비활성"}
+            </Badge>
+          </div>
+          <p className="text-[11px] text-muted-foreground mb-3">
+            최근 N개월 실적으로 Tier 재산정. 비활성 시 평생 누적 (강등 없음).
+          </p>
+          <div className="space-y-2">
+            <label className="flex items-center gap-2 text-xs cursor-pointer">
+              <input
+                type="checkbox"
+                checked={tp.rollingEnabled}
+                onChange={e => updatePolicy("rollingEnabled", e.target.checked, "강등 정책 활성화")}
+              />
+              <span>강등 활성화 (Rolling 모드)</span>
+            </label>
+            <div className="grid grid-cols-3 gap-1 text-[10px]">
+              {[3, 6, 12].map(m => (
+                <button
+                  key={m}
+                  disabled={!tp.rollingEnabled}
+                  onClick={() => updatePolicy("rollingWindowMonths", m, "강등 윈도우")}
+                  className={`border rounded px-1.5 py-2 ${tp.rollingWindowMonths === m ? "border-purple-500 bg-purple-50 dark:bg-purple-950/30 font-bold" : "border-border hover:bg-muted"} ${!tp.rollingEnabled ? "opacity-50 cursor-not-allowed" : ""}`}
+                >
+                  {m}개월
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="border rounded p-4 bg-muted/30">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-sm font-semibold">④ Status Retention Grace</p>
+            <Badge variant="outline" className="text-[10px]">강등 유예</Badge>
+          </div>
+          <p className="text-[11px] text-muted-foreground mb-3">
+            한 단계 강등 시 N개월 grace 부여. 2단계 이상은 즉시 강등.
+          </p>
+          <div className="grid grid-cols-3 gap-1 text-[10px]">
+            {[
+              { label: "0 (즉시)", v: 0 },
+              { label: "6개월", v: 6 },
+              { label: "12개월", v: 12 },
+            ].map(p => (
+              <button
+                key={p.v}
+                disabled={!tp.rollingEnabled}
+                onClick={() => updatePolicy("retentionGraceMonths", p.v, "Retention grace")}
+                className={`border rounded px-1.5 py-2 ${tp.retentionGraceMonths === p.v ? "border-purple-500 bg-purple-50 dark:bg-purple-950/30 font-bold" : "border-border hover:bg-muted"} ${!tp.rollingEnabled ? "opacity-50 cursor-not-allowed" : ""}`}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-4 p-3 rounded border-l-4 border-purple-500 bg-purple-50 dark:bg-purple-950/20">
+        <p className="text-[11px] font-medium text-purple-900 dark:text-purple-200 mb-1">📊 라이브 미리보기</p>
+        <p className="text-xs text-purple-800 dark:text-purple-300">
+          예시: <strong>booking 100건 × 매출 $20,000</strong> OP의 복합 score
+        </p>
+        <p className="text-xs font-mono mt-1">
+          {sampleBookings} × <strong>{tp.bookingWeight.toFixed(2)}</strong> + ($20,000 / ${tp.usdPerBookingEq}) × <strong>{(1 - tp.bookingWeight).toFixed(2)}</strong>
+          {" = "}
+          <strong className="text-purple-700 dark:text-purple-300">{sampleScore.toFixed(1)}</strong>
+        </p>
+        <p className="text-[10px] text-purple-700 dark:text-purple-400 mt-1">
+          → 임계값 {settings.tierThresholds.join(" / ")} 비교: <strong>
+            {sampleScore < settings.tierThresholds[0] ? "Bronze" :
+             sampleScore < settings.tierThresholds[1] ? "Silver" :
+             sampleScore < settings.tierThresholds[2] ? "Gold" :
+             sampleScore < settings.tierThresholds[3] ? "Platinum" : "Diamond"}
+          </strong>
+        </p>
+      </div>
+    </Card>
+  );
+}
+
+/* ═════════════════════════════════════════════════
+ * Shop Tier 잠금 매트릭스
+ * ═════════════════════════════════════════════════ */
+function TierLockMatrix({
+  settings, setSettings, recordChange,
+}: {
+  settings: LiveSettings;
+  setSettings: React.Dispatch<React.SetStateAction<LiveSettings>>;
+  recordChange: (key: string, label: string, before: string, after: string) => void;
+}) {
+  const tierOptions: Array<"none" | Tier> = ["none", "Bronze", "Silver", "Gold", "Platinum", "Diamond"];
+  const [filterCountry, setFilterCountry] = useState<string>("all");
+
+  const setLock = (productId: string, tier: "none" | Tier) => {
+    const before = settings.tierLocks[productId] || "none";
+    if (before === tier) return;
+    setSettings(s => ({ ...s, tierLocks: { ...s.tierLocks, [productId]: tier } }));
+    const product = rewardProducts.find(p => p.id === productId);
+    recordChange(
+      `TIER_LOCK_${productId}`,
+      `${product?.brand || productId} 잠금 Tier`,
+      before,
+      tier,
+    );
+  };
+
+  const stats = tierOptions.reduce((acc, t) => {
+    acc[t] = Object.values(settings.tierLocks).filter(v => v === t).length;
+    return acc;
+  }, {} as Record<string, number>);
+
+  const countries = Array.from(new Set(rewardProducts.map(p => p.countryCode)));
+  const filtered = filterCountry === "all"
+    ? rewardProducts
+    : rewardProducts.filter(p => p.countryCode === filterCountry);
+
+  return (
+    <Card className="p-5" style={{ borderLeft: "4px solid #FF6000" }}>
+      <div className="flex items-center justify-between mb-3">
+        <div>
+          <h3 className="font-bold flex items-center gap-2">
+            <Package className="h-4 w-4" style={{ color: "#FF6000" }} />
+            Shop Tier 잠금 매트릭스
+          </h3>
+          <p className="text-xs text-muted-foreground mt-1">
+            상품별 최소 Tier 설정. "—"는 모든 사용자가 리딤 가능.
+          </p>
+        </div>
+        <select
+          value={filterCountry}
+          onChange={e => setFilterCountry(e.target.value)}
+          className="border rounded px-2 py-1 text-xs bg-background"
+        >
+          <option value="all">전 국가</option>
+          {countries.map(c => <option key={c} value={c}>{c}</option>)}
+        </select>
+      </div>
+
+      <div className="grid grid-cols-6 gap-2 mb-3">
+        {tierOptions.map(t => (
+          <div key={t} className="border rounded p-2 text-center bg-muted/30">
+            <p className="text-[9px] text-muted-foreground uppercase">{t === "none" ? "전체 공개" : t}</p>
+            <p className="text-lg font-bold">{stats[t]}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="overflow-x-auto rounded border" style={{ maxHeight: "400px" }}>
+        <Table>
+          <TableHeader className="sticky top-0 z-10 bg-background shadow-sm">
+            <TableRow className="text-[11px]">
+              <TableHead className="w-16">국가</TableHead>
+              <TableHead>상품</TableHead>
+              <TableHead className="text-right whitespace-nowrap">Cost</TableHead>
+              <TableHead>최소 Tier (클릭하여 변경)</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filtered.map(p => {
+              const currentLock = settings.tierLocks[p.id] || "none";
+              return (
+                <TableRow key={p.id} className="text-xs">
+                  <TableCell className="text-[10px]">{p.countryCode}</TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <span className="text-base">{p.emoji}</span>
+                      <div>
+                        <p className="font-medium">{p.name}</p>
+                        <p className="text-[10px] text-muted-foreground">{p.brand} · {p.category}</p>
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-right whitespace-nowrap font-mono">{p.pointsCost} P</TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-1 flex-wrap">
+                      {tierOptions.map(t => (
+                        <button
+                          key={t}
+                          onClick={() => setLock(p.id, t)}
+                          className={`px-2 py-1 rounded text-[10px] border transition-all ${
+                            currentLock === t
+                              ? "border-[#FF6000] bg-[#FF6000]/10 font-bold text-[#FF6000]"
+                              : "border-border hover:bg-muted"
+                          }`}
+                        >
+                          {t === "none" ? "—" : t}
+                        </button>
+                      ))}
+                    </div>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </div>
+
+      <p className="text-[10px] text-muted-foreground mt-2">
+        * 변경은 즉시 모든 OP의 Shop 화면에 반영. 잠긴 상품은 카드는 보이되 "🔒 Unlock at X" 표시.
+      </p>
+    </Card>
   );
 }
