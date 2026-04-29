@@ -26,6 +26,7 @@ import {
   STAMPS, RARITY_META, type StampRarity,
   HOTEL_POINTS_BOOSTS, hotelPointsBoost,
   companyPoolFor, companyPoolHistoryFor, charityOrgs,
+  canRedeemProduct,
   type RewardProduct, type UserPointsState, type RedeemedVoucher,
 } from "@/mocks/rewards";
 import { toast } from "sonner";
@@ -532,12 +533,29 @@ export default function RewardsMallPage() {
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
               {myProducts.map(p => {
+                /* Tier 잠금 체크 — minTier가 있고 사용자 tier보다 높으면 locked.
+                 * 잠긴 상품도 카드는 보이되 "🔒 Unlock at Silver" 등 표시 + 클릭 시 toast 안내. */
+                const userTier = rank.tier.name;
+                const locked = !canRedeemProduct(userTier, p);
                 const affordable = mystate.balance >= p.pointsCost;
                 return (
                   <Card
                     key={p.id}
-                    className={`p-0 overflow-hidden transition-all ${affordable ? "hover:shadow-md hover:border-[#FF6000]/40" : "opacity-70"}`}
+                    className={`p-0 overflow-hidden transition-all relative ${
+                      locked ? "opacity-50" : affordable ? "hover:shadow-md hover:border-[#FF6000]/40" : "opacity-70"
+                    }`}
                   >
+                    {/* Lock overlay — 클릭 가능하지만 시각적으로 잠긴 표시 */}
+                    {locked && (
+                      <div className="absolute inset-0 z-10 pointer-events-none flex items-center justify-center">
+                        <div className="absolute inset-0 bg-black/30 backdrop-blur-[1px]" />
+                        <div className="relative px-3 py-1.5 rounded-full bg-white/95 dark:bg-slate-900/95 shadow-md flex items-center gap-1.5 text-xs font-bold">
+                          <span>🔒</span>
+                          <span>Unlock at <span style={{ color: "#FF6000" }}>{p.minTier}</span></span>
+                        </div>
+                      </div>
+                    )}
+
                     {/* Cover */}
                     <div
                       className="h-28 flex flex-col items-center justify-center text-white relative"
@@ -554,6 +572,15 @@ export default function RewardsMallPage() {
                           title={p.monthlyRedemptions ? `${p.monthlyRedemptions.toLocaleString()} OPs redeemed this month` : "Top seller this month"}
                         >
                           🔥 Best Seller
+                        </span>
+                      )}
+                      {p.minTier && !locked && (
+                        <span
+                          className="absolute bottom-2 left-2 px-1.5 py-0.5 rounded text-[9px] font-bold text-white flex items-center gap-0.5 shadow-md"
+                          style={{ background: "rgba(0,0,0,0.5)" }}
+                          title={`${p.minTier} 이상 전용 상품`}
+                        >
+                          ✨ {p.minTier}
                         </span>
                       )}
                     </div>
@@ -577,12 +604,20 @@ export default function RewardsMallPage() {
                         </div>
                         <Button
                           size="sm"
-                          disabled={!affordable}
-                          onClick={() => setRedeemTarget(p)}
-                          style={affordable ? { background: "#FF6000" } : undefined}
-                          className={affordable ? "text-white h-7 text-xs" : "h-7 text-xs"}
+                          disabled={locked || !affordable}
+                          onClick={() => {
+                            if (locked) {
+                              toast.info(`🔒 ${p.minTier} 등급에서 잠금 해제`, {
+                                description: `${userTier} → ${p.minTier} 승급 시 이 상품을 리딤할 수 있습니다.`,
+                              });
+                              return;
+                            }
+                            setRedeemTarget(p);
+                          }}
+                          style={!locked && affordable ? { background: "#FF6000" } : undefined}
+                          className={!locked && affordable ? "text-white h-7 text-xs" : "h-7 text-xs"}
                         >
-                          {affordable ? "Redeem" : "Short"}
+                          {locked ? "Locked" : affordable ? "Redeem" : "Short"}
                         </Button>
                       </div>
                     </div>

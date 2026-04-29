@@ -1100,6 +1100,75 @@ function PolicyTab({
 
   return (
     <div className="space-y-4">
+      {/* ── Tier 정책 v2 요약 (2026-04 신규) ── */}
+      <Card className="p-5" style={{ borderLeft: `4px solid #8b5cf6` }}>
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <h3 className="font-bold flex items-center gap-2">
+              <Award className="h-4 w-4 text-purple-500" />
+              Tier 정책 v2 (2026-04 적용)
+            </h3>
+            <p className="text-xs text-muted-foreground mt-1">
+              승급 축 · 강등 정책 · 보상 일원화 · Shop 잠금 — 4가지 핵심 결정.
+              구체 수치는 마케팅·CFO 협의 후 본 페이지에서 튜닝.
+            </p>
+          </div>
+          <Badge variant="outline" className="text-[10px]">정책 골격 확정</Badge>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+          <div className="border rounded p-3 bg-muted/30">
+            <p className="font-semibold mb-1">① 승급 축 — 복합 지표</p>
+            <p className="text-muted-foreground mb-1">booking 수 + 매출 가산</p>
+            <p className="font-mono text-[10px]">
+              score = bookings × <strong>0.7</strong> + (revenue $ / <strong>$200</strong>) × <strong>0.3</strong>
+            </p>
+            <p className="text-[10px] text-muted-foreground mt-1">
+              가중치 70:30, USD/booking-eq $200 (잠정 — 추후 결정)
+            </p>
+          </div>
+          <div className="border rounded p-3 bg-muted/30">
+            <p className="font-semibold mb-1">② 강등 정책 — Rolling 12mo + Retention</p>
+            <p className="text-muted-foreground mb-1">최근 12개월 실적 기준 재계산</p>
+            <p className="text-[10px] text-muted-foreground">
+              · Status retention: 한 단계 강등 시 12개월 grace 부여<br />
+              · 2단계 이상 강등은 즉시 적용<br />
+              · 휴면 OP의 영구 Diamond 부채 방지
+            </p>
+          </div>
+          <div className="border rounded p-3 bg-muted/30">
+            <p className="font-semibold mb-1">③ 보상 일원화 — Stamp만 지급</p>
+            <p className="text-muted-foreground mb-1">Tier 도달 시 별도 ELS 보너스 X</p>
+            <p className="text-[10px] text-muted-foreground">
+              · 지속 혜택: multiplier (1.0× ~ 1.5×) + Tier 잠금 상품 해제<br />
+              · 일회성: tier-* Stamp + Stamp 보너스 (Rare~Mythic)
+            </p>
+          </div>
+          <div className="border rounded p-3 bg-muted/30">
+            <p className="font-semibold mb-1">④ Shop 잠금 — 가시적 보상</p>
+            <p className="text-muted-foreground mb-1">Tier별 점진적 상품 해제</p>
+            <p className="text-[10px] text-muted-foreground">
+              · Bronze: 기본 카탈로그<br />
+              · Silver+: Streaming/Shopping 일부<br />
+              · Gold+: 프리미엄 상품권<br />
+              · Platinum+: 부티크/스파 라인<br />
+              · Diamond+: Apex Experience (미쉐린 등)
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-3 p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-300/40 rounded text-[11px] text-amber-900 dark:text-amber-200">
+          <p className="font-medium mb-1">⏳ 다음 작업 (튜닝 UI 추가 필요)</p>
+          <ul className="list-disc list-inside space-y-0.5">
+            <li>composite weight slider (booking : revenue)</li>
+            <li>USD per booking-eq 조정</li>
+            <li>Rolling window 길이 (3/6/12개월)</li>
+            <li>Retention grace 길이 (0/6/12개월)</li>
+            <li>Tier별 잠금 상품 매트릭스 (마케팅팀 매핑)</li>
+          </ul>
+        </div>
+      </Card>
+
       {/* ── 자동 모더레이션 규칙 설정 (신규) ── */}
       <Card className="p-5" style={{ borderLeft: `4px solid #FF6000` }}>
         <div className="flex items-center justify-between gap-3 mb-3">
