@@ -151,21 +151,21 @@ export default function LoginPage() {
             </div>
           </div>
 
-          {/* Tagline — DOTBIZ는 베드뱅크/어그리게이터가 아니라 "서플라이어 아키텍처".
-           * 호텔 재고·가격을 직접 최적화해 최상의 공급을 만들어내는 구조라는 메시지. */}
+          {/* Tagline — "서플라이어 아키텍처"가 무엇인지 궁금하게 만드는 카피.
+           * 우리가 무엇이 아닌지(베드뱅크/어그리게이터)는 명시하지 않음 — 카테고리 자체를 새로 만든다는 인상. */}
           <h2 className="text-5xl font-bold leading-tight mb-6" style={{ background: "linear-gradient(90deg, #FF6000, #FF8C00, #FFCF8F)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
-            Beyond Bedbank.
+            Supplier Architecture
             <br />
-            Supply, Re-Architected.
+            for Global B2B Hotels
           </h2>
           <p className="text-xl text-gray-300 font-light leading-relaxed mb-3">
-            Not another aggregator — a direct hotel supply layer
+            Inventory, rates, and policies —
             <br />
-            that optimizes inventory and rates in real time.
+            orchestrated as one live supply system.
           </p>
           <p className="text-sm text-gray-400 leading-relaxed mb-8 max-w-[520px]">
-            DOTBIZ는 베드뱅크가 아닙니다. 호텔과 직접 연결된 공급 아키텍처로
-            재고·가격을 실시간 최적화해, 파트너에게 늘 최상의 공급을 제공합니다.
+            호텔 재고·가격·정책을 하나의 시스템으로 오케스트레이션하는 라이브 공급 레이어.
+            DOTBIZ는 파트너에게 늘 최상의 공급을 만들어냅니다.
           </p>
 
           {/* Feature badges — 공급 차별화 키워드. AI 표현은 사용하지 않음. */}
