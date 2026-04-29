@@ -1,6 +1,6 @@
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useNavigate, useSearchParams, useParams } from "react-router";
-import { Search, X, Download, ChevronLeft, ChevronRight, RefreshCw, MapPin, Calendar, Clock, FileText, Printer, Ticket, Copy, ChevronsLeft, ChevronsRight, SlidersHorizontal, RotateCcw } from "lucide-react";
+import { Search, X, Download, ChevronLeft, ChevronRight, RefreshCw, MapPin, Calendar, Clock, FileText, Printer, Ticket, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -261,61 +261,6 @@ export default function BookingsPage() {
   const [filterDateFrom, setFilterDateFrom] = useState("");
   const [filterDateTo, setFilterDateTo] = useState("");
 
-  /* ── 가로 스크롤 + 컬럼 가시성 ──
-   * 19개 컬럼은 가로 스크롤 필수. 개선 3건:
-   *   A) 표 자체에 max-height + sticky thead → 가로 스크롤바가 항상 뷰포트 안
-   *   C) "맨 처음/맨 끝" 점프 버튼으로 우측 컬럼 즉시 확인
-   *   D) 컬럼 가시성 토글 (localStorage 영구 저장) — 19 → 원하는 만큼
-   */
-  const tableScrollRef = useRef<HTMLDivElement>(null);
-  const [colPickerOpen, setColPickerOpen] = useState(false);
-  const COL_DEFS = [
-    { key: "bookingDate",   label: "Booking Date",          essential: false },
-    { key: "ellisCode",     label: "ELLIS Booking Code",    essential: true  },
-    { key: "hotelConfirm",  label: "Hotel Confirmation No.",essential: false },
-    { key: "bookingStatus", label: "Booking Status",        essential: true  },
-    { key: "paymentStatus", label: "Payment Status",        essential: false },
-    { key: "hotelName",     label: "Hotel Name",            essential: true  },
-    { key: "cancelDL",      label: "Client Cancel DL",      essential: false },
-    { key: "checkIn",       label: "Check-in / Nts",        essential: true  },
-    { key: "roomType",      label: "Room Type / Count",     essential: false },
-    { key: "traveler",      label: "1st Traveler Name",     essential: false },
-    { key: "currency",      label: "B.Currency",            essential: false },
-    { key: "amount",        label: "B.Sum Amt",             essential: true  },
-    { key: "cancelDate",    label: "BKG Cancel Date",       essential: false },
-    { key: "invoiceNo",     label: "Invoice No.",           essential: false },
-    { key: "payChannel",    label: "Pay Channel",           essential: false },
-    { key: "bookingSource", label: "Booking Source",        essential: false },
-    { key: "dispute",       label: "Dispute",               essential: false },
-    { key: "ticket",        label: "Ticket",                essential: true  },
-  ] as const;
-  type ColKey = typeof COL_DEFS[number]["key"];
-  const COL_STORAGE_KEY = "dotbiz_bookings_cols_v1";
-  const [visibleCols, setVisibleCols] = useState<Record<ColKey, boolean>>(() => {
-    try {
-      const raw = localStorage.getItem(COL_STORAGE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw) as Record<string, boolean>;
-        const result = {} as Record<ColKey, boolean>;
-        for (const c of COL_DEFS) {
-          result[c.key] = c.essential ? true : parsed[c.key] !== false;
-        }
-        return result;
-      }
-    } catch { /* fallback to defaults */ }
-    return Object.fromEntries(COL_DEFS.map(c => [c.key, true])) as Record<ColKey, boolean>;
-  });
-  useEffect(() => {
-    try { localStorage.setItem(COL_STORAGE_KEY, JSON.stringify(visibleCols)); } catch { /* ignore quota */ }
-  }, [visibleCols]);
-  const toggleCol = (k: ColKey) => setVisibleCols(prev => ({ ...prev, [k]: !prev[k] }));
-  const resetCols = () => setVisibleCols(Object.fromEntries(COL_DEFS.map(c => [c.key, true])) as Record<ColKey, boolean>);
-  const hiddenCount = COL_DEFS.filter(c => !c.essential && !visibleCols[c.key]).length;
-  const scrollTableTo = (pos: "start" | "end") => {
-    const el = tableScrollRef.current;
-    if (!el) return;
-    el.scrollTo({ left: pos === "start" ? 0 : el.scrollWidth, behavior: "smooth" });
-  };
 
   /* ── Filters ── */
   const [filterDateType, setFilterDateType] = useState(searchParams.get("dateType") || "Booking");
@@ -615,29 +560,6 @@ export default function BookingsPage() {
           <div className="flex items-center justify-between">
             <span className="text-sm" style={{ color: "#FF6000" }}>{filtered.length}</span>
             <div className="flex items-center gap-2">
-              {/* 가로 스크롤 점프 버튼 — 우측 컬럼을 한 번에 보고 싶을 때 */}
-              {viewMode === "list" && (
-                <>
-                  <Button variant="outline" size="sm" onClick={() => scrollTableTo("start")} aria-label="Scroll to first column" title="첫 컬럼으로">
-                    <ChevronsLeft className="h-3.5 w-3.5" />
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={() => scrollTableTo("end")} aria-label="Scroll to last column" title="마지막 컬럼으로">
-                    <ChevronsRight className="h-3.5 w-3.5" />
-                  </Button>
-                  {/* 컬럼 가시성 토글 — 필요 없는 컬럼은 숨김. localStorage 저장. */}
-                  <Button
-                    variant={hiddenCount > 0 ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setColPickerOpen(o => !o)}
-                    aria-expanded={colPickerOpen}
-                    aria-controls="bookings-col-picker"
-                    title="표시 컬럼 선택"
-                  >
-                    <SlidersHorizontal className="h-3 w-3 mr-1" />
-                    컬럼 {hiddenCount > 0 && <span className="ml-1 text-[10px]">({COL_DEFS.length - hiddenCount}/{COL_DEFS.length})</span>}
-                  </Button>
-                </>
-              )}
               <Button variant="outline" size="sm" onClick={() => {
                 const rows = filtered.map(b => ({
                   "Booking Date": b.bookingDate, "ELLIS Code": b.ellisCode, "Hotel Confirmation No.": b.hotelConfirmCode,
@@ -660,113 +582,56 @@ export default function BookingsPage() {
             </div>
           </div>
 
-          {/* ── 컬럼 가시성 패널 (D) ── */}
-          {viewMode === "list" && colPickerOpen && (
-            <div id="bookings-col-picker" className="border rounded-lg p-3 bg-muted/30">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-semibold">표시할 컬럼 선택</span>
-                <div className="flex items-center gap-2">
-                  <Button variant="ghost" size="sm" onClick={resetCols} className="h-7 text-xs" title="모두 표시">
-                    <RotateCcw className="h-3 w-3 mr-1" />초기화
-                  </Button>
-                  <Button variant="ghost" size="sm" onClick={() => setColPickerOpen(false)} className="h-7 text-xs">
-                    닫기
-                  </Button>
-                </div>
-              </div>
-              <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 text-xs">
-                {COL_DEFS.map(c => (
-                  <label key={c.key} className={`flex items-center gap-1.5 ${c.essential ? "opacity-60" : "cursor-pointer hover:bg-muted/60 rounded px-1"}`}>
-                    <Checkbox
-                      checked={visibleCols[c.key]}
-                      onCheckedChange={() => !c.essential && toggleCol(c.key)}
-                      disabled={c.essential}
-                    />
-                    <span>{c.label}</span>
-                    {c.essential && <span className="text-[9px] text-muted-foreground">(필수)</span>}
-                  </label>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* ── List View ── */}
+          {/* ── List View ──
+           * 컬럼은 일일 운영에 필수적인 8개로 축소. 나머지 상세 정보(Hotel Confirm No,
+           * Payment Status, Cancel DL, Currency, Invoice No, Pay Channel, Booking Source,
+           * Dispute 등)는 ELLIS Code 클릭 시 열리는 상세 다이얼로그에 표시. */}
           {viewMode === "list" ? (
-            /* A) 표 자체에 max-height + 가로/세로 모두 overflow-auto.
-             * 가로 스크롤바가 행 50개 아래가 아니라 항상 뷰포트 안에 위치.
-             * thead는 sticky로 고정 → 세로 스크롤 시에도 컬럼명 보임. */
-            <div ref={tableScrollRef} className="overflow-auto rounded-md border" style={{ maxHeight: "calc(100vh - 320px)" }}>
+            <div className="overflow-x-auto">
               <Table>
-                <TableHeader className="sticky top-0 z-10 bg-background shadow-sm">
+                <TableHeader>
                   <TableRow className="text-[11px]">
                     <TableHead className="w-8"><Checkbox checked={selectedIds.size === filtered.length && filtered.length > 0} onCheckedChange={selectAll} /></TableHead>
-                    {visibleCols.bookingDate   && <TableHead className="whitespace-nowrap">Booking Date</TableHead>}
-                    {visibleCols.ellisCode     && <TableHead className="whitespace-nowrap">ELLIS Booking Code</TableHead>}
-                    {visibleCols.hotelConfirm  && <TableHead className="whitespace-nowrap">Hotel Confirmation No.</TableHead>}
-                    {visibleCols.bookingStatus && <TableHead className="whitespace-nowrap">Booking Status</TableHead>}
-                    {visibleCols.paymentStatus && <TableHead className="whitespace-nowrap">Payment Status</TableHead>}
-                    {visibleCols.hotelName     && <TableHead className="whitespace-nowrap">Hotel Name</TableHead>}
-                    {visibleCols.cancelDL      && <TableHead className="whitespace-nowrap">Client Cancel DL</TableHead>}
-                    {visibleCols.checkIn       && <TableHead className="whitespace-nowrap">Check-in Date / Nts</TableHead>}
-                    {visibleCols.roomType      && <TableHead className="whitespace-nowrap">Room Type / Count</TableHead>}
-                    {visibleCols.traveler      && <TableHead className="whitespace-nowrap">1st Traveler Name</TableHead>}
-                    {visibleCols.currency      && <TableHead className="whitespace-nowrap">B.Currency</TableHead>}
-                    {visibleCols.amount        && <TableHead className="whitespace-nowrap text-right">B.Sum Amt</TableHead>}
-                    {visibleCols.cancelDate    && <TableHead className="whitespace-nowrap">BKG Cancel Date</TableHead>}
-                    {visibleCols.invoiceNo     && <TableHead className="whitespace-nowrap">Invoice No.</TableHead>}
-                    {visibleCols.payChannel    && <TableHead className="whitespace-nowrap">Pay Channel</TableHead>}
-                    {visibleCols.bookingSource && <TableHead className="whitespace-nowrap">Booking Source</TableHead>}
-                    {visibleCols.dispute       && <TableHead className="whitespace-nowrap">Dispute</TableHead>}
-                    {visibleCols.ticket        && <TableHead className="whitespace-nowrap text-center">Ticket</TableHead>}
+                    <TableHead className="whitespace-nowrap">Booking Date</TableHead>
+                    <TableHead className="whitespace-nowrap">ELLIS Code</TableHead>
+                    <TableHead className="whitespace-nowrap">Status</TableHead>
+                    <TableHead>Hotel</TableHead>
+                    <TableHead className="whitespace-nowrap">Check-in / Nts</TableHead>
+                    <TableHead>Traveler</TableHead>
+                    <TableHead className="whitespace-nowrap text-right">Amount</TableHead>
+                    <TableHead className="whitespace-nowrap text-center">Action</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {paginated.map(b => (
-                    <TableRow key={b.id} className="group hover:bg-muted/50 text-xs">
-                      <TableCell><Checkbox checked={selectedIds.has(b.id)} onCheckedChange={() => toggleSelect(b.id)} /></TableCell>
-                      {visibleCols.bookingDate && <TableCell className="whitespace-nowrap">{b.bookingDate}</TableCell>}
-                      {visibleCols.ellisCode && (
-                        <TableCell className="whitespace-nowrap">
-                          <span className="font-mono text-[#0066cc] hover:underline cursor-pointer" onClick={() => setSelectedBooking(b)}>{b.ellisCode}</span>
-                          <button className="ml-1 text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100" title="Copy booking code" onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(b.ellisCode); toast.success("Copied!", { description: b.ellisCode }); }}>
-                            <Copy className="h-3 w-3 inline" />
-                          </button>
-                        </TableCell>
-                      )}
-                      {visibleCols.hotelConfirm && (
-                        <TableCell className="whitespace-nowrap">
-                          {b.hotelConfirmCode ? (
-                            <span className="font-mono text-[11px]">{b.hotelConfirmCode}</span>
-                          ) : (
-                            <Badge variant="outline" className="text-[9px] text-amber-600 border-amber-300">Pending</Badge>
-                          )}
-                        </TableCell>
-                      )}
-                      {visibleCols.bookingStatus && <TableCell><Badge variant={statusColors[b.bookingStatus] as "default" | "destructive" | "secondary"} className="text-[10px]">{b.bookingStatus}</Badge></TableCell>}
-                      {visibleCols.paymentStatus && <TableCell><Badge variant={statusColors[b.paymentStatus] as "default" | "destructive" | "secondary"} className="text-[10px]">{b.paymentStatus}</Badge></TableCell>}
-                      {visibleCols.hotelName && <TableCell className="truncate max-w-[150px]">{b.hotelName}</TableCell>}
-                      {visibleCols.cancelDL && <TableCell className="whitespace-nowrap">{b.cancelDeadline}</TableCell>}
-                      {visibleCols.checkIn && <TableCell className="whitespace-nowrap">{b.checkIn}[{b.nights}]</TableCell>}
-                      {visibleCols.roomType && <TableCell className="whitespace-nowrap">{b.roomType} x{b.roomCount}</TableCell>}
-                      {visibleCols.traveler && <TableCell className="truncate max-w-[100px]">{b.traveler}</TableCell>}
-                      {visibleCols.currency && <TableCell className="whitespace-nowrap">{b.currency}</TableCell>}
-                      {visibleCols.amount && <TableCell className="text-right font-medium whitespace-nowrap">{b.sumAmount.toLocaleString()}</TableCell>}
-                      {visibleCols.cancelDate && <TableCell className="whitespace-nowrap">{b.cancelDate || ""}</TableCell>}
-                      {visibleCols.invoiceNo && <TableCell className="whitespace-nowrap">{b.invoiceNo || ""}</TableCell>}
-                      {visibleCols.payChannel && <TableCell className="whitespace-nowrap">{b.paymentChannel}</TableCell>}
-                      {visibleCols.bookingSource && (
-                        <TableCell className="whitespace-nowrap">
-                          <Badge variant="outline" className={`text-[9px] ${b.bookingSource === "API Integration" ? "border-purple-300 text-purple-600" : "border-orange-300 text-[#FF6000]"}`}>{b.bookingSource}</Badge>
-                        </TableCell>
-                      )}
-                      {visibleCols.dispute && <TableCell className="truncate max-w-[80px] text-red-500">{b.dispute || ""}</TableCell>}
-                      {visibleCols.ticket && (
-                        <TableCell className="text-center">
-                          <Button variant="ghost" size="sm" className="h-6 px-2 text-[10px] text-[#FF6000] hover:bg-[#FF6000]/10" onClick={(e) => { e.stopPropagation(); setTicketBooking(b); setTicketOpen(true); }} title="Create ticket for this booking">
-                            <Ticket className="h-3 w-3 mr-1" />Ticket
-                          </Button>
-                        </TableCell>
-                      )}
+                    <TableRow key={b.id} className="group hover:bg-muted/50 text-xs cursor-pointer" onClick={() => setSelectedBooking(b)}>
+                      <TableCell onClick={e => e.stopPropagation()}><Checkbox checked={selectedIds.has(b.id)} onCheckedChange={() => toggleSelect(b.id)} /></TableCell>
+                      <TableCell className="whitespace-nowrap">{b.bookingDate}</TableCell>
+                      <TableCell className="whitespace-nowrap" onClick={e => e.stopPropagation()}>
+                        <span className="font-mono text-[#0066cc] hover:underline cursor-pointer" onClick={() => setSelectedBooking(b)}>{b.ellisCode}</span>
+                        <button className="ml-1 text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100" title="Copy booking code" onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(b.ellisCode); toast.success("Copied!", { description: b.ellisCode }); }}>
+                          <Copy className="h-3 w-3 inline" />
+                        </button>
+                      </TableCell>
+                      <TableCell>
+                        {/* Booking + Payment 둘 다 한 셀에 — 좁게 표시 */}
+                        <div className="flex flex-col gap-0.5">
+                          <Badge variant={statusColors[b.bookingStatus] as "default" | "destructive" | "secondary"} className="text-[10px] w-fit">{b.bookingStatus}</Badge>
+                          <span className="text-[9px] text-muted-foreground">{b.paymentStatus}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="truncate max-w-[200px]">{b.hotelName}</TableCell>
+                      <TableCell className="whitespace-nowrap">{b.checkIn} <span className="text-muted-foreground">[{b.nights}N]</span></TableCell>
+                      <TableCell className="truncate max-w-[140px]">{b.traveler}</TableCell>
+                      <TableCell className="text-right font-medium whitespace-nowrap">
+                        <span className="text-[10px] text-muted-foreground mr-1">{b.currency}</span>
+                        {b.sumAmount.toLocaleString()}
+                      </TableCell>
+                      <TableCell className="text-center" onClick={e => e.stopPropagation()}>
+                        <Button variant="ghost" size="sm" className="h-6 px-2 text-[10px] text-[#FF6000] hover:bg-[#FF6000]/10" onClick={(e) => { e.stopPropagation(); setTicketBooking(b); setTicketOpen(true); }} title="Create ticket for this booking">
+                          <Ticket className="h-3 w-3 mr-1" />Ticket
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -930,6 +795,18 @@ export default function BookingsPage() {
                     <TableRow><TableCell className="text-sm font-medium">Room Type</TableCell><TableCell className="text-sm">{selectedBooking.roomType}</TableCell></TableRow>
                     <TableRow><TableCell className="text-sm font-medium">Meal Type</TableCell><TableCell className="text-sm">None</TableCell></TableRow>
                     <TableRow><TableCell className="text-sm font-medium">Cancellation D/L</TableCell><TableCell className={`text-sm font-medium ${new Date(selectedBooking.cancelDeadline) > new Date() ? "text-[#FF6000]" : "text-red-500"}`}>{selectedBooking.cancelDeadline}</TableCell></TableRow>
+                    {selectedBooking.cancelDate && (
+                      <TableRow><TableCell className="text-sm font-medium">Cancelled Date</TableCell><TableCell className="text-sm text-red-500">{selectedBooking.cancelDate}</TableCell></TableRow>
+                    )}
+                    <TableRow>
+                      <TableCell className="text-sm font-medium">Booking Source</TableCell>
+                      <TableCell className="text-sm">
+                        <Badge variant="outline" className={`text-[10px] ${selectedBooking.bookingSource === "API Integration" ? "border-purple-300 text-purple-600" : "border-orange-300 text-[#FF6000]"}`}>{selectedBooking.bookingSource}</Badge>
+                      </TableCell>
+                    </TableRow>
+                    {selectedBooking.dispute && (
+                      <TableRow><TableCell className="text-sm font-medium text-red-500">Dispute</TableCell><TableCell className="text-sm text-red-500">{selectedBooking.dispute}</TableCell></TableRow>
+                    )}
                   </TableBody>
                 </Table>
               </Card>
