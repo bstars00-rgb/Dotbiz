@@ -22,6 +22,7 @@ import { hotels } from "@/mocks/hotels";
 import {
   rewardProducts, userPointsState, pointsHistoryFor, vouchersFor,
   countryCodeFor, TIERS, tierDivisionFor,
+  compositeTierScore, tierForRolling, DEFAULT_COMPOSITE_WEIGHTS, DEFAULT_ROLLING_CONFIG,
   formatEls, earnedStampsFor, expiringElsFor, ELS_EXPIRY_MONTHS,
   STAMPS, RARITY_META, type StampRarity,
   HOTEL_POINTS_BOOSTS, hotelPointsBoost,
@@ -69,11 +70,29 @@ export default function RewardsMallPage() {
     setMyVouchers(vouchersFor(userEmail));
   }, [userEmail]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const rank = tierDivisionFor(mystate.bookingCount);
+  /* ── Tier v2: 복합 지표(booking + 매출) + Rolling 12mo + Retention ──
+   * tierDivisionFor는 단일 score를 받아 division/percentile 계산.
+   * 평생 누적 score를 넘겨 "도달한 최고 tier" 표시.
+   * Rolling/Retention 결과는 별도 표시(강등 grace 안내용). */
+  const lifetimeScore = compositeTierScore(
+    { bookingCount: mystate.bookingCount, totalRevenueUsd: mystate.totalRevenueUsd },
+    DEFAULT_COMPOSITE_WEIGHTS,
+  );
+  const rank = tierDivisionFor(Math.floor(lifetimeScore));
+  const rollingResult = tierForRolling({
+    last12moBookings: mystate.last12moBookings,
+    last12moRevenueUsd: mystate.last12moRevenueUsd,
+    bookingCount: mystate.bookingCount,
+    totalRevenueUsd: mystate.totalRevenueUsd,
+    retainedTier: mystate.retainedTier ?? null,
+    retainedUntil: mystate.retainedUntil ?? null,
+  }, DEFAULT_ROLLING_CONFIG);
 
   /* Products filtered by country */
   const [category, setCategory] = useState<string>("all");
   const [search, setSearch] = useState("");
+  /* Vault tab filter — 쿠폰 상태별 분류 */
+  const [vaultFilter, setVaultFilter] = useState<"All" | "Active" | "Used" | "Expired">("Active");
 
   const myProducts = useMemo(() => {
     let list = rewardProducts.filter(p => p.countryCode === countryCode);
@@ -296,7 +315,8 @@ export default function RewardsMallPage() {
                 );
               }
               const delta = Math.round((nextT.multiplier - rank.tier.multiplier) * 100);
-              const bookingsLeft = Math.max(1, nextT.minBookings - mystate.bookingCount);
+              /* Tier v2: 복합 score 기준으로 남은 거리 계산 */
+              const scoreLeft = Math.max(1, Math.ceil(nextT.minBookings - lifetimeScore));
               return (
                 <div className="text-[10px] mt-2 pt-2 border-t border-border/40 flex items-center justify-between gap-2">
                   <span>
@@ -304,12 +324,26 @@ export default function RewardsMallPage() {
                     <span className="text-muted-foreground"> +{delta}% more per booking</span>
                   </span>
                   <span className="font-mono text-muted-foreground whitespace-nowrap">
-                    {bookingsLeft} to go
+                    {scoreLeft} score to go
                   </span>
                 </div>
               );
             })()}
           </div>
+
+          {/* ── Tier v2: Rolling 12mo 강등 경고 (Retention grace 활성 시 안내) ── */}
+          {rollingResult.isRetained && rollingResult.retainedTier && (
+            <div className="mt-2 p-2.5 rounded border border-amber-300 bg-amber-50 dark:bg-amber-950/20 text-[11px]">
+              <p className="font-semibold text-amber-900 dark:text-amber-200 flex items-center gap-1.5">
+                ⏳ Status Retention 활성 · {rollingResult.retainedTier.icon} {rollingResult.retainedTier.name} 유지 중
+              </p>
+              <p className="text-amber-800 dark:text-amber-300 mt-0.5">
+                직전 12개월 실적은 <strong>{rollingResult.rawTier.name}</strong> 수준이지만,
+                grace 기간({rollingResult.retainedUntil}까지) 동안 이전 등급이 유지됩니다.
+                예약을 늘려 등급을 복구해보세요.
+              </p>
+            </div>
+          )}
 
           <div className="flex items-center gap-3 mt-3 text-[11px] text-muted-foreground border-t pt-2">
             <span>Earned <strong className="text-foreground">{mystate.totalEarned.toLocaleString()}</strong></span>
@@ -499,6 +533,30 @@ export default function RewardsMallPage() {
       {/* ─────────── SHOP tab ─────────── */}
       {tab === "shop" && (
         <>
+          {/* Tier 잠금 안내 — 다음 단계 해금 미리보기 */}
+          {(() => {
+            const myProductsAll = rewardProducts.filter(p => p.countryCode === countryCode);
+            const lockedNext = myProductsAll.filter(p => {
+              if (!p.minTier) return false;
+              const myIdx = TIERS.findIndex(t => t.name === rank.tier.name);
+              const reqIdx = TIERS.findIndex(t => t.name === p.minTier);
+              return reqIdx === myIdx + 1; /* 바로 다음 tier에서 잠금 해제될 상품 */
+            });
+            if (lockedNext.length === 0 || rank.tier.name === "Diamond") return null;
+            const nextTierName = TIERS[TIERS.findIndex(t => t.name === rank.tier.name) + 1]?.name;
+            return (
+              <Alert className="border-purple-300/60 bg-purple-50 dark:bg-purple-950/20">
+                <AlertTitle className="text-sm flex items-center gap-2 text-purple-900 dark:text-purple-200">
+                  ✨ {nextTierName} 등급에서 잠금 해제 — {lockedNext.length}개 상품
+                </AlertTitle>
+                <AlertDescription className="text-xs text-purple-800 dark:text-purple-300">
+                  {lockedNext.slice(0, 3).map(p => `${p.emoji} ${p.brand}`).join(" · ")}
+                  {lockedNext.length > 3 && ` · 외 ${lockedNext.length - 3}개`}
+                </AlertDescription>
+              </Alert>
+            );
+          })()}
+
           {/* Search + category */}
           <div className="flex items-center gap-3 flex-wrap">
             <div className="relative flex-1 min-w-[240px]">
@@ -621,54 +679,115 @@ export default function RewardsMallPage() {
       )}
 
       {/* ─────────── VAULT tab ─────────── */}
-      {tab === "vault" && (
-        <div className="space-y-3">
-          {myVouchers.length === 0 ? (
-            <Card className="p-10 text-center text-sm text-muted-foreground">
-              No vouchers yet. Redeem from the Shop tab to see your codes here.
+      {tab === "vault" && (() => {
+        /* 상태별 카운트 + 필터 */
+        const counts = {
+          All: myVouchers.length,
+          Active: myVouchers.filter(v => v.status === "Active").length,
+          Used: myVouchers.filter(v => v.status === "Used").length,
+          Expired: myVouchers.filter(v => v.status === "Expired").length,
+        };
+        const filteredVouchers = vaultFilter === "All"
+          ? myVouchers
+          : myVouchers.filter(v => v.status === vaultFilter);
+
+        if (myVouchers.length === 0) {
+          return (
+            <Card className="p-12 text-center">
+              <Gift className="h-10 w-10 mx-auto mb-3 text-muted-foreground/50" />
+              <p className="text-sm font-medium">아직 보유한 쿠폰이 없습니다</p>
+              <p className="text-xs text-muted-foreground mt-1.5 mb-4">
+                Shop 탭에서 ELS로 디지털 쿠폰을 교환해보세요.
+              </p>
+              <Button onClick={() => setTab("shop")} size="sm" style={{ background: "#FF6000" }}>
+                Shop 둘러보기 <ArrowRight className="h-3 w-3 ml-1" />
+              </Button>
             </Card>
-          ) : (
-            myVouchers.map(v => (
-              <Card key={v.id} className={`p-4 ${v.status === "Used" ? "opacity-60" : v.status === "Expired" ? "opacity-40" : ""}`}>
-                <div className="flex items-center justify-between gap-3 flex-wrap">
-                  <div className="flex items-center gap-3 flex-1 min-w-[240px]">
-                    <div className="h-10 w-10 rounded-md flex items-center justify-center text-xl bg-muted">
-                      🎁
-                    </div>
-                    <div>
-                      <p className="font-semibold text-sm">{v.productName}</p>
-                      <p className="text-[11px] text-muted-foreground">
-                        {v.brand} · Face {v.faceCurrency} {v.faceValue.toLocaleString()} · Redeemed {v.redeemedAt}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div>
-                      <p className="text-[9px] uppercase text-muted-foreground">Code</p>
-                      <div className="flex items-center gap-1">
-                        <code className="text-xs font-mono bg-muted px-2 py-1 rounded">{v.voucherCode}</code>
-                        <button
-                          onClick={() => { navigator.clipboard.writeText(v.voucherCode); toast.success("Code copied"); }}
-                          className="text-muted-foreground hover:text-foreground p-1"
-                          aria-label="Copy code"
-                        >
-                          <Copy className="h-3 w-3" />
-                        </button>
+          );
+        }
+
+        return (
+          <div className="space-y-3">
+            {/* 상태 필터 chip */}
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {(["All", "Active", "Used", "Expired"] as const).map(s => (
+                <button
+                  key={s}
+                  onClick={() => setVaultFilter(s)}
+                  className={`px-2.5 py-1 rounded-full text-[11px] border transition-all ${
+                    vaultFilter === s
+                      ? "border-[#FF6000] bg-[#FF6000]/10 font-bold text-[#FF6000]"
+                      : "border-border hover:bg-muted"
+                  }`}
+                >
+                  {s} <span className="ml-0.5 text-[9px] opacity-70">({counts[s]})</span>
+                </button>
+              ))}
+            </div>
+
+            {filteredVouchers.length === 0 ? (
+              <Card className="p-8 text-center text-sm text-muted-foreground">
+                "{vaultFilter}" 상태의 쿠폰이 없습니다.
+              </Card>
+            ) : filteredVouchers.map(v => {
+              /* 만료까지 남은 일수 — Active만 의미 있음 */
+              const daysLeft = v.status === "Active"
+                ? Math.ceil((new Date(v.expiresAt).getTime() - Date.now()) / 86400000)
+                : null;
+              const isExpiringSoon = daysLeft !== null && daysLeft <= 14 && daysLeft > 0;
+
+              return (
+                <Card
+                  key={v.id}
+                  className={`p-4 ${v.status === "Used" ? "opacity-60" : v.status === "Expired" ? "opacity-40" : ""} ${
+                    isExpiringSoon ? "border-amber-400 dark:border-amber-600" : ""
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-3 flex-wrap">
+                    <div className="flex items-center gap-3 flex-1 min-w-[240px]">
+                      <div className="h-10 w-10 rounded-md flex items-center justify-center text-xl bg-muted">
+                        🎁
+                      </div>
+                      <div>
+                        <p className="font-semibold text-sm">{v.productName}</p>
+                        <p className="text-[11px] text-muted-foreground">
+                          {v.brand} · Face {v.faceCurrency} {v.faceValue.toLocaleString()} · Redeemed {v.redeemedAt}
+                        </p>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <Badge variant={v.status === "Active" ? "default" : v.status === "Used" ? "secondary" : "destructive"} className="text-[10px]">
-                        {v.status}
-                      </Badge>
-                      <p className="text-[10px] text-muted-foreground mt-1">Expires {v.expiresAt}</p>
+                    <div className="flex items-center gap-3">
+                      <div>
+                        <p className="text-[9px] uppercase text-muted-foreground">Code</p>
+                        <div className="flex items-center gap-1">
+                          <code className="text-xs font-mono bg-muted px-2 py-1 rounded">{v.voucherCode}</code>
+                          <button
+                            onClick={() => { navigator.clipboard.writeText(v.voucherCode); toast.success("Code copied"); }}
+                            className="text-muted-foreground hover:text-foreground p-1"
+                            aria-label="Copy code"
+                          >
+                            <Copy className="h-3 w-3" />
+                          </button>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <Badge
+                          variant={v.status === "Active" ? "default" : v.status === "Used" ? "secondary" : "destructive"}
+                          className="text-[10px]"
+                        >
+                          {isExpiringSoon ? "⏰ " : ""}{v.status}
+                        </Badge>
+                        <p className={`text-[10px] mt-1 ${isExpiringSoon ? "text-amber-600 dark:text-amber-400 font-semibold" : "text-muted-foreground"}`}>
+                          {isExpiringSoon ? `${daysLeft}일 남음 — ` : ""}Expires {v.expiresAt}
+                        </p>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </Card>
-            ))
-          )}
-        </div>
-      )}
+                </Card>
+              );
+            })}
+          </div>
+        );
+      })()}
 
       {/* ─────────── WALLET tab ─────────── */}
       {tab === "wallet" && (
