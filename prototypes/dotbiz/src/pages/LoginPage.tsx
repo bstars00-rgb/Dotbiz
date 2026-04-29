@@ -151,19 +151,26 @@ export default function LoginPage() {
             </div>
           </div>
 
-          {/* Tagline */}
+          {/* Tagline — DOTBIZ는 베드뱅크/어그리게이터가 아니라 "서플라이어 아키텍처".
+           * 호텔 재고·가격을 직접 최적화해 최상의 공급을 만들어내는 구조라는 메시지. */}
           <h2 className="text-5xl font-bold leading-tight mb-6" style={{ background: "linear-gradient(90deg, #FF6000, #FF8C00, #FFCF8F)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
-            B2B Hotel
+            Beyond Bedbank.
             <br />
-            Booking System
+            Supply, Re-Architected.
           </h2>
-          <p className="text-xl text-gray-300 font-light leading-relaxed mb-8">
-            Smart. Efficient. Global.
+          <p className="text-xl text-gray-300 font-light leading-relaxed mb-3">
+            Not another aggregator — a direct hotel supply layer
+            <br />
+            that optimizes inventory and rates in real time.
+          </p>
+          <p className="text-sm text-gray-400 leading-relaxed mb-8 max-w-[520px]">
+            DOTBIZ는 베드뱅크가 아닙니다. 호텔과 직접 연결된 공급 아키텍처로
+            재고·가격을 실시간 최적화해, 파트너에게 늘 최상의 공급을 제공합니다.
           </p>
 
-          {/* Feature badges */}
+          {/* Feature badges — 공급 차별화 키워드. AI 표현은 사용하지 않음. */}
           <div className="flex flex-wrap gap-3">
-            {["AI-Powered Search", "Net Rate Supply", "Real-time Settlement", "Multi-Currency"].map(f => (
+            {["Direct Hotel Supply", "Inventory Optimization", "Dynamic Rate Engine", "Real-time Settlement", "Multi-Currency"].map(f => (
               <span key={f} className="px-4 py-2 rounded-full text-sm font-medium border border-[#FF6000]/30 text-[#FF8C00] bg-[#FF6000]/10 backdrop-blur-sm">
                 {f}
               </span>
