@@ -30,8 +30,11 @@ import {
   HOTEL_POINTS_BOOSTS,
   TIERS,
   STAMP_BONUS_BY_RARITY,
+  riskSnapshot,
+  fraudFlags,
   type HotelPointsBoost,
   type StampRarity,
+  type FraudFlag,
 } from "@/mocks/rewards";
 import {
   loadAutoModRules, saveAutoModRules, DEFAULT_AUTO_MOD_RULES,
@@ -218,6 +221,14 @@ export default function AdminEconomicsPage() {
           <TabsTrigger value="policy" className="gap-1.5">
             <ShieldCheck className="h-3.5 w-3.5" />정책
           </TabsTrigger>
+          <TabsTrigger value="risk" className="gap-1.5">
+            <AlertTriangle className="h-3.5 w-3.5" />리스크
+            {fraudFlags.filter(f => f.status === "Open" || f.status === "Reviewing").length > 0 && (
+              <span className="ml-1 text-[9px] bg-red-500 text-white px-1 rounded-full">
+                {fraudFlags.filter(f => f.status === "Open" || f.status === "Reviewing").length}
+              </span>
+            )}
+          </TabsTrigger>
           <TabsTrigger value="history" className="gap-1.5">
             <History className="h-3.5 w-3.5" />변경 이력
             <span className="ml-1 text-[9px] bg-muted px-1 rounded-full">{combinedChanges.length}</span>
@@ -244,6 +255,9 @@ export default function AdminEconomicsPage() {
       {tab === "policy" && (
         <PolicyTab settings={settings} setSettings={setSettings} recordChange={recordChange} navigate={navigate} />
       )}
+
+      {/* ═══════════ 리스크 탭 ═══════════ */}
+      {tab === "risk" && <RiskTab />}
 
       {/* ═══════════ 변경 이력 탭 ═══════════ */}
       {tab === "history" && <HistoryTab changes={combinedChanges} />}
@@ -1469,6 +1483,165 @@ function HistoryTab({ changes }: { changes: ParameterChange[] }) {
             ))}
           </TableBody>
         </Table>
+      </Card>
+    </div>
+  );
+}
+
+/* ═════════════════════════════════════════════════
+ * 리스크 탭 — Deferred Liability + 부정 거래 패턴
+ *
+ * ELLIS Admin 내부 검토용. 회계/법무 자문 기반 출시 전 강화 필요.
+ * 현재는 mock 데이터로 골격만 표시. 프로덕션:
+ *   - Deferred Liability: balance 합계 실시간 집계
+ *   - 부정 패턴: ML/룰베이스 자동 감지 + 매뉴얼 검토 워크플로우
+ *   - FX rate: 실제 환율 API 연동
+ * ═════════════════════════════════════════════════ */
+function RiskTab() {
+  const openFlags = fraudFlags.filter(f => f.status === "Open" || f.status === "Reviewing");
+  const resolvedFlags = fraudFlags.filter(f => f.status === "Confirmed" || f.status === "Dismissed");
+
+  return (
+    <div className="space-y-5 mt-4">
+      {/* 경고 배너 */}
+      <Alert variant="destructive" className="bg-red-50 dark:bg-red-950/20">
+        <AlertTriangle className="h-4 w-4" />
+        <AlertTitle className="text-sm">리스크 대시보드 (출시 전 회계·법무 자문 필수)</AlertTitle>
+        <AlertDescription className="text-xs">
+          미지급 ELS는 회계상 <strong>Deferred Liability(이연 부채)</strong>로 인식되어야 합니다.
+          세금 처리 · 부정 거래 추적 · 예산 캡 enforcement 정책은 출시 전 CFO/법무 검토를 거쳐야 합니다.
+        </AlertDescription>
+      </Alert>
+
+      {/* Deferred Liability 핵심 지표 4-up */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+        <Card className="p-4 border-l-4 border-l-red-500">
+          <p className="text-[10px] text-muted-foreground uppercase tracking-wide">미지급 ELS 부채 (총)</p>
+          <p className="text-2xl font-bold mt-1">{riskSnapshot.totalDeferredEls.toLocaleString()} <span className="text-sm font-normal text-muted-foreground">ELS</span></p>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            ≈ ${riskSnapshot.totalDeferredUsd.toLocaleString()} USD
+          </p>
+          <p className="text-xs text-muted-foreground">
+            ≈ ₩{riskSnapshot.totalDeferredKrw.toLocaleString()} KRW
+          </p>
+        </Card>
+        <Card className="p-4">
+          <p className="text-[10px] text-muted-foreground uppercase tracking-wide">이번 달 적립</p>
+          <p className="text-2xl font-bold mt-1 text-green-600">+{riskSnapshot.monthlyAccrualEls}</p>
+          <p className="text-xs text-muted-foreground mt-1">신규 부채 발생</p>
+        </Card>
+        <Card className="p-4">
+          <p className="text-[10px] text-muted-foreground uppercase tracking-wide">이번 달 사용 + 만료</p>
+          <p className="text-2xl font-bold mt-1 text-blue-600">−{riskSnapshot.monthlyRedemptionEls + riskSnapshot.monthlyExpiredEls}</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            사용 {riskSnapshot.monthlyRedemptionEls} · 만료 {riskSnapshot.monthlyExpiredEls}
+          </p>
+        </Card>
+        <Card className={`p-4 border-l-4 ${riskSnapshot.monthlyNetDelta > 0 ? "border-l-amber-500" : "border-l-green-500"}`}>
+          <p className="text-[10px] text-muted-foreground uppercase tracking-wide">월간 부채 증감</p>
+          <p className={`text-2xl font-bold mt-1 ${riskSnapshot.monthlyNetDelta > 0 ? "text-amber-600" : "text-green-600"}`}>
+            {riskSnapshot.monthlyNetDelta > 0 ? "+" : ""}{riskSnapshot.monthlyNetDelta}
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            {riskSnapshot.monthlyNetDelta > 0 ? "부채 증가 추세" : "부채 감소 추세"}
+          </p>
+        </Card>
+      </div>
+
+      {/* 만료 예측 + 예산 사용률 */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <Card className="p-4">
+          <h3 className="text-sm font-bold mb-2 flex items-center gap-1.5">
+            <Calendar className="h-4 w-4 text-muted-foreground" />
+            향후 30일 만료 예상
+          </h3>
+          <p className="text-3xl font-bold">{riskSnapshot.forecastNext30dExpiry} <span className="text-sm font-normal text-muted-foreground">ELS</span></p>
+          <p className="text-xs text-muted-foreground mt-2">
+            만료 도래 시 사용자에게 14일 전 알림 발송 권장. 만료된 ELS는 부채 해소 (회계 손익 인식 정책 추후 결정).
+          </p>
+        </Card>
+        <Card className="p-4">
+          <h3 className="text-sm font-bold mb-2 flex items-center gap-1.5">
+            <Percent className="h-4 w-4 text-muted-foreground" />
+            월 예산 캡 사용률
+          </h3>
+          <p className="text-3xl font-bold">{riskSnapshot.budgetUtilizationPct}<span className="text-base">%</span></p>
+          <p className="text-xs text-muted-foreground mt-2">
+            예산 캡이 미설정이면 무제한 부채 발생 가능. 정책 탭에서 월간 한도 설정 후 enforcement 로직 활성화.
+          </p>
+        </Card>
+      </div>
+
+      {/* 부정 거래 플래그 */}
+      <Card className="p-4">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-bold flex items-center gap-1.5">
+            <Shield className="h-4 w-4 text-red-500" />
+            부정 거래 / 비정상 패턴 플래그
+            {openFlags.length > 0 && (
+              <Badge variant="destructive" className="ml-1 text-[10px]">{openFlags.length} 검토 대기</Badge>
+            )}
+          </h3>
+          <Badge variant="outline" className="text-[10px]">자동 감지 + 매뉴얼 검토</Badge>
+        </div>
+        <Table>
+          <TableHeader>
+            <TableRow className="text-[11px]">
+              <TableHead>감지일</TableHead>
+              <TableHead>대상</TableHead>
+              <TableHead>패턴</TableHead>
+              <TableHead>심각도</TableHead>
+              <TableHead>의심 ELS</TableHead>
+              <TableHead>상태</TableHead>
+              <TableHead>증거</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {[...openFlags, ...resolvedFlags].map((f: FraudFlag) => (
+              <TableRow key={f.id} className="text-xs">
+                <TableCell className="whitespace-nowrap">{f.detectedAt}</TableCell>
+                <TableCell className="font-mono text-[10px]">{f.userEmail}</TableCell>
+                <TableCell>{f.pattern}</TableCell>
+                <TableCell>
+                  <Badge variant={f.severity === "High" ? "destructive" : f.severity === "Medium" ? "secondary" : "outline"} className="text-[10px]">
+                    {f.severity}
+                  </Badge>
+                </TableCell>
+                <TableCell className="text-right font-medium">{f.involvedAmount}</TableCell>
+                <TableCell>
+                  <Badge variant={
+                    f.status === "Open" ? "destructive" :
+                    f.status === "Reviewing" ? "secondary" :
+                    f.status === "Confirmed" ? "destructive" : "outline"
+                  } className="text-[10px]">
+                    {f.status}
+                  </Badge>
+                </TableCell>
+                <TableCell className="text-[10px] text-muted-foreground max-w-[300px]">{f.evidence}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+        <div className="mt-3 p-3 bg-muted/40 rounded text-[11px] text-muted-foreground space-y-1">
+          <p className="font-medium text-foreground">감지 룰 (예시 — 실제 룰 추후 결정)</p>
+          <p>· 24h 내 동일 사용자 5건 이상 리뷰 → Medium 플래그</p>
+          <p>· 동일 IP/UA 다중 계정 → High 플래그</p>
+          <p>· 예약-취소-재예약 사이클 반복 → Low 플래그</p>
+          <p>· 비정상 적립 속도 (월간 평균 3σ 이상) → 자동 일시정지</p>
+        </div>
+      </Card>
+
+      {/* 향후 작업 */}
+      <Card className="p-4 bg-muted/30">
+        <h3 className="text-sm font-bold mb-2">출시 전 작업 (TODO)</h3>
+        <ul className="text-xs text-muted-foreground space-y-1 list-disc list-inside">
+          <li>회계 처리 정책 확정 (Deferred Liability 인식 시점, 만료 시 손익)</li>
+          <li>세금 처리 자문 (ELS 적립 = 매출인지 미수금인지 / 국가별 차이)</li>
+          <li>월 예산 캡 enforcement 로직 (한도 도달 시 자동 일시중단)</li>
+          <li>부정 패턴 자동 감지 룰엔진 (현재는 mock 시드만)</li>
+          <li>리스크 알림 — 부채 급증 / 대량 만료 임박 시 ELLIS Admin 알림</li>
+          <li>FX rate 실시간 (현재 1370 KRW/USD mock)</li>
+        </ul>
       </Card>
     </div>
   );

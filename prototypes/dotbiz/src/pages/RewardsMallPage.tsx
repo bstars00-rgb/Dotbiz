@@ -2,7 +2,7 @@ import { useMemo, useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 import {
   Gift, RefreshCw, Sparkles, TrendingUp, Clock, Copy, CheckCircle2, Search,
-  Trophy, Flame, Wallet, ArrowRight, Download,
+  Trophy, Flame, Wallet, ArrowRight, Download, Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -25,6 +25,7 @@ import {
   formatEls, earnedStampsFor, expiringElsFor, ELS_EXPIRY_MONTHS,
   STAMPS, RARITY_META, type StampRarity,
   HOTEL_POINTS_BOOSTS, hotelPointsBoost,
+  companyPoolFor, companyPoolHistoryFor, charityOrgs,
   type RewardProduct, type UserPointsState, type RedeemedVoucher,
 } from "@/mocks/rewards";
 import { toast } from "sonner";
@@ -483,15 +484,25 @@ export default function RewardsMallPage() {
         </Card>
       </div>
 
-      {/* ─────────── Tabs ─────────── */}
+      {/* ─────────── Tabs ──────────
+       * Company Pool 탭: Master만 노출. OP에게는 보이지 않음.
+       * 회사 단위 ELS 풀 운용 (정산 보너스, B2C Featured 리뷰 등 — 트리거 추후) */}
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
           <TabsTrigger value="wallet"   className="gap-1.5"><Wallet className="h-3.5 w-3.5" />Wallet</TabsTrigger>
           <TabsTrigger value="stamps"   className="gap-1.5"><Trophy className="h-3.5 w-3.5" />Stamps <span className="ml-1 text-[9px] bg-muted px-1 rounded-full">{earnedStampsFor(userEmail).filter(s => s.earned).length}/{STAMPS.length}</span></TabsTrigger>
           <TabsTrigger value="shop"     className="gap-1.5"><Gift className="h-3.5 w-3.5" />Shop</TabsTrigger>
           <TabsTrigger value="vault"    className="gap-1.5"><CheckCircle2 className="h-3.5 w-3.5" />My Coupons <span className="ml-1 text-[9px] bg-muted px-1 rounded-full">{myVouchers.filter(v => v.status === "Active").length}</span></TabsTrigger>
+          {user?.role === "Master" && (
+            <TabsTrigger value="company" className="gap-1.5"><Sparkles className="h-3.5 w-3.5" />Company Pool</TabsTrigger>
+          )}
         </TabsList>
       </Tabs>
+
+      {/* ─────────── COMPANY POOL tab (Master 전용) ─────────── */}
+      {tab === "company" && user?.role === "Master" && (
+        <CompanyPoolSection companyId={activeCompany.id} companyName={activeCompany.name} />
+      )}
 
       {/* ─────────── SHOP tab ─────────── */}
       {tab === "shop" && (
@@ -1284,5 +1295,185 @@ export default function RewardsMallPage() {
 
       <StateToolbar state={state} setState={setState} />
     </div>
+  );
+}
+
+/* ═════════════════════════════════════════════════
+ * Company Pool 섹션 (Master 전용)
+ *
+ * 개념:
+ *   • 개인 OP ELS와 별개의 회사 단위 풀
+ *   • 적립 트리거: 정산 우수, 분쟁 0건, B2C Featured 리뷰 등 (수치 추후)
+ *   • 사용 출구: OP 분배 / Charity / 회사 이벤트
+ *   • Master만 운용 가능
+ *
+ * 현재는 골격 UI. Distribute / Donate 액션은 Toast로만 시뮬레이션.
+ * 트리거 정의 + 수치는 마케팅팀과 협의 후 결정.
+ * ═════════════════════════════════════════════════ */
+function CompanyPoolSection({ companyId, companyName }: { companyId: string; companyName: string }) {
+  const pool = companyPoolFor(companyId);
+  const history = companyPoolHistoryFor(companyId);
+
+  if (!pool) {
+    return (
+      <Card className="p-6 text-center text-sm text-muted-foreground">
+        Company Pool이 아직 활성화되지 않았습니다. ELLIS와 협의해주세요.
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Pool 잔액 카드 */}
+      <Card className="p-5" style={{ background: "linear-gradient(135deg, rgba(255,96,0,0.06), rgba(255,140,0,0.02))" }}>
+        <div className="flex items-start justify-between">
+          <div>
+            <p className="text-xs text-muted-foreground uppercase tracking-wide">{companyName} · Company Pool</p>
+            <p className="text-4xl font-bold mt-1">{pool.balance.toLocaleString()} <span className="text-lg font-normal text-muted-foreground">ELS</span></p>
+            <p className="text-xs text-muted-foreground mt-1">≈ ${pool.balance.toLocaleString()} USD (1 ELS = 1 USD)</p>
+          </div>
+          <Badge variant="outline" className="text-[10px]">Master 전용</Badge>
+        </div>
+        <div className="grid grid-cols-3 gap-3 mt-4 pt-4 border-t">
+          <div>
+            <p className="text-[10px] text-muted-foreground uppercase">누적 적립</p>
+            <p className="text-sm font-semibold">+{pool.totalEarned.toLocaleString()}</p>
+          </div>
+          <div>
+            <p className="text-[10px] text-muted-foreground uppercase">OP 분배</p>
+            <p className="text-sm font-semibold text-blue-600">−{pool.totalDistributed.toLocaleString()}</p>
+          </div>
+          <div>
+            <p className="text-[10px] text-muted-foreground uppercase">Charity 기부</p>
+            <p className="text-sm font-semibold text-green-600">−{pool.totalCharity.toLocaleString()}</p>
+          </div>
+        </div>
+      </Card>
+
+      {/* 적립 트리거 안내 (수치 추후) */}
+      <Card className="p-4">
+        <h3 className="text-sm font-bold mb-2 flex items-center gap-1.5">
+          <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          적립 트리거 (수치는 추후 결정)
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
+          {[
+            { trigger: "정산 우수 (월간 분쟁 0건)", note: "Master 회사 단위 보너스" },
+            { trigger: "B2C Featured 리뷰", note: "OP 리뷰가 신디케이션 노출되면 회사 풀에도 매칭 보너스" },
+            { trigger: "월간 회사 미션 달성", note: "분기별 챌린지 (예: 신규 호텔 N개 예약)" },
+            { trigger: "장기 파트너십 보상", note: "연 단위 누적 거래 보너스" },
+          ].map(t => (
+            <div key={t.trigger} className="border rounded p-2 bg-muted/30">
+              <p className="font-medium">{t.trigger}</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">{t.note}</p>
+            </div>
+          ))}
+        </div>
+        <p className="text-[10px] text-muted-foreground mt-3">
+          * 적립 금액과 적용 시점은 마케팅팀 · CFO 협의 후 확정. 어드민 페이지에서 트리거별 수치 설정.
+        </p>
+      </Card>
+
+      {/* 사용 액션 — 분배 / 기부 / 이벤트 */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <Card className="p-4">
+          <h3 className="text-sm font-bold mb-1 flex items-center gap-1.5">
+            <Users className="h-4 w-4 text-blue-500" />
+            OP 분배
+          </h3>
+          <p className="text-xs text-muted-foreground mb-3">
+            우수 OP에게 회사 풀에서 ELS 보너스 지급. 분배 시 OP 개인 ELS로 전환되어 만료/사용 규칙 적용.
+          </p>
+          <Button size="sm" variant="outline" className="w-full" disabled={pool.balance === 0}
+            onClick={() => toast.info("OP 분배", { description: "분배 다이얼로그는 골격만 — 마케팅팀 협의 후 활성화" })}>
+            분배하기
+          </Button>
+        </Card>
+        <Card className="p-4">
+          <h3 className="text-sm font-bold mb-1 flex items-center gap-1.5">
+            <HeartIcon /> Charity 기부
+          </h3>
+          <p className="text-xs text-muted-foreground mb-3">
+            DOTBIZ 파트너 자선 단체에 기부. 1 ELS = 1 USD 매칭 (잠정).
+          </p>
+          <Button size="sm" variant="outline" className="w-full" disabled={pool.balance === 0}
+            onClick={() => toast.info("Charity 기부", { description: "파트너 단체 선정은 추후 마케팅팀 협의" })}>
+            단체 선택
+          </Button>
+        </Card>
+        <Card className="p-4">
+          <h3 className="text-sm font-bold mb-1 flex items-center gap-1.5">
+            <Sparkles className="h-4 w-4 text-purple-500" />
+            회사 이벤트
+          </h3>
+          <p className="text-xs text-muted-foreground mb-3">
+            워크숍, 단체 활동 등 회사 차원 사용. 사용 내역은 변경 이력에 기록.
+          </p>
+          <Button size="sm" variant="outline" className="w-full" disabled={pool.balance === 0}
+            onClick={() => toast.info("회사 이벤트", { description: "이벤트 카탈로그 추후 구성" })}>
+            사용하기
+          </Button>
+        </Card>
+      </div>
+
+      {/* Charity 파트너 미리보기 */}
+      <Card className="p-4">
+        <h3 className="text-sm font-bold mb-2 flex items-center gap-1.5">
+          <HeartIcon /> Charity 파트너 (예시 — 추후 마케팅팀 협의)
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+          {charityOrgs.map(c => (
+            <div key={c.id} className="border rounded-md p-3 bg-muted/20">
+              <p className="font-medium text-xs">{c.name}</p>
+              <p className="text-[10px] text-muted-foreground mt-1">{c.cause} · {c.region}</p>
+              <p className="text-[10px] text-muted-foreground mt-1.5">{c.description}</p>
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      {/* 거래 내역 */}
+      <Card className="p-4">
+        <h3 className="text-sm font-bold mb-2">Pool 거래 내역</h3>
+        {history.length === 0 ? (
+          <p className="text-xs text-muted-foreground text-center py-6">아직 거래 내역이 없습니다.</p>
+        ) : (
+          <div className="space-y-1.5">
+            {history.map(t => (
+              <div key={t.id} className="flex items-center justify-between text-xs border-b pb-1.5">
+                <div>
+                  <p className="font-medium">{t.description}</p>
+                  <p className="text-[10px] text-muted-foreground">{t.date} · {t.type}</p>
+                </div>
+                <span className={`font-semibold ${t.amount > 0 ? "text-green-600" : "text-red-500"}`}>
+                  {t.amount > 0 ? "+" : ""}{t.amount} ELS
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
+
+      {/* 정책 안내 */}
+      <Alert>
+        <Sparkles className="h-4 w-4" />
+        <AlertTitle className="text-sm">Company Pool 운용 원칙</AlertTitle>
+        <AlertDescription className="text-xs space-y-1">
+          <p>· Master만 조회·운용 권한. OP에게는 노출되지 않음.</p>
+          <p>· 회사 외부 송금 불가 (개인 ELS와 동일 비양도 정책).</p>
+          <p>· 모든 사용 내역은 어드민 변경 이력에 기록.</p>
+          <p>· 적립 트리거 · 수치 · Charity 파트너는 마케팅팀과 추후 결정.</p>
+        </AlertDescription>
+      </Alert>
+    </div>
+  );
+}
+
+/* Charity 아이콘 — Heart inline (lucide Heart import 추가 회피) */
+function HeartIcon() {
+  return (
+    <svg className="h-4 w-4 text-red-500" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M12 21s-7-5-9-9.5C1 8 3 4 7 4c2 0 3.5 1 5 2.5C13.5 5 15 4 17 4c4 0 6 4 4 7.5C19 16 12 21 12 21z" />
+    </svg>
   );
 }

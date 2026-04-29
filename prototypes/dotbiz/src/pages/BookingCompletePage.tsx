@@ -32,6 +32,14 @@ export default function BookingCompletePage() {
   const { user } = useAuth();
   const userEmail = user?.email || "master@dotbiz.com";
 
+  /* ── ELS 적립 자격 규칙 ──
+   * 일반: OP role만 ELS 적립.
+   * 예외 (Solo Master): 회사에 OP가 0명이면 Master가 운영자 겸업으로 간주, 적립 가능.
+   * Accounting은 어떤 경우에도 적립 불가 (회계 분리 원칙).
+   *
+   * 실제 자격 검사는 mocks/rewards.ts의 isEarnEligible(user, companyOps)로 일원화.
+   * 모든 신규 earning 경로(예약 / 리뷰 / 미션 / 일일 로그인 등)는 같은 헬퍼를 거쳐야 함. */
+
   /* ── Stamp-earned celebration (gamification) ──
    * Fires for ANY newly-earned stamp (first booking, milestone, tier, etc.)
    * Tracks "already shown" via localStorage keyed per OP + stamp id.

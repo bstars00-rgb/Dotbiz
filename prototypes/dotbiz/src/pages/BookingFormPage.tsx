@@ -16,7 +16,7 @@ import { useScreenState } from "@/hooks/useScreenState";
 import { useFormValidation } from "@/hooks/useFormValidation";
 import { StateToolbar } from "@/components/StateToolbar";
 import { useAuth } from "@/contexts/AuthContext";
-import { userPointsState, hotelPointsBoost, estimatedElsForBooking } from "@/mocks/rewards";
+import { userPointsState, hotelPointsBoost, estimatedElsForBooking, companyPoolFor, ELS_REDEEM_AT_BOOKING_POLICY } from "@/mocks/rewards";
 import { currentCompany } from "@/mocks/companies";
 import { hotels } from "@/mocks/hotels";
 import { getRoomsByHotel } from "@/mocks/rooms";
@@ -324,6 +324,11 @@ export default function BookingFormPage() {
         </div>
       </Card>
 
+      {/* ── ELS 사용 옵션 (Spending 출구 #1) ──
+       * 골격만 표시 — 실제 차감 비율(예: 5% 이내)과 환산(1 ELS = $1)은 추후 결정.
+       * Master는 본인 ELS + Company Pool 둘 다 사용 가능. OP는 본인 ELS만. */}
+      <ElsRedeemAtBookingPanel totalPrice={totalPrice} />
+
       {/* ── Notice ── */}
       <Card className="p-5">
         <h2 className="font-bold mb-3">Notice</h2>
@@ -385,5 +390,143 @@ export default function BookingFormPage() {
 
       <StateToolbar state={state} setState={setState} />
     </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+ * ELS 사용 옵션 패널 (Spending 출구 #1)
+ *
+ * 사용자(OP)는 본인 ELS 잔액을 예약 결제에 사용 가능. Master는 추가로
+ * Company Pool도 선택 가능. 비율(현재 잠정 5%)·환산(1 ELS=$1)은 추후 결정.
+ *
+ * 골격 단계: 토글 + 잔액 표시 + 슬라이더 시뮬레이션 + 차감 후 결제 금액 미리보기.
+ * 실제 차감 로직은 결제 완료 시 트랜잭션 기록 추가하면서 활성화.
+ * ───────────────────────────────────────────────────────────────────── */
+function ElsRedeemAtBookingPanel({ totalPrice }: { totalPrice: number }) {
+  const { user } = useAuth();
+  const [redeemEnabled, setRedeemEnabled] = useState(false);
+  const [redeemSource, setRedeemSource] = useState<"personal" | "company">("personal");
+  const [redeemAmount, setRedeemAmount] = useState(0);
+
+  if (!ELS_REDEEM_AT_BOOKING_POLICY.enabled || !user) return null;
+
+  const userState = userPointsState[user.email];
+  const personalBalance = userState?.balance || 0;
+  const companyId = userState?.customerCompanyId || "";
+  const pool = companyPoolFor(companyId);
+  const companyBalance = pool?.balance || 0;
+  const isMaster = user.role === "Master";
+
+  /* 사용 가능 최대 금액 (정책: 예약 금액 × maxRedeemRatio, 잔액 한도) */
+  const maxByRatio = Math.floor(totalPrice * ELS_REDEEM_AT_BOOKING_POLICY.maxRedeemRatio);
+  const sourceBalance = redeemSource === "company" ? companyBalance : personalBalance;
+  const maxRedeem = Math.min(maxByRatio, sourceBalance);
+  const usdDiscount = redeemAmount * ELS_REDEEM_AT_BOOKING_POLICY.elsToUsdRate;
+  const finalPrice = Math.max(0, totalPrice - usdDiscount);
+
+  return (
+    <Card className="p-5 border-l-4 border-l-[#FF6000]/40">
+      <div className="flex items-start justify-between mb-3">
+        <div>
+          <h2 className="font-bold flex items-center gap-2">
+            <span className="text-base">⚡</span>
+            ELS로 결제 일부 차감 (선택)
+          </h2>
+          <p className="text-xs text-muted-foreground mt-1">
+            보유 ELS의 일부를 이번 예약 결제에 사용. 차감 비율 한도 {Math.round(ELS_REDEEM_AT_BOOKING_POLICY.maxRedeemRatio * 100)}% (잠정).
+          </p>
+        </div>
+        <label className="flex items-center gap-2 text-xs cursor-pointer">
+          <Checkbox checked={redeemEnabled} onCheckedChange={(v) => { setRedeemEnabled(!!v); if (!v) setRedeemAmount(0); }} />
+          <span>ELS 사용</span>
+        </label>
+      </div>
+
+      {redeemEnabled && (
+        <div className="space-y-3">
+          {/* Source 선택 (Master만 Company Pool 옵션) */}
+          {isMaster && ELS_REDEEM_AT_BOOKING_POLICY.allowCompanyPool && (
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => { setRedeemSource("personal"); setRedeemAmount(0); }}
+                className={`flex-1 p-2 rounded border text-left text-xs ${redeemSource === "personal" ? "border-[#FF6000] bg-[#FF6000]/5" : "border-border"}`}
+              >
+                <p className="font-medium">개인 ELS</p>
+                <p className="text-muted-foreground">{personalBalance.toLocaleString()} ELS 보유</p>
+              </button>
+              <button
+                type="button"
+                onClick={() => { setRedeemSource("company"); setRedeemAmount(0); }}
+                className={`flex-1 p-2 rounded border text-left text-xs ${redeemSource === "company" ? "border-[#FF6000] bg-[#FF6000]/5" : "border-border"}`}
+              >
+                <p className="font-medium">Company Pool</p>
+                <p className="text-muted-foreground">{companyBalance.toLocaleString()} ELS 보유</p>
+              </button>
+            </div>
+          )}
+
+          {/* 슬라이더 + 직접 입력 */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-muted-foreground">사용할 ELS</span>
+              <span className="font-medium">최대 {maxRedeem.toLocaleString()} ELS</span>
+            </div>
+            <input
+              type="range"
+              min={0}
+              max={maxRedeem}
+              value={redeemAmount}
+              onChange={e => setRedeemAmount(Number(e.target.value))}
+              className="w-full"
+              disabled={maxRedeem === 0}
+            />
+            <div className="flex items-center gap-2">
+              <Input
+                type="number"
+                min={0}
+                max={maxRedeem}
+                value={redeemAmount}
+                onChange={e => setRedeemAmount(Math.min(maxRedeem, Math.max(0, Number(e.target.value) || 0)))}
+                className="w-32 text-xs"
+              />
+              <span className="text-xs text-muted-foreground">ELS</span>
+              <ArrowLeft className="h-3 w-3 rotate-180 text-muted-foreground" />
+              <span className="text-xs text-green-600 font-medium">−USD {usdDiscount.toFixed(2)}</span>
+            </div>
+          </div>
+
+          {/* 결제 금액 요약 */}
+          <div className="border-t pt-3 space-y-1 text-xs">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">예약 금액</span>
+              <span>USD {totalPrice.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between text-green-600">
+              <span>ELS 차감</span>
+              <span>−USD {usdDiscount.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between font-bold text-base pt-1 border-t">
+              <span>실제 결제</span>
+              <span style={{ color: "#FF6000" }}>USD {finalPrice.toFixed(2)}</span>
+            </div>
+          </div>
+
+          {maxRedeem === 0 && (
+            <p className="text-[11px] text-amber-600 bg-amber-50 dark:bg-amber-950/20 rounded p-2">
+              {sourceBalance === 0
+                ? "사용 가능한 ELS 잔액이 없습니다."
+                : "이 예약은 ELS 사용 한도가 0입니다 (예약 금액 너무 작음)."}
+            </p>
+          )}
+        </div>
+      )}
+
+      {!redeemEnabled && personalBalance > 0 && (
+        <p className="text-[11px] text-muted-foreground">
+          현재 보유 {personalBalance.toLocaleString()} ELS · 이번 예약에 최대 {maxByRatio.toLocaleString()} ELS 사용 가능 (USD {(maxByRatio * ELS_REDEEM_AT_BOOKING_POLICY.elsToUsdRate).toFixed(2)} 할인)
+        </p>
+      )}
+    </Card>
   );
 }
