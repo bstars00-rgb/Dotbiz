@@ -109,6 +109,34 @@ export default function ClientManagementPage() {
 
         {/* ══════ Sub-accounts Tab ══════ */}
         <TabsContent value="subaccounts" className="space-y-4 mt-4">
+          {/* OP 부재 경고 — ELS는 OP만 적립 가능. Master만 있는 회사는 OP 1명 이상 필수.
+           * 부정 사용 방지 + 회계 분리 + 솔로 마스터 운영자 겸업 허용 안 함. */}
+          {companySubs.filter(s => s.role === "OP" && s.status !== "Deactivated").length === 0 && (
+            <Alert className="border-amber-300 bg-amber-50 dark:bg-amber-950/30">
+              <AlertTitle className="text-sm text-amber-900 dark:text-amber-200 flex items-center gap-2">
+                ⚠ OP 계정이 등록되지 않았습니다
+              </AlertTitle>
+              <AlertDescription className="text-xs text-amber-800 dark:text-amber-300 space-y-1.5">
+                <p>
+                  ELS 리워드는 <strong>OP role 사용자만 적립</strong>할 수 있습니다.
+                  Master/Accounting 계정은 적립 대상이 아닙니다 (관리·회계 역할 분리).
+                </p>
+                <p>
+                  현재 OP 계정이 0개이므로 회사의 모든 예약에서 ELS 적립이 작동하지 않습니다.
+                  운영 담당자(operator)를 OP role로 등록해주세요.
+                </p>
+                <Button
+                  size="sm"
+                  className="mt-2 h-7 text-xs"
+                  style={{ background: "#FF6000" }}
+                  onClick={() => setAddSubOpen(true)}
+                >
+                  <Plus className="h-3 w-3 mr-1" />OP 계정 등록
+                </Button>
+              </AlertDescription>
+            </Alert>
+          )}
+
           <Alert className="border-blue-200 bg-blue-50 dark:bg-blue-950/20">
             <AlertTitle className="text-sm">Role & permission defaults are set by your OhMyHotel AM</AlertTitle>
             <AlertDescription className="text-xs">

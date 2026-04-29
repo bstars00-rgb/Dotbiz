@@ -1123,86 +1123,27 @@ export function estimatedPointsFor(amount: number, bookingCurrency: string, tier
 export const pointsHistory = pointsTransactions.slice(0, 5);
 
 /* ════════════════════════════════════════════════════════════════════
- * Company Pool — 회사 단위 ELS 풀 (Master만 운용)
+ * Earner 자격 규칙 — OP만 (2026-04 결정)
  * ════════════════════════════════════════════════════════════════════
- * 개념:
- *   • 개인 OP ELS와 별개의 회사 단위 풀
- *   • 적립 트리거: 정산 우수, 분쟁 0건, B2C Featured 리뷰, 회사 단위 미션 등
- *     (수치는 추후 결정 — 마케팅팀 협의)
- *   • 운용 권한: Master만. OP는 조회 불가
- *   • 사용 출구: OP 분배 / Charity 기부 / 회사 이벤트 / Spending(예약 차감)에 매칭
- *   • 양도 정책: 회사 외부로는 송금 불가 (개인 ELS와 동일 비양도)
+ * 규칙 (단순화):
+ *   • OP role만 ELS 적립
+ *   • Master는 절대 적립 불가 (관리 역할 — 부정 사용 방지)
+ *   • Accounting은 절대 적립 불가 (회계 분리)
+ *   • EllisAdmin은 내부 직원 (적립 불가)
  *
- * 회사 구성 패턴별 동작:
- *   • Master + OP 다수 → 모든 적립은 OP 개인. Company Pool은 정산 보너스 등 별도 트리거만.
- *   • Solo Master (OP 0명) → Master가 OP 역할 겸업, 개인 ELS로 적립.
- *     Company Pool도 함께 보유 (정산 보너스 등). isSoloMasterCompany() 헬퍼 참조.
- */
-
-export interface CompanyPool {
-  customerCompanyId: string;
-  balance: number;
-  totalEarned: number;       /* 회사 차원 누적 (정산 우수, B2C Featured 리뷰 등 — 추후) */
-  totalDistributed: number;  /* OP에게 분배된 누적 */
-  totalCharity: number;      /* 기부된 누적 */
-  lastActivityDate: string;
-}
-
-export const companyPools: CompanyPool[] = [
-  /* 시드 데이터는 골격만 — 적립 트리거/금액은 추후 결정 */
-  { customerCompanyId: "comp-001", balance: 0,  totalEarned: 0,  totalDistributed: 0,  totalCharity: 0,  lastActivityDate: "2026-04-01" },
-  { customerCompanyId: "comp-002", balance: 0,  totalEarned: 0,  totalDistributed: 0,  totalCharity: 0,  lastActivityDate: "2026-04-01" },
-  { customerCompanyId: "comp-010", balance: 0,  totalEarned: 0,  totalDistributed: 0,  totalCharity: 0,  lastActivityDate: "2026-04-01" },
-  { customerCompanyId: "comp-011", balance: 0,  totalEarned: 0,  totalDistributed: 0,  totalCharity: 0,  lastActivityDate: "2026-04-01" },
-];
-
-export function companyPoolFor(companyId: string): CompanyPool | null {
-  return companyPools.find(p => p.customerCompanyId === companyId) || null;
-}
-
-export type CompanyPoolTxType =
-  | "Earned-Settlement"      /* 정산 우수 보너스 (수치 추후) */
-  | "Earned-NoDispute"       /* 분쟁 0건 (수치 추후) */
-  | "Earned-Review-Featured" /* B2C에서 Featured된 리뷰 (수치 추후) */
-  | "Earned-Mission"         /* 회사 단위 월간 미션 (수치 추후) */
-  | "Distributed-To-OP"      /* Master가 OP에게 분배 */
-  | "Charity-Donation"       /* 자선 기부 */
-  | "Company-Event";         /* 회사 이벤트 사용 */
-
-export interface CompanyPoolTransaction {
-  id: string;
-  customerCompanyId: string;
-  date: string;
-  type: CompanyPoolTxType;
-  description: string;
-  amount: number;            /* + earn / - spend */
-  balance: number;
-  actorEmail?: string;       /* 운용자(Master) email */
-  recipientEmail?: string;   /* OP 분배 시 */
-}
-
-export const companyPoolTransactions: CompanyPoolTransaction[] = [
-  /* 시드 비어 둠 — 트리거/수치 미정 */
-];
-
-export function companyPoolHistoryFor(companyId: string): CompanyPoolTransaction[] {
-  return companyPoolTransactions
-    .filter(t => t.customerCompanyId === companyId)
-    .sort((a, b) => b.date.localeCompare(a.date));
-}
-
-/* ════════════════════════════════════════════════════════════════════
- * Earner 자격 — OP만, but Solo Master는 예외
- * ════════════════════════════════════════════════════════════════════
- * 규칙:
- *   • 일반: OP role만 ELS 적립. Master/Accounting은 0.
- *   • 예외: 회사에 OP가 0명이면 Master가 운영자 겸업으로 간주, ELS 적립 가능.
- *   • Accounting은 어떤 경우에도 적립 X (회계 분리 원칙).
+ * 회사 패턴 — 솔로 마스터(OP 0명):
+ *   • Master 본인은 적립 불가
+ *   • 따라서 회사는 최소 1명의 OP 계정을 등록해야 함
+ *   • 등록 전까지 적립 트리거는 작동하지 않음 (예약 시 ELS 0)
+ *   • UI에서 Master에게 "OP 계정을 등록하세요" 배너 표시
  *
- * 이 헬퍼는 적립 트리거에서 호출. 사용처:
+ * 이전 버전(Solo Master 예외 적립)은 Company Pool과 함께 폐기.
+ * 단순화 + 권한 분리 명확화 + 부정 사용 방지가 목적.
+ *
+ * 이 헬퍼는 모든 적립 트리거에서 호출:
  *   - BookingCompletePage (예약 완료 보상)
  *   - HotelDetailPage (리뷰 보상)
- *   - 미래의 모든 earning 경로 (일일 로그인, 미션, 친구 초대 등)
+ *   - 미래의 모든 earning 경로 (미션, 친구 초대 등)
  */
 export interface EarnerCheckUser {
   email: string;
@@ -1210,39 +1151,15 @@ export interface EarnerCheckUser {
   customerCompanyId?: string;
 }
 
-export function isEarnEligible(user: EarnerCheckUser, companyOps: EarnerCheckUser[]): boolean {
-  if (user.role === "Accounting") return false;
-  if (user.role === "OP") return true;
-  if (user.role === "Master") {
-    /* Solo Master 예외: 같은 회사에 OP가 0명일 때만 적립 가능 */
-    const opCount = companyOps.filter(u => u.role === "OP").length;
-    return opCount === 0;
-  }
-  return false;
+export function isEarnEligible(user: EarnerCheckUser): boolean {
+  /* OP만 적립. 그 외 모든 role(Master / Accounting / EllisAdmin)은 불가. */
+  return user.role === "OP";
 }
 
-/* ════════════════════════════════════════════════════════════════════
- * Charity Organizations — Spending 출구 #2
- * ════════════════════════════════════════════════════════════════════
- * ELS를 자선 단체에 기부 (Master는 Company Pool에서, OP는 개인 ELS에서)
- * 매칭 비율(예: 1 ELS → $1 기부) 및 파트너 단체는 추후 결정.
- */
-export interface CharityOrg {
-  id: string;
-  name: string;
-  cause: string;             /* 단체 카테고리 */
-  region: string;            /* 활동 지역 */
-  description: string;
-  logoUrl?: string;
-  totalReceived: number;     /* 누적 기부 금액 (USD 환산 placeholder) */
+/** 회사에 OP가 등록되어 있는지 — Master 어카운트에서 OP 등록 유도 배너용 */
+export function companyHasOps(companyOps: EarnerCheckUser[]): boolean {
+  return companyOps.some(u => u.role === "OP");
 }
-
-export const charityOrgs: CharityOrg[] = [
-  /* 골격만 — 실제 파트너십은 추후 마케팅팀 협의 */
-  { id: "char-001", name: "Hotel Staff Education Fund (SE Asia)", cause: "Education", region: "Southeast Asia", description: "동남아 호텔 직원 자녀 학자금 지원 (예시)", totalReceived: 0 },
-  { id: "char-002", name: "Tourism Worker Relief",                cause: "Relief",    region: "Global",         description: "재난·팬데믹 시 관광업 종사자 긴급 구호 (예시)",  totalReceived: 0 },
-  { id: "char-003", name: "Sustainable Hospitality Initiative",   cause: "ESG",       region: "Global",         description: "친환경 호텔 운영 전환 지원 (예시)",                totalReceived: 0 },
-];
 
 /* ════════════════════════════════════════════════════════════════════
  * Risk Metrics — 어드민 리스크 대시보드
@@ -1330,15 +1247,12 @@ export interface ElsRedeemAtBookingPolicy {
   maxRedeemRatio: number;
   /** 1 ELS의 결제 차감 금액 USD. 1 ELS = 1 USD peg면 1.0 */
   elsToUsdRate: number;
-  /** Solo Master 회사일 때 동일 적용 */
+  /** 정책 활성화 여부 */
   enabled: boolean;
-  /** Company Pool 사용 가능 여부 (Master만) */
-  allowCompanyPool: boolean;
 }
 
 export const ELS_REDEEM_AT_BOOKING_POLICY: ElsRedeemAtBookingPolicy = {
   maxRedeemRatio: 0.05,   /* 잠정 5% — 추후 결정 */
   elsToUsdRate: 1.0,
   enabled: true,
-  allowCompanyPool: true,
 };
