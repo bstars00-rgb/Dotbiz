@@ -1,9 +1,8 @@
 import { useState, useMemo, useRef, useEffect } from "react";
 import { useNavigate } from "react-router";
-import { bookings } from "@/mocks/bookings";
 import {
-  MapPin, Calendar, Search, Globe, Star, RefreshCw, Users, ChevronDown, ChevronLeft, ChevronRight as ChevronRightIcon,
-  Clock, X, Heart, ArrowRight, Flame, Shield, TrendingUp, Building2,
+  MapPin, Search, Globe, Star, RefreshCw, Users, ChevronDown, ChevronLeft, ChevronRight as ChevronRightIcon,
+  Clock, X, Heart, ArrowRight, Flame, TrendingUp, Building2,
   Bed, Coffee, Wifi, Waves, Dumbbell, UtensilsCrossed, Sparkles, Eye
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -16,6 +15,12 @@ import { useScreenState } from "@/hooks/useScreenState";
 import { useFormValidation } from "@/hooks/useFormValidation";
 import { StateToolbar } from "@/components/StateToolbar";
 import { hotels } from "@/mocks/hotels";
+import {
+  HOTEL_POINTS_BOOSTS, hotelPointsBoost,
+  userPointsState, compositeTierScore, tierForComposite,
+  DEFAULT_COMPOSITE_WEIGHTS,
+} from "@/mocks/rewards";
+import { useAuth } from "@/contexts/AuthContext";
 
 const popularCities = [
   { name: "Seoul", country: "South Korea", emoji: "🇰🇷", hotels: 2450, landmark: "🏯", gradient: "from-rose-600 to-pink-400", desc: "Gyeongbokgung Palace" },
@@ -92,6 +97,7 @@ function calcNights(ci: string, co: string) {
 export default function FindHotelPage() {
   const { state, setState } = useScreenState("success");
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { errors, validate } = useFormValidation();
   const [destination, setDestination] = useState("");
   const [checkin, setCheckin] = useState(getTodayStr());
@@ -612,52 +618,98 @@ export default function FindHotelPage() {
       )}
 
       {/* ── Stats Section ── */}
+      {/* ── Active ELS Boosters · this week ──
+       * 호텔 검색 진입 시 부스터 호텔로 트래픽 유도 (이전: RewardsMall Wallet 탭).
+       * Free Cancellation / Upcoming Bookings 카드는 BookingsPage로 이동.
+       * Tier 표시: 로그인 OP면 본인 multiplier, 그 외엔 Bronze 기준(1.0×). */}
       {(() => {
-        const now = new Date();
-        const in24h = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-        const in3d = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
-        const confirmed = bookings.filter(b => b.bookingStatus === "Confirmed");
-        const fc24 = confirmed.filter(b => b.freeCancelDeadline && new Date(b.freeCancelDeadline) >= now && new Date(b.freeCancelDeadline) <= in24h).length;
-        const fc3d = confirmed.filter(b => b.freeCancelDeadline && new Date(b.freeCancelDeadline) >= now && new Date(b.freeCancelDeadline) <= in3d).length;
-        const up24 = confirmed.filter(b => new Date(b.checkIn) >= now && new Date(b.checkIn) <= in24h).length;
-        const up3d = confirmed.filter(b => new Date(b.checkIn) >= now && new Date(b.checkIn) <= in3d).length;
+        const activePromos = HOTEL_POINTS_BOOSTS
+          .filter(b => hotelPointsBoost(b.hotelId))     /* 자동으로 만료 필터 */
+          .map(b => ({ boost: b, hotel: hotels.find(h => h.id === b.hotelId) }))
+          .filter(x => !!x.hotel)
+          .sort((a, b) => b.boost.multiplier - a.boost.multiplier);
+
+        if (activePromos.length === 0) return null;
+
+        /* 로그인 OP의 tier multiplier (없으면 Bronze 1.0×) */
+        const userState = user ? userPointsState[user.email] : null;
+        const userTier = userState
+          ? tierForComposite(
+              { bookingCount: userState.bookingCount, totalRevenueUsd: userState.totalRevenueUsd },
+              DEFAULT_COMPOSITE_WEIGHTS,
+            )
+          : null;
+        const userMultiplier = userTier?.multiplier ?? 1.0;
+
         return (
-      <div className={`px-6 ${recentList.length > 0 ? "pt-4" : "pt-6"}`}>
-        <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Card className="p-5 border-l-4" style={{ borderLeftColor: "#009505" }}>
-            <h3 className="font-bold text-sm flex items-center gap-2">
-              <Shield className="h-4 w-4" style={{ color: "#009505" }} />
-              Free Cancellation
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
-              <button className="text-center hover:bg-green-50 dark:hover:bg-green-900/10 rounded-lg p-2 transition-colors" onClick={() => navigate("/app/bookings?filter=free_cancel_24h")}>
-                <p className="text-3xl font-bold">{fc24}</p>
-                <p className="text-xs text-muted-foreground mt-1">Within 24 hours</p>
-              </button>
-              <button className="text-center hover:bg-green-50 dark:hover:bg-green-900/10 rounded-lg p-2 transition-colors" onClick={() => navigate("/app/bookings?filter=free_cancel_3d")}>
-                <p className="text-3xl font-bold">{fc3d}</p>
-                <p className="text-xs text-muted-foreground mt-1">Within 3 days</p>
-              </button>
+          <div className={`px-6 ${recentList.length > 0 ? "pt-4" : "pt-6"}`}>
+            <div className="max-w-5xl mx-auto">
+              <Card className="p-0 overflow-hidden" style={{ background: "linear-gradient(135deg, #EF476F08, #FF600008)" }}>
+                <div className="px-4 py-3 border-b flex items-center gap-2">
+                  <span className="text-lg">⚡</span>
+                  <h2 className="text-sm font-semibold">Active ELS Boosters · this week</h2>
+                  <span className="text-[10px] text-muted-foreground ml-auto">
+                    {activePromos.length} hotel{activePromos.length === 1 ? "" : "s"} with multiplier
+                  </span>
+                </div>
+                <div className="p-3 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                  {activePromos.slice(0, 6).map(({ boost, hotel }) => {
+                    const mgrad =
+                      boost.multiplier >= 1.2  ? "linear-gradient(90deg,#EF476F,#FF6000)" :
+                      boost.multiplier >= 1.15 ? "linear-gradient(90deg,#FF6000,#FFD166)" :
+                      "linear-gradient(90deg,#8b5cf6,#a855f7)";
+                    return (
+                      <div
+                        key={boost.hotelId}
+                        className="p-3 rounded-md border bg-card relative overflow-hidden"
+                      >
+                        <span
+                          className="absolute top-2 right-2 px-2 py-0.5 rounded-full text-[10px] font-bold text-white"
+                          style={{ background: mgrad }}
+                        >
+                          ⚡ {boost.label}
+                        </span>
+                        <p className="text-sm font-semibold truncate pr-14">{hotel!.name}</p>
+                        <p className="text-[11px] text-muted-foreground truncate">{hotel!.area}</p>
+                        <div className="flex items-center justify-between mt-2">
+                          <div>
+                            <p className="text-[9px] uppercase tracking-wider text-muted-foreground">
+                              Per $1,000 booking
+                            </p>
+                            <p className="text-sm font-bold" style={{ color: "#FF6000" }}>
+                              {Math.max(1, Math.round(1000 * 0.01 * userMultiplier * boost.multiplier))} ELS
+                            </p>
+                          </div>
+                          <span className="text-[9px] text-muted-foreground">
+                            Ends {boost.expiresAt}
+                          </span>
+                        </div>
+                        <p className="text-[9px] text-muted-foreground mt-1 italic line-clamp-1">
+                          {boost.reason}
+                        </p>
+                        <Button
+                          size="sm"
+                          onClick={() => navigate(`/app/hotel/${boost.hotelId}`)}
+                          className="w-full mt-2 h-7 text-[11px] text-white"
+                          style={{ background: "#FF6000" }}
+                        >
+                          Book now · {boost.label}
+                          <ArrowRight className="h-3 w-3 ml-1" />
+                        </Button>
+                      </div>
+                    );
+                  })}
+                </div>
+                {activePromos.length > 6 && (
+                  <div className="px-4 py-2 border-t text-center">
+                    <span className="text-[11px] text-muted-foreground">
+                      Showing top 6 of {activePromos.length} promo hotels
+                    </span>
+                  </div>
+                )}
+              </Card>
             </div>
-          </Card>
-          <Card className="p-5 border-l-4" style={{ borderLeftColor: "#FF6000" }}>
-            <h3 className="font-bold text-sm flex items-center gap-2">
-              <Calendar className="h-4 w-4" style={{ color: "#FF6000" }} />
-              Upcoming Bookings
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
-              <button className="text-center hover:bg-orange-50 dark:hover:bg-orange-900/10 rounded-lg p-2 transition-colors" onClick={() => navigate("/app/bookings?filter=upcoming_24h")}>
-                <p className="text-3xl font-bold">{up24}</p>
-                <p className="text-xs text-muted-foreground mt-1">Within 24 hours</p>
-              </button>
-              <button className="text-center hover:bg-orange-50 dark:hover:bg-orange-900/10 rounded-lg p-2 transition-colors" onClick={() => navigate("/app/bookings?filter=upcoming_3d")}>
-                <p className="text-3xl font-bold">{up3d}</p>
-                <p className="text-xs text-muted-foreground mt-1">Within 3 days</p>
-              </button>
-            </div>
-          </Card>
-        </div>
-      </div>
+          </div>
         );
       })()}
 

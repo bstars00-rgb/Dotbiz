@@ -930,86 +930,8 @@ export default function RewardsMallPage() {
             </div>
           </Card>
 
-          {/* ─── Active Promo Hotels (drives bookings to boosted inventory) ─── */}
-          {(() => {
-            const activePromos = HOTEL_POINTS_BOOSTS
-              .filter(b => hotelPointsBoost(b.hotelId))     /* auto-filter expired */
-              .map(b => ({ boost: b, hotel: hotels.find(h => h.id === b.hotelId) }))
-              .filter(x => !!x.hotel)
-              .sort((a, b) => b.boost.multiplier - a.boost.multiplier);
-
-            if (activePromos.length === 0) return null;
-
-            return (
-              <Card className="p-0 overflow-hidden" style={{ background: "linear-gradient(135deg, #EF476F08, #FF600008)" }}>
-                <div className="px-4 py-3 border-b flex items-center gap-2">
-                  <span className="text-lg">⚡</span>
-                  <h2 className="text-sm font-semibold">Active ELS Boosters · this week</h2>
-                  <span className="text-[10px] text-muted-foreground ml-auto">
-                    {activePromos.length} hotel{activePromos.length === 1 ? "" : "s"} with multiplier
-                  </span>
-                </div>
-                <div className="p-3 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-                  {activePromos.slice(0, 6).map(({ boost, hotel }) => {
-                    const mgrad =
-                      boost.multiplier >= 1.2  ? "linear-gradient(90deg,#EF476F,#FF6000)" :
-                      boost.multiplier >= 1.15 ? "linear-gradient(90deg,#FF6000,#FFD166)" :
-                      "linear-gradient(90deg,#8b5cf6,#a855f7)";
-                    return (
-                      <div
-                        key={boost.hotelId}
-                        className="p-3 rounded-md border bg-card relative overflow-hidden"
-                      >
-                        <span
-                          className="absolute top-2 right-2 px-2 py-0.5 rounded-full text-[10px] font-bold text-white"
-                          style={{ background: mgrad }}
-                        >
-                          ⚡ {boost.label}
-                        </span>
-                        <p className="text-sm font-semibold truncate pr-14">{hotel!.name}</p>
-                        <p className="text-[11px] text-muted-foreground truncate">{hotel!.area}</p>
-                        <div className="flex items-center justify-between mt-2">
-                          <div>
-                            <p className="text-[9px] uppercase tracking-wider text-muted-foreground">
-                              Per $1,000 booking
-                            </p>
-                            <p className="text-sm font-bold" style={{ color: "#FF6000" }}>
-                              {Math.max(1, Math.round(1000 * 0.01 * rank.tier.multiplier * boost.multiplier))} ELS
-                            </p>
-                          </div>
-                          <span className="text-[9px] text-muted-foreground">
-                            Ends {boost.expiresAt}
-                          </span>
-                        </div>
-                        <p className="text-[9px] text-muted-foreground mt-1 italic line-clamp-1">
-                          {boost.reason}
-                        </p>
-                        <Button
-                          size="sm"
-                          onClick={() => navigate(`/app/hotel/${boost.hotelId}`)}
-                          className="w-full mt-2 h-7 text-[11px] text-white"
-                          style={{ background: "#FF6000" }}
-                        >
-                          Book now · {boost.label}
-                          <ArrowRight className="h-3 w-3 ml-1" />
-                        </Button>
-                      </div>
-                    );
-                  })}
-                </div>
-                {activePromos.length > 6 && (
-                  <div className="px-4 py-2 border-t text-center">
-                    <button
-                      onClick={() => navigate("/app/find-hotel")}
-                      className="text-[11px] font-semibold text-[#FF6000] hover:underline"
-                    >
-                      View all {activePromos.length} promo hotels →
-                    </button>
-                  </div>
-                )}
-              </Card>
-            );
-          })()}
+          {/* Active ELS Boosters 위젯은 FindHotel 페이지로 이전 (2026-04-30) —
+           * 호텔 검색 진입 시점에 부스터 호텔로 트래픽 유도하기 위함. */}
 
           {/* ─── Stamp Passport teaser (first 8, link to full Stamps tab) ─── */}
           {(() => {
