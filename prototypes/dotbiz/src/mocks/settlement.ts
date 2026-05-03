@@ -50,6 +50,11 @@ export interface BillingLineItem {
   sourceDisputeId?: string;   /* DisputeAccepted 출처일 때 disp-XXX 매칭 */
   reasonNote?: string;        /* "Grand Hyatt Seoul $40 차액 환원 (분쟁 인정)" 등 */
   issuedBy?: string;          /* ELLIS 담당자 email */
+  /* ── FX rate lock (2026-04-30 결정 #5) ──
+   * 환율은 ELLIS에 예약이 들어오는 시점에 lock-in. 정산이 한 달 후여도 booking 시점 환율 적용.
+   * USD 환산이 아닌 통화일 때 의미 있음. lockedFxRate × amount = USD 환산 금액. */
+  lockedFxRate?: number;      /* 1 unit of `currency` = N USD (예: KRW일 경우 0.000727) */
+  fxLockedAt?: string;        /* 예약 발생 시점 (booking createdAt) */
 }
 
 export const billingDetails: BillingLineItem[] = [
@@ -879,3 +884,119 @@ export const DISPUTE_REASON_LABEL: Record<InvoiceDisputeReason, string> = {
   TaxIncorrect: "세금 오류",
   Other: "기타",
 };
+
+/* ════════════════════════════════════════════════════════════════════
+ * AR Aging Report — 2026-04-30 결정 #5
+ * ════════════════════════════════════════════════════════════════════
+ * 회계 인식: Cash basis (실제 입금 + 회계처리 시점에만 매출 인식).
+ * 그 전까지 모든 invoice는 미수금(AR) 상태.
+ * 기간이 길어질수록 회수 가능성 ↓ → bucket으로 분류.
+ *
+ * Bucket 기준 (due date로부터 경과일):
+ *   • Current      : 미도래 (due > today)
+ *   • 1-30 days    : 정상 연체 범위
+ *   • 31-60 days   : 주의 — escalation
+ *   • 61-90 days   : 위험 — 재독촉
+ *   • 90+ days     : 악성 미수금 — 회계팀 손상 검토
+ *   • Disputed     : 분쟁 중 (티켓 미해결) — 별도 분류
+ *
+ * 분쟁 건은 aging과 별개로 분리. 분쟁 인정/기각 후 다시 일반 bucket으로 환원.
+ */
+
+export type ARAgingBucket = "Current" | "1-30" | "31-60" | "61-90" | "90+" | "Disputed";
+
+export interface ARAgingEntry {
+  invoiceNo: string;
+  customerCompanyId: string;
+  outstandingAmount: number;     /* total - receivedAmount */
+  currency: string;
+  outstandingUsd: number;        /* lockedFxRate 적용 USD 환산 */
+  dueDate: string;
+  daysOverdue: number;           /* 음수면 미도래 (Current) */
+  bucket: ARAgingBucket;
+  hasDispute: boolean;
+  disputedAmount: number;
+  isBadDebt: boolean;            /* 90+ days = 악성 미수금 */
+}
+
+export function bucketFor(daysOverdue: number, hasOpenDispute: boolean): ARAgingBucket {
+  if (hasOpenDispute) return "Disputed";
+  if (daysOverdue < 0) return "Current";
+  if (daysOverdue <= 30) return "1-30";
+  if (daysOverdue <= 60) return "31-60";
+  if (daysOverdue <= 90) return "61-90";
+  return "90+";
+}
+
+/** 회사의 모든 invoice를 aging bucket별로 분류. asOfDate 기준 daysOverdue 계산. */
+export function arAgingForCompany(
+  companyId: string,
+  asOfDate: string = new Date().toISOString().slice(0, 10),
+): ARAgingEntry[] {
+  const today = new Date(asOfDate);
+  const myInvs = invoices.filter(i =>
+    i.customerCompanyId === companyId &&
+    i.matchStatus !== "Full" &&
+    i.matchStatus !== "Reconciled",
+  );
+  const openDisputes = invoiceDisputes.filter(d =>
+    d.customerCompanyId === companyId &&
+    (d.status === "Open" || d.status === "UnderReview"),
+  );
+
+  return myInvs.map(inv => {
+    const due = new Date(inv.dueDate);
+    const daysOverdue = Math.floor((today.getTime() - due.getTime()) / 86400000);
+    const outstanding = Math.max(0, inv.total - inv.receivedAmount);
+    const disputesOnInv = openDisputes.filter(d => d.invoiceNo === inv.invoiceNo);
+    const hasOpenDispute = disputesOnInv.length > 0;
+    const disputedAmount = disputesOnInv.reduce((s, d) => s + d.disputedAmount, 0);
+    const bucket = bucketFor(daysOverdue, hasOpenDispute);
+    return {
+      invoiceNo: inv.invoiceNo,
+      customerCompanyId: companyId,
+      outstandingAmount: outstanding,
+      currency: inv.currency,
+      outstandingUsd: outstanding,    /* invoice currency가 이미 USD로 정규화돼 있음 */
+      dueDate: inv.dueDate,
+      daysOverdue,
+      bucket,
+      hasDispute: hasOpenDispute,
+      disputedAmount,
+      isBadDebt: daysOverdue > 90 && !hasOpenDispute,
+    };
+  });
+}
+
+export interface ARSummary {
+  total: number;                 /* 총 미수금 (USD) */
+  byBucket: Record<ARAgingBucket, { amount: number; count: number }>;
+  badDebtAmount: number;         /* 90+ days */
+  disputedAmount: number;        /* 분쟁 중 별도 분류 */
+  oldestDaysOverdue: number;
+}
+
+export function arSummaryForCompany(
+  companyId: string,
+  asOfDate?: string,
+): ARSummary {
+  const entries = arAgingForCompany(companyId, asOfDate);
+  const empty: Record<ARAgingBucket, { amount: number; count: number }> = {
+    "Current": { amount: 0, count: 0 },
+    "1-30":    { amount: 0, count: 0 },
+    "31-60":   { amount: 0, count: 0 },
+    "61-90":   { amount: 0, count: 0 },
+    "90+":     { amount: 0, count: 0 },
+    "Disputed":{ amount: 0, count: 0 },
+  };
+  let badDebt = 0, disputed = 0, oldest = 0, total = 0;
+  for (const e of entries) {
+    empty[e.bucket].amount += e.outstandingUsd;
+    empty[e.bucket].count += 1;
+    total += e.outstandingUsd;
+    if (e.isBadDebt) badDebt += e.outstandingUsd;
+    if (e.bucket === "Disputed") disputed += e.outstandingUsd;
+    if (e.daysOverdue > oldest) oldest = e.daysOverdue;
+  }
+  return { total, byBucket: empty, badDebtAmount: badDebt, disputedAmount: disputed, oldestDaysOverdue: oldest };
+}

@@ -20,8 +20,9 @@ import { useI18n } from "@/contexts/I18nContext";
 import {
   billingDetails, invoices, disputeSummary,
   invoiceDisputes, disputesForCompany, paymentReceipts, receiptsForInvoice,
+  arAgingForCompany, arSummaryForCompany,
   DISPUTE_REASON_LABEL,
-  type InvoiceDispute, type InvoiceDisputeReason, type PaymentReceipt,
+  type InvoiceDispute, type InvoiceDisputeReason, type PaymentReceipt, type ARAgingBucket,
 } from "@/mocks/settlement";
 import { tickets } from "@/mocks/tickets";
 import { companies, currentCompany } from "@/mocks/companies";
@@ -333,6 +334,12 @@ export default function SettlementPage() {
           </p>
         </AlertDescription>
       </Alert>
+
+      {/* ── AR Aging Report (결정 #5) ──
+       * 회계 인식: Cash basis (입금 시점). 그 전까지 모든 invoice는 미수금(AR).
+       * 기간이 길수록 회수 가능성 ↓ → bucket 분류. 90+ 일은 악성 미수금.
+       * 분쟁 중인 건은 별도 분류 (티켓 해결 시 일반 bucket으로 환원). */}
+      <ARAgingCard companyId={activeCompany.id} onJumpInvoice={(no) => navigate(`/app/settlement/invoice/${no}`)} onJumpDisputes={() => setSettlementTab("disputes")} />
 
       {/* Header */}
       <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -1727,5 +1734,175 @@ function UploadReceiptDialog({
         </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+
+/* ═════════════════════════════════════════════════
+ * AR Aging Card — 결정 #5
+ *
+ * 회계 인식: Cash basis. 입금 전까지 모두 미수금.
+ * 6 buckets: Current / 1-30 / 31-60 / 61-90 / 90+ / Disputed
+ * 90+ days = 악성 미수금 (회계팀 손상 검토 대상)
+ * Disputed = 티켓 미해결 분쟁 — aging과 별개 분류
+ * ═════════════════════════════════════════════════ */
+function ARAgingCard({
+  companyId, onJumpInvoice, onJumpDisputes,
+}: {
+  companyId: string;
+  onJumpInvoice: (invoiceNo: string) => void;
+  onJumpDisputes: () => void;
+}) {
+  const summary = arSummaryForCompany(companyId);
+  const entries = arAgingForCompany(companyId);
+  const [bucketFilter, setBucketFilter] = useState<ARAgingBucket | "All">("All");
+
+  const filtered = bucketFilter === "All"
+    ? entries
+    : entries.filter(e => e.bucket === bucketFilter);
+
+  if (summary.total === 0) return null; /* 미수금 0이면 카드 자체 숨김 */
+
+  /* Bucket별 색상 */
+  const bucketStyle: Record<ARAgingBucket, { bg: string; text: string; border: string; label: string }> = {
+    "Current":  { bg: "bg-emerald-50 dark:bg-emerald-950/20", text: "text-emerald-700 dark:text-emerald-300", border: "border-l-emerald-500", label: "미도래" },
+    "1-30":     { bg: "bg-blue-50 dark:bg-blue-950/20",       text: "text-blue-700 dark:text-blue-300",       border: "border-l-blue-500",    label: "1-30일" },
+    "31-60":    { bg: "bg-amber-50 dark:bg-amber-950/20",     text: "text-amber-700 dark:text-amber-300",     border: "border-l-amber-500",   label: "31-60일" },
+    "61-90":    { bg: "bg-orange-50 dark:bg-orange-950/20",   text: "text-orange-700 dark:text-orange-300",   border: "border-l-orange-500",  label: "61-90일" },
+    "90+":      { bg: "bg-red-50 dark:bg-red-950/20",         text: "text-red-700 dark:text-red-300",         border: "border-l-red-500",     label: "90+일 (악성)" },
+    "Disputed": { bg: "bg-purple-50 dark:bg-purple-950/20",   text: "text-purple-700 dark:text-purple-300",   border: "border-l-purple-500",  label: "분쟁 중" },
+  };
+
+  return (
+    <Card className="p-5 space-y-4">
+      <div className="flex items-start justify-between flex-wrap gap-3">
+        <div>
+          <h2 className="text-base font-bold flex items-center gap-2">
+            📊 AR Aging — 미수금 분석
+          </h2>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            회계 인식: Cash basis · 입금 시점에 매출 인식. 그 전까지 모든 invoice는 미수금 상태.
+            <br />
+            환율: ELLIS 예약 시점 lock-in (정산 시점 환율 변동 무관).
+          </p>
+        </div>
+        <div className="text-right">
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Total Outstanding</p>
+          <p className="text-2xl font-bold" style={{ color: "#FF6000" }}>
+            ${summary.total.toLocaleString()}
+          </p>
+        </div>
+      </div>
+
+      {/* 6-bucket grid */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
+        {(["Current", "1-30", "31-60", "61-90", "90+", "Disputed"] as ARAgingBucket[]).map(b => {
+          const cell = summary.byBucket[b];
+          const style = bucketStyle[b];
+          const active = bucketFilter === b;
+          return (
+            <button
+              key={b}
+              onClick={() => setBucketFilter(active ? "All" : b)}
+              className={`text-left p-2.5 rounded border-l-4 ${style.border} ${style.bg} ${active ? "ring-2 ring-[#FF6000]" : "hover:opacity-80"} transition-all`}
+            >
+              <p className={`text-[10px] uppercase tracking-wider ${style.text}`}>{style.label}</p>
+              <p className="text-base font-bold mt-0.5">{cell.count}건</p>
+              <p className={`text-xs font-medium ${style.text}`}>${cell.amount.toLocaleString()}</p>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* 악성 미수금 + 분쟁 경고 */}
+      {(summary.badDebtAmount > 0 || summary.disputedAmount > 0) && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+          {summary.badDebtAmount > 0 && (
+            <Alert className="border-red-300 bg-red-50 dark:bg-red-950/20 py-2.5">
+              <AlertTriangle className="h-4 w-4 text-red-600" />
+              <AlertTitle className="text-xs text-red-900 dark:text-red-200">
+                악성 미수금 ${summary.badDebtAmount.toLocaleString()}
+              </AlertTitle>
+              <AlertDescription className="text-[11px] text-red-800 dark:text-red-300">
+                90+ 일 경과 — 회계팀 손상 검토 대상. ELLIS 측에서 회수 / 부채 인식 정책 적용.
+              </AlertDescription>
+            </Alert>
+          )}
+          {summary.disputedAmount > 0 && (
+            <Alert className="border-purple-300 bg-purple-50 dark:bg-purple-950/20 py-2.5">
+              <AlertTriangle className="h-4 w-4 text-purple-600" />
+              <AlertTitle className="text-xs text-purple-900 dark:text-purple-200 flex items-center justify-between gap-2">
+                <span>분쟁 중 ${summary.disputedAmount.toLocaleString()}</span>
+                <button onClick={onJumpDisputes} className="text-[10px] underline">Disputes 탭 →</button>
+              </AlertTitle>
+              <AlertDescription className="text-[11px] text-purple-800 dark:text-purple-300">
+                티켓 미해결 — aging bucket과 별도 분류. 인정/기각 후 일반 bucket으로 환원.
+              </AlertDescription>
+            </Alert>
+          )}
+        </div>
+      )}
+
+      {/* 필터 적용 시 상세 행 */}
+      {bucketFilter !== "All" && filtered.length > 0 && (
+        <div className="border rounded">
+          <div className="px-3 py-2 border-b bg-muted/30 text-xs font-medium flex items-center justify-between">
+            <span>{bucketStyle[bucketFilter].label} · {filtered.length}건</span>
+            <button onClick={() => setBucketFilter("All")} className="text-[10px] text-muted-foreground hover:text-foreground">
+              ✕ 필터 해제
+            </button>
+          </div>
+          <Table>
+            <TableHeader>
+              <TableRow className="text-[11px]">
+                <TableHead>Invoice</TableHead>
+                <TableHead>Due</TableHead>
+                <TableHead>경과</TableHead>
+                <TableHead className="text-right">미수금</TableHead>
+                <TableHead>비고</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filtered.sort((a, b) => b.daysOverdue - a.daysOverdue).map(e => (
+                <TableRow key={e.invoiceNo} className="text-xs">
+                  <TableCell>
+                    <button className="font-mono text-[#0066cc] hover:underline" onClick={() => onJumpInvoice(e.invoiceNo)}>
+                      {e.invoiceNo}
+                    </button>
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap">{e.dueDate}</TableCell>
+                  <TableCell className="whitespace-nowrap">
+                    {e.daysOverdue < 0 ? (
+                      <span className="text-emerald-600">D-{Math.abs(e.daysOverdue)}</span>
+                    ) : (
+                      <span className={e.daysOverdue > 90 ? "text-red-600 font-bold" : "text-orange-600"}>
+                        +{e.daysOverdue}일
+                      </span>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-right font-mono font-medium">${e.outstandingAmount.toLocaleString()}</TableCell>
+                  <TableCell className="text-[10px]">
+                    {e.hasDispute && (
+                      <Badge variant="outline" className="text-[9px] border-purple-300 text-purple-700">
+                        분쟁 ${e.disputedAmount.toLocaleString()}
+                      </Badge>
+                    )}
+                    {e.isBadDebt && (
+                      <Badge variant="destructive" className="text-[9px] ml-1">악성</Badge>
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+
+      {/* 추가 안내 */}
+      <div className="text-[10px] text-muted-foreground pt-2 border-t">
+        💡 <strong>회계 인식 정책:</strong> Cash basis — 실제 입금 + 회계 처리 시점에만 매출 인식.
+        부채 인식은 ELLIS 회계팀 검토 후 (90+ 일 손상 검토 / 분쟁 결과 반영).
+      </div>
+    </Card>
   );
 }
