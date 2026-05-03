@@ -315,6 +315,25 @@ export default function SettlementPage() {
 
   return (
     <div className="p-6 space-y-4">
+      {/* ── 정책 배너 (결정 #3) ──
+       * 고객사는 billing 데이터를 임의로 수정할 수 없음. 이상 발견 시 이의제기만.
+       * Adjustment(조정 라인)는 ELLIS만 발행. */}
+      <Alert className="border-blue-200 bg-blue-50 dark:bg-blue-950/20">
+        <AlertTitle className="text-sm flex items-center gap-2">
+          🔒 Settlement 데이터 정책
+        </AlertTitle>
+        <AlertDescription className="text-xs space-y-0.5">
+          <p>
+            <strong>읽기 전용:</strong> 고객사(Master/Accounting)는 billing/invoice를 임의로 수정할 수 없습니다.
+            이상이 있다면 <strong>Disputes 탭에서 이의제기</strong>해주세요.
+          </p>
+          <p>
+            <strong>Adjustment(조정 라인):</strong> DOTBIZ가 검토 후 발행합니다.
+            분쟁 인정 / 호텔 클레임 / 계약 변경 등 출처가 모든 라인에 명시됩니다.
+          </p>
+        </AlertDescription>
+      </Alert>
+
       {/* Header */}
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div className="space-y-1">
@@ -939,7 +958,7 @@ export default function SettlementPage() {
               <TableRow>
                 <TableHead>Bill ID</TableHead>
                 <TableHead>Invoice No</TableHead>
-                <TableHead>Type</TableHead>
+                <TableHead>Type / 출처</TableHead>
                 <TableHead>Booking ID</TableHead>
                 <TableHead>Hotel</TableHead>
                 <TableHead className="text-right">Amount</TableHead>
@@ -950,28 +969,61 @@ export default function SettlementPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredBills.map(b => (
-                <TableRow key={b.billId}>
+              {filteredBills.map(b => {
+                const isAdjustment = b.billType === "Adjustment";
+                return (
+                <TableRow key={b.billId} className={isAdjustment ? "bg-amber-50/40 dark:bg-amber-950/10" : ""}>
                   <TableCell className="font-mono text-xs">{b.billId}</TableCell>
                   <TableCell className="font-mono text-xs">
                     <button className="text-[#0066cc] hover:underline" onClick={() => navigate(`/app/settlement/invoice/${b.invoiceNo}`)}>
                       {b.invoiceNo}
                     </button>
                   </TableCell>
-                  <TableCell className="text-xs">{b.billType}</TableCell>
+                  <TableCell className="text-xs">
+                    {isAdjustment ? (
+                      <div className="space-y-0.5">
+                        <Badge variant="outline" className="text-[9px] border-amber-400 text-amber-700">⚖ Adjustment</Badge>
+                        {b.adjustmentSource && (
+                          <p className="text-[10px] text-muted-foreground">
+                            {b.adjustmentSource === "DisputeAccepted" && "🛡️ 분쟁 인정"}
+                            {b.adjustmentSource === "EllisInternal" && "🔧 ELLIS 내부 검토"}
+                            {b.adjustmentSource === "HotelClaim" && "🏨 호텔 클레임"}
+                            {b.adjustmentSource === "ContractAmendment" && "📝 계약 변경"}
+                          </p>
+                        )}
+                        {b.sourceDisputeId && (
+                          <button
+                            className="text-[9px] font-mono text-[#0066cc] hover:underline"
+                            onClick={() => navigate("/app/settlement?tab=disputes")}
+                            title="원본 분쟁 보기"
+                          >
+                            {b.sourceDisputeId} →
+                          </button>
+                        )}
+                      </div>
+                    ) : (
+                      <span>{b.billType}</span>
+                    )}
+                  </TableCell>
                   <TableCell className="font-mono text-xs">
                     <button className="text-[#0066cc] hover:underline" onClick={() => navigate(`/app/bookings/${b.bookingId}`)}>
                       {b.bookingId}
                     </button>
                   </TableCell>
                   <TableCell className="text-xs truncate max-w-[120px]">{b.hotelName}</TableCell>
-                  <TableCell className={`text-right text-xs font-mono font-medium ${b.amount < 0 ? "text-red-500" : ""}`}>{b.currency} {b.amount.toLocaleString()}</TableCell>
+                  <TableCell
+                    className={`text-right text-xs font-mono font-medium ${b.amount < 0 ? "text-green-600 dark:text-green-400" : ""}`}
+                    title={isAdjustment && b.reasonNote ? b.reasonNote : undefined}
+                  >
+                    {b.currency} {b.amount.toLocaleString()}
+                  </TableCell>
                   <TableCell className="text-xs">{b.createdDate}</TableCell>
                   <TableCell className="text-xs">{b.dueDate}</TableCell>
                   <TableCell className="text-xs">{b.settlementDate || "—"}</TableCell>
                   <TableCell><Badge variant={billStatusColors[b.status] as "default" | "secondary" | "destructive"} className="text-[10px]">{b.status}</Badge></TableCell>
                 </TableRow>
-              ))}
+                );
+              })}
               {filteredBills.length === 0 && (
                 <TableRow><TableCell colSpan={10} className="text-center text-sm text-muted-foreground py-8">No billing records.</TableCell></TableRow>
               )}

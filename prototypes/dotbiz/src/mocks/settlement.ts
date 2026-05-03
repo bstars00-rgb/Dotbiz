@@ -43,6 +43,13 @@ export interface BillingLineItem {
   invoiceNo: string;          /* Which aggregate invoice this bill belongs to */
   customerCompanyId: string;  /* For tenant scoping */
   contractId?: string;        /* Multi-entity routing */
+  /* ── Adjustment 추적 필드 (2026-04-30 결정 #3) ──
+   * Adjustment는 ELLIS만 발행. 출처(분쟁 인정/내부 검토)와 사유를 명시.
+   * 고객사는 자유 수정 불가 — 이의제기만 가능. */
+  adjustmentSource?: "DisputeAccepted" | "EllisInternal" | "HotelClaim" | "ContractAmendment";
+  sourceDisputeId?: string;   /* DisputeAccepted 출처일 때 disp-XXX 매칭 */
+  reasonNote?: string;        /* "Grand Hyatt Seoul $40 차액 환원 (분쟁 인정)" 등 */
+  issuedBy?: string;          /* ELLIS 담당자 email */
 }
 
 export const billingDetails: BillingLineItem[] = [
@@ -58,7 +65,7 @@ export const billingDetails: BillingLineItem[] = [
   /* INV-2026-0130 (Apr in progress) */
   { billId: "BILL-2026-0008", billType: "Hotel Booking", bookingId: "K26040215182H01", hotelName: "Four Seasons Bali at Sayan", amount: 2900, currency: "USD", createdDate: "2026-04-02", dueDate: "2026-05-31", settlementDate: "", status: "Pending", invoiceNo: "INV-2026-0130", customerCompanyId: "comp-001", contractId: "ctr-001-sg" },
   { billId: "BILL-2026-0009", billType: "Cancellation Fee", bookingId: "K26040514508H01", hotelName: "InterContinental Da Nang", amount: 130, currency: "USD", createdDate: "2026-04-09", dueDate: "2026-05-31", settlementDate: "", status: "Pending", invoiceNo: "INV-2026-0130", customerCompanyId: "comp-001", contractId: "ctr-001-sg" },
-  { billId: "BILL-2026-0010", billType: "Adjustment", bookingId: "K26032014532H01", hotelName: "Grand Hyatt Seoul", amount: -45, currency: "USD", createdDate: "2026-04-12", dueDate: "2026-04-30", settlementDate: "2026-04-15", status: "Settled", invoiceNo: "INV-2026-0089", customerCompanyId: "comp-001", contractId: "ctr-001-sg" },
+  { billId: "BILL-2026-0010", billType: "Adjustment", bookingId: "K26032014532H01", hotelName: "Grand Hyatt Seoul", amount: -45, currency: "USD", createdDate: "2026-04-12", dueDate: "2026-04-30", settlementDate: "2026-04-15", status: "Settled", invoiceNo: "INV-2026-0089", customerCompanyId: "comp-001", contractId: "ctr-001-sg", adjustmentSource: "DisputeAccepted", sourceDisputeId: "disp-002", reasonNote: "ANA Osaka cancellation fee 조정 누락 인정 — 차액 환원", issuedBy: "david.park@ohmyhotel.com" },
 
   /* ── PREPAY Asia Tours (comp-002) — Per-booking invoices ── */
   { billId: "BILL-2026-0101", billType: "Hotel Booking", bookingId: "K26040816352H01", hotelName: "Raffles Singapore", amount: 1650, currency: "USD", createdDate: "2026-04-08", dueDate: "2026-04-25", settlementDate: "", status: "Pending", invoiceNo: "INV-2026-PRE-0201", customerCompanyId: "comp-002", contractId: "ctr-002-sg" },
