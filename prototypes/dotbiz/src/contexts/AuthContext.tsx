@@ -3,13 +3,18 @@ import { createContext, useContext, useState, useCallback, type ReactNode } from
 interface User {
   email: string;
   name: string;
-  role: "Master" | "OP" | "Accounting" | "EllisAdmin";
+  /** Role 매트릭스:
+   *   • Master / OP / Accounting — 고객사 (isInternal=false)
+   *   • EllisAdmin — 내부 시스템 관리자 (CMS · 정책 튜닝)
+   *   • EllisOP — 내부 운영자 (티켓 처리 전담, CMS 접근 X)
+   * 고객사 OP <—> ELLIS의 EllisOP가 1:1 대응 (티켓 워크플로우). */
+  role: "Master" | "OP" | "Accounting" | "EllisAdmin" | "EllisOP";
   company: string;
   billingType: "PREPAY" | "POSTPAY";
-  /** Internal OhMyHotel staff (ELLIS admin) vs external customer.
+  /** Internal OhMyHotel staff (EllisAdmin / EllisOP) vs external customer.
    * Customers (Master/OP/Accounting) CANNOT see admin pages.
-   * Internal staff (EllisAdmin) sees admin pages and has limited customer
-   * visibility for support purposes. */
+   * EllisAdmin: CMS 페이지 접근 (정책/리뷰 모더레이션/리스크).
+   * EllisOP: 티켓 처리만 (CMS 접근 X, 시스템 설정 변경 불가). */
   isInternal?: boolean;
 }
 
@@ -48,6 +53,9 @@ const MOCK_USERS: { email: string; password: string; user: User }[] = [
    * Customer-facing accounts (Master/OP/Accounting) have no visibility. */
   { email: "ellis@ohmyhotel.com",    password: "ellis123",    user: { email: "ellis@ohmyhotel.com",    name: "Su-min Park",  role: "EllisAdmin", company: "OhMyHotel Inc.", billingType: "POSTPAY", isInternal: true } },
   { email: "content@ohmyhotel.com",  password: "content123",  user: { email: "content@ohmyhotel.com",  name: "Ji-hoon Kim",  role: "EllisAdmin", company: "OhMyHotel Inc.", billingType: "POSTPAY", isInternal: true } },
+  /* ELLIS-side OP — 티켓 처리 전담 운영자. CMS 접근 X. 고객사 OP가 보내는 티켓을 받는 역할. */
+  { email: "cs@ohmyhotel.com",       password: "cs123",       user: { email: "cs@ohmyhotel.com",       name: "Sarah Kim (CS)", role: "EllisOP",   company: "OhMyHotel Inc.", billingType: "POSTPAY", isInternal: true } },
+  { email: "support@ohmyhotel.com",  password: "support123",  user: { email: "support@ohmyhotel.com",  name: "David Park (CS)", role: "EllisOP", company: "OhMyHotel Inc.", billingType: "POSTPAY", isInternal: true } },
 ];
 
 const STORAGE_KEY = "dotbiz_auth";
@@ -67,7 +75,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const setCurrentRole = useCallback((role: string) => {
     setCurrentRoleState(role);
     if (user) {
-      const updated = { ...user, role: role as "Master" | "OP" | "Accounting" | "EllisAdmin" };
+      const updated = { ...user, role: role as "Master" | "OP" | "Accounting" | "EllisAdmin" | "EllisOP" };
       setUser(updated);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
     }

@@ -51,10 +51,13 @@ export default function TicketManagementPage() {
   const navigate = useNavigate();
 
   /* ── 권한 정책 (2026-04-30 결정) ──
-   * - OP: 모든 티켓 생성/조회/처리 가능 (회사의 운영 담당자)
-   * - Master: 조회만 (생성/처리 X — 권한 분리, 책임 명확화)
+   * 고객사 OP <—> ELLIS의 EllisOP가 1:1 대응 (티켓 워크플로우 전담)
+   *
+   * - OP (고객사): 모든 티켓 생성/조회/처리 가능
+   * - Master: 조회만 (생성/처리 X)
    * - Accounting: Settlement Dispute 티켓만 조회 가능 (다른 type은 숨김)
-   * - EllisAdmin: 내부 운영 — 조회 가능 (assignment는 추후 ELLIS 분리 시)
+   * - EllisOP (ELLIS): 처리 전담 — 모든 회사 티켓 조회/처리, 생성은 시스템 자동 라우팅만
+   * - EllisAdmin: 티켓 시스템 접근 X (시스템 관리자, CMS 전담)
    *
    * 솔로 마스터 회사: OP 1명 등록 필수. 미등록 시 페이지 진입은 가능하나
    * 티켓 생성 불가 + OP 등록 유도 배너 노출.
@@ -63,10 +66,12 @@ export default function TicketManagementPage() {
   const isOP = role === "OP";
   const isMaster = role === "Master";
   const isAccounting = role === "Accounting";
+  const isEllisOP = role === "EllisOP";
   const isEllisAdmin = role === "EllisAdmin";
-  const canCreate = isOP;
-  const canProcess = isOP || isEllisAdmin;       /* 처리(상태 변경/답변)는 OP + 내부 */
-  const canView = isOP || isMaster || isAccounting || isEllisAdmin;
+  const canCreate = isOP;                        /* 생성은 고객사 OP만 (Settlement Dispute는 자동) */
+  const canProcess = isOP || isEllisOP;          /* 처리(상태 변경/답변)는 OP 양쪽 */
+  const canView = isOP || isMaster || isAccounting || isEllisOP;
+  /* EllisAdmin은 의도적으로 차단 — 시스템 관리는 CMS에서, 티켓 운영은 EllisOP가 */
   const [statusTab, setStatusTab] = useState("All");
   const [typeFilter, setTypeFilter] = useState("All");
   const [searchQuery, setSearchQuery] = useState(searchParams.get("booking") || "");
@@ -183,8 +188,20 @@ export default function TicketManagementPage() {
         </Alert>
       )}
 
-      {/* CS 자동화 placeholder — 추후 별도 오케스트라 플랫폼 도입 예정 */}
-      {(isOP || isEllisAdmin) && (
+      {/* EllisOP 진입 시 — 내부 운영자 컨텍스트 안내 */}
+      {isEllisOP && (
+        <Alert className="border-emerald-200 bg-emerald-50 dark:bg-emerald-950/20">
+          <Bot className="h-4 w-4 text-emerald-700" />
+          <AlertTitle className="text-sm">🛟 ELLIS CS Operator — 모든 고객사 티켓 처리</AlertTitle>
+          <AlertDescription className="text-xs">
+            고객사 OP가 보낸 티켓을 받아 처리합니다. SLA 추적 + 자동 라우팅 (추후 CS 오케스트라 플랫폼).
+            EllisAdmin은 티켓 시스템에 접근하지 않습니다 (시스템 관리 / 티켓 운영 분리).
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* CS 자동화 placeholder — OP 양쪽에 표시 */}
+      {(isOP || isEllisOP) && (
         <Alert className="border-amber-200/60 bg-amber-50/60 dark:bg-amber-950/10">
           <Bot className="h-4 w-4 text-amber-700" />
           <AlertTitle className="text-sm">🤖 CS 자동화 — 추후 별도 오케스트라 플랫폼</AlertTitle>
