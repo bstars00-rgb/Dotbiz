@@ -23,6 +23,7 @@ import {
   DISPUTE_REASON_LABEL,
   type InvoiceDispute, type InvoiceDisputeReason, type PaymentReceipt,
 } from "@/mocks/settlement";
+import { tickets } from "@/mocks/tickets";
 import { companies, currentCompany } from "@/mocks/companies";
 import { bookings as allBookings, type Booking } from "@/mocks/bookings";
 import { downloadCSV, timestamp } from "@/lib/download";
@@ -1226,12 +1227,20 @@ function DisputesSection({
         <AlertTitle className="text-sm flex items-center gap-2">
           🛡️ Invoice 검증 → 분쟁 제기 워크플로우
         </AlertTitle>
-        <AlertDescription className="text-xs">
-          Invoice의 금액·예약·세금에 이상이 있을 때 분쟁을 제기하면 자동으로
-          ELLIS 측 티켓이 생성됩니다. 처리 결과(인정/기각)는 다음 invoice의
-          조정 라인 또는 유지로 반영됩니다.
-          <br />
-          <strong>Accounting 권한:</strong> 분쟁 제기 + 처리 결과 추적 / Master 권한: 송금 보류 결정.
+        <AlertDescription className="text-xs space-y-1">
+          <p>
+            <strong>여기서:</strong> 분쟁 제기 + 진행 상태 조회.
+            Invoice의 금액·예약·세금에 이상이 있을 때 분쟁을 제기하면 자동으로
+            ELLIS 측 티켓이 생성됩니다.
+          </p>
+          <p>
+            <strong>해결 진행:</strong> Tickets 페이지에서 ELLIS 담당자와 대화·증빙 교환.
+            티켓이 종결되면 이 화면의 분쟁 상태도 자동 동기화됩니다.
+          </p>
+          <p>
+            <strong>결과 반영:</strong> 분쟁 인정 시 다음 invoice의 조정 라인(-)으로 반영.
+            DOTBIZ가 고객사로 송금하지 않습니다.
+          </p>
         </AlertDescription>
       </Alert>
 
@@ -1274,15 +1283,19 @@ function DisputesSection({
                 <TableCell>{statusBadge(d.status)}</TableCell>
                 <TableCell>
                   {d.ticketId ? (
-                    <button
-                      className="text-[10px] text-[#0066cc] hover:underline font-mono"
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-6 px-2 text-[10px]"
                       onClick={() => onJumpToTicket(d.ticketId!)}
+                      title="해결 진행은 티켓에서"
                     >
-                      {d.ticketId} →
-                    </button>
+                      <ExternalLink className="h-3 w-3 mr-1" />
+                      {d.ticketId}
+                    </Button>
                   ) : <span className="text-[10px] text-muted-foreground">—</span>}
                   {d.resolution && (
-                    <p className="text-[10px] text-muted-foreground mt-0.5">{d.resolution}</p>
+                    <p className="text-[10px] text-muted-foreground mt-1">✓ {d.resolution}</p>
                   )}
                 </TableCell>
               </TableRow>
@@ -1415,23 +1428,50 @@ function RaiseDisputeDialog({
       return;
     }
     const ticketId = `TKT-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${Math.floor(Math.random() * 9000) + 1000}`;
-    /* 프로토타입: 새 분쟁을 invoiceDisputes에 push (페이지 리로드 시 사라짐).
-     * 프로덕션: POST /api/disputes → 백엔드가 ticket 자동 생성 */
+    const disputeId = `disp-local-${Date.now()}`;
+    const now = new Date();
+    const nowStr = now.toISOString().slice(0, 10);
+    const nowFull = now.toISOString().slice(0, 16).replace("T", " ");
+    const affectedBookings = bookingIds.split(",").map(s => s.trim()).filter(Boolean);
+
+    /* 결정 #2 (티켓 단일 워크플로우):
+     * 분쟁은 Settlement에서 제기, 해결은 Tickets에서.
+     * 여기서 dispute + ticket 둘 다 생성하고 양방향 링크. */
     invoiceDisputes.unshift({
-      id: `disp-local-${Date.now()}`,
+      id: disputeId,
       invoiceNo,
       customerCompanyId: companyId,
       raisedBy: currentUserEmail,
-      raisedAt: new Date().toISOString().slice(0, 10),
+      raisedAt: nowStr,
       reason,
       description: description.trim(),
-      affectedBookingIds: bookingIds.split(",").map(s => s.trim()).filter(Boolean),
+      affectedBookingIds: affectedBookings,
       disputedAmount: Number(amount) || 0,
       status: "Open",
       ticketId,
     });
+    /* 실제 티켓도 push — TicketManagementPage에서 보임 */
+    tickets.unshift({
+      id: ticketId,
+      ticketType: "Invoice Dispute",
+      bookingId: affectedBookings[0] || "—",
+      hotelName: "(Invoice Dispute)",
+      guestName: currentUserEmail.split("@")[0],
+      status: "Pending",
+      priority: (Number(amount) || 0) > 500 ? "High" : "Medium",
+      createdAt: nowFull,
+      updatedAt: nowFull,
+      estimatedCompletion: new Date(now.getTime() + 3 * 86400000).toISOString().slice(0, 10),
+      description: `${invoiceNo} — ${description.trim()} (사유: ${DISPUTE_REASON_LABEL[reason]})`,
+      assignee: "",
+      linkedDisputeId: disputeId,
+      linkedInvoiceNo: invoiceNo,
+      traces: [
+        { date: nowFull, action: "Ticket Created (Auto)", by: currentUserEmail, note: `Invoice 분쟁 자동 라우팅 — ${disputeId}` },
+      ],
+    });
     toast.success("분쟁 제기 완료", {
-      description: `티켓 ${ticketId} 자동 생성. ELLIS 검토 후 처리 결과가 다음 invoice에 반영됩니다.`,
+      description: `티켓 ${ticketId} 자동 생성. 진행 상황은 Tickets 페이지에서 추적하세요.`,
     });
     reset();
     onOpenChange(false);

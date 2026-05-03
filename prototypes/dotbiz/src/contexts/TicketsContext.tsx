@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
 import { tickets as initialTickets, type Ticket } from "@/mocks/tickets";
+import { invoiceDisputes } from "@/mocks/settlement";
 
 /* Category (DIDA-style from CreateTicketDialog) → ticketType (internal) mapping */
 const CATEGORY_TO_TYPE: Record<string, Ticket["ticketType"]> = {
@@ -78,7 +79,23 @@ export function TicketsProvider({ children }: { children: ReactNode }) {
       ...t, status, updatedAt: now(),
       traces: [...t.traces, { date: now(), action: `Status changed to ${status}`, by, note }],
     } : t));
-  }, []);
+
+    /* 결정 #2: Invoice Dispute 티켓 종결 시 dispute 상태 자동 동기화.
+     * Completed → Accepted, Rejected → Rejected. 다른 상태(Pending/Processing)는 무시. */
+    if (status === "Completed" || status === "Rejected") {
+      const ticket = tickets.find(t => t.id === id);
+      if (ticket?.linkedDisputeId) {
+        const dispute = invoiceDisputes.find(d => d.id === ticket.linkedDisputeId);
+        if (dispute && dispute.status !== "Accepted" && dispute.status !== "Rejected") {
+          dispute.status = status === "Completed" ? "Accepted" : "Rejected";
+          dispute.resolvedAt = new Date().toISOString().slice(0, 10);
+          dispute.resolution = status === "Completed"
+            ? `티켓 ${id} 종결 — 분쟁 인정. 다음 invoice 조정 라인 (-) 발행 예정.`
+            : `티켓 ${id} 종결 — 분쟁 기각. invoice 금액 유지.`;
+        }
+      }
+    }
+  }, [tickets]);
 
   const addTrace = useCallback((id: string, action: string, note: string, by: string) => {
     setTickets(prev => prev.map(t => t.id === id ? {

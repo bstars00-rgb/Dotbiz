@@ -1,6 +1,6 @@
 export interface Ticket {
   id: string;
-  ticketType: "Cancellation Request" | "Date Change" | "Room Change" | "Special Request" | "Complaint" | "Refund Request";
+  ticketType: "Cancellation Request" | "Date Change" | "Room Change" | "Special Request" | "Complaint" | "Refund Request" | "Invoice Dispute";
   bookingId: string;
   hotelName: string;
   guestName: string;
@@ -12,6 +12,11 @@ export interface Ticket {
   description: string;
   assignee: string;
   traces: { date: string; action: string; by: string; note: string }[];
+  /** 분쟁 연동 (2026-04-30 결정 #2) — 이 티켓이 어떤 invoiceDispute에서 시작됐는지.
+   * 티켓 종결 시 dispute 상태도 자동 동기화. */
+  linkedDisputeId?: string;
+  /** 분쟁 티켓의 추가 컨텍스트 — Invoice / 예약 ID는 booking과 별개 */
+  linkedInvoiceNo?: string;
 }
 
 export const tickets: Ticket[] = [
@@ -52,4 +57,47 @@ export const tickets: Ticket[] = [
     { date: "2026-04-08 15:00", action: "Reviewed", by: "Emily Chen", note: "Stay already completed on Apr 8. Cannot cancel post-checkout." },
     { date: "2026-04-09 16:00", action: "Rejected", by: "Emily Chen", note: "Request rejected - stay completed. Guest informed." },
   ]},
+  /* ── Invoice Dispute 티켓 (Settlement Disputes에서 자동 생성) ── */
+  {
+    id: "TKT-2026-0421",
+    ticketType: "Invoice Dispute",
+    bookingId: "bk-001",
+    hotelName: "Grand Hyatt Seoul",
+    guestName: "TravelCo Accounting",
+    status: "Processing",
+    priority: "Medium",
+    createdAt: "2026-04-22 10:30",
+    updatedAt: "2026-04-23 09:00",
+    estimatedCompletion: "2026-04-25",
+    description: "Invoice INV-2026-0089 — Grand Hyatt Seoul 예약 금액이 계약 단가 대비 $40 초과 청구됨. 사유: AmountMismatch.",
+    assignee: "Sarah Kim",
+    linkedDisputeId: "disp-001",
+    linkedInvoiceNo: "INV-2026-0089",
+    traces: [
+      { date: "2026-04-22 10:30", action: "Ticket Created (Auto)", by: "accounting@dotbiz.com", note: "Invoice 분쟁 자동 라우팅 — disp-001" },
+      { date: "2026-04-22 14:00", action: "Assigned", by: "System", note: "ELLIS Settlement팀 Sarah Kim에게 배정" },
+      { date: "2026-04-23 09:00", action: "Hotel Contract Review", by: "Sarah Kim", note: "Grand Hyatt Seoul 계약 단가 확인 중. 호텔 측에 단가 검증 요청 송부." },
+    ],
+  },
+  {
+    id: "TKT-2026-0325",
+    ticketType: "Invoice Dispute",
+    bookingId: "bk-004",
+    hotelName: "ANA Crowne Plaza Osaka",
+    guestName: "TravelCo Accounting",
+    status: "Completed",
+    priority: "Low",
+    createdAt: "2026-03-25 11:15",
+    updatedAt: "2026-04-02 16:30",
+    estimatedCompletion: "2026-04-02",
+    description: "Invoice INV-2026-0067 — ANA Osaka 예약 취소 후 cancellation fee 처리는 됐으나 조정 라인 누락. 사유: AdjustmentMissing.",
+    assignee: "David Park",
+    linkedDisputeId: "disp-002",
+    linkedInvoiceNo: "INV-2026-0067",
+    traces: [
+      { date: "2026-03-25 11:15", action: "Ticket Created (Auto)", by: "accounting@dotbiz.com", note: "Invoice 분쟁 자동 라우팅 — disp-002" },
+      { date: "2026-03-26 09:00", action: "Investigation", by: "David Park", note: "billingDetails 조회 결과 BILL-2026-0010(-$45)이 INV-2026-0089에 추가됨 확인" },
+      { date: "2026-04-02 16:30", action: "Resolved · Accepted", by: "David Park", note: "분쟁 인정. -$65 adjustment 라인 다음 invoice(INV-2026-0089)에 BILL-2026-0010으로 반영됨. dispute 상태 Accepted 자동 동기화." },
+    ],
+  },
 ];

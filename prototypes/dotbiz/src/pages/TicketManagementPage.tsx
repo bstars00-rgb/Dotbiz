@@ -236,8 +236,31 @@ export default function TicketManagementPage() {
                 <div className="space-y-4">
                   {/* Info */}
                   <Card className="p-4">
+                    {/* Invoice Dispute 티켓이면 Settlement 분쟁으로 점프 가능한 컨텍스트 배너 */}
+                    {selectedTicket.ticketType === "Invoice Dispute" && selectedTicket.linkedDisputeId && (
+                      <div className="mb-3 p-3 rounded border border-amber-300 bg-amber-50 dark:bg-amber-950/20 flex items-center justify-between gap-3">
+                        <div className="text-xs">
+                          <p className="font-semibold text-amber-900 dark:text-amber-200">📎 이 티켓은 Invoice 분쟁에서 자동 생성됨</p>
+                          <p className="text-amber-800 dark:text-amber-300 mt-0.5">
+                            Invoice <span className="font-mono">{selectedTicket.linkedInvoiceNo}</span> ·
+                            Dispute <span className="font-mono">{selectedTicket.linkedDisputeId}</span>
+                          </p>
+                          <p className="text-[10px] text-amber-700 dark:text-amber-400 mt-1">
+                            티켓 종결(Completed/Rejected) 시 분쟁 상태가 자동 동기화됩니다 (Accepted/Rejected).
+                          </p>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-xs border-amber-400 text-amber-900 hover:bg-amber-100 dark:hover:bg-amber-900/30"
+                          onClick={() => navigate(`/app/settlement?tab=disputes`)}
+                        >
+                          Settlement 분쟁 보기 →
+                        </Button>
+                      </div>
+                    )}
                     <div className="grid grid-cols-2 gap-3 text-sm">
-                      <div><span className="text-muted-foreground">Type:</span> <Badge variant="outline" className="text-[10px] ml-1" style={{ borderColor: typeColors[selectedTicket.ticketType], color: typeColors[selectedTicket.ticketType] }}>{selectedTicket.ticketType}</Badge></div>
+                      <div><span className="text-muted-foreground">Type:</span> <Badge variant="outline" className="text-[10px] ml-1" style={{ borderColor: typeColors[selectedTicket.ticketType] || "#888", color: typeColors[selectedTicket.ticketType] || "#888" }}>{selectedTicket.ticketType}</Badge></div>
                       <div><span className="text-muted-foreground">Priority:</span> <Badge variant={priorityColors[selectedTicket.priority] as "destructive" | "secondary" | "outline"} className="text-[10px] ml-1">{selectedTicket.priority}</Badge></div>
                       <div><span className="text-muted-foreground">Booking:</span> <button className="font-mono text-[#0066cc] hover:underline" onClick={() => navigate(`/app/bookings?ellis=${selectedTicket.bookingId}`)}>{selectedTicket.bookingId}</button></div>
                       <div><span className="text-muted-foreground">Hotel:</span> {selectedTicket.hotelName}</div>
