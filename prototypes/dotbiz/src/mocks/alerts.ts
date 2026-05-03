@@ -31,6 +31,12 @@ export type AlertType =
   | "booking_auto_cancelled"  /* PREPAY payment deadline missed — auto-cancel executed */
   | "booking_cancelled_by_hotel"
   | "partial_payment_detected"
+  /* P0/P1 — POSTPAY 결제 데드라인 사전 알림 (2026-04-30 결정 #4)
+   * invoice_due_soon(D-2)만 있던 것을 D-7/D-3/D-1/D-Day로 확장. */
+  | "postpay_invoice_d7" | "postpay_invoice_d3" | "postpay_invoice_d1" | "postpay_invoice_dday"
+  /* P0 — POSTPAY 연체 후 aging-bucket 알림
+   * invoice_overdue 단일 → 1d/7d/30d 단계별 escalation. */
+  | "postpay_overdue_d1" | "postpay_overdue_d7" | "postpay_overdue_d30"
   /* P1 — Important */
   | "invoice_due_soon"       /* D-2 soft reminder before POSTPAY invoice dueDate */
   | "topup_pending_reminder" /* D+5 — top-up requested but no wire yet */
@@ -90,6 +96,47 @@ export const alerts: Alert[] = [
     sentVia: ["In-app", "Email"],
     createdAt: "2026-04-19 09:00:00",
     refType: "invoice", refId: "INV-2025-0076",
+  },
+  /* ── POSTPAY 결제 데드라인 사전 알림 (결정 #4) ──
+   * INV-2026-0089 due 2026-04-30 기준으로 D-7/D-3/D-1/D-Day 자동 발송 시뮬레이션.
+   * 프로덕션: cron job이 매일 morning에 due 임박 invoice 스캔해 발송.
+   */
+  {
+    id: "alt-postpay-d7",
+    type: "postpay_invoice_d7",
+    category: "Settlement", priority: "P1",
+    customerCompanyId: "comp-001", contractId: "ctr-001-sg",
+    title: "Invoice INV-2026-0089 due in 7 days",
+    body: "USD 8,140 due on 2026-04-30. Please prepare wire remittance to avoid late fees.",
+    actionLabel: "View invoice", actionPath: "/app/settlement/invoice/INV-2026-0089",
+    sentVia: ["In-app", "Email"],
+    createdAt: "2026-04-23 09:00:00",
+    refType: "invoice", refId: "INV-2026-0089",
+  },
+  {
+    id: "alt-postpay-d3",
+    type: "postpay_invoice_d3",
+    category: "Settlement", priority: "P0",
+    customerCompanyId: "comp-001", contractId: "ctr-001-sg",
+    title: "Invoice INV-2026-0089 due in 3 days",
+    body: "USD 8,140 due on 2026-04-30. Wire processing typically takes 2 business days — please initiate today.",
+    actionLabel: "Upload receipt", actionPath: "/app/settlement?tab=receipts",
+    sentVia: ["In-app", "Email"],
+    createdAt: "2026-04-27 09:00:00",
+    refType: "invoice", refId: "INV-2026-0089",
+  },
+  /* ── POSTPAY 연체 aging-bucket 알림 (예시 시드, 다른 고객사) ── */
+  {
+    id: "alt-postpay-overdue-7d",
+    type: "postpay_overdue_d7",
+    category: "Settlement", priority: "P0",
+    customerCompanyId: "comp-002", contractId: "ctr-002-sg",
+    title: "⚠ Invoice INV-2026-PRE-0198 overdue 7 days",
+    body: "USD 360 was due on 2026-04-04. Late escalation triggered. Please remit immediately.",
+    actionLabel: "View invoice", actionPath: "/app/settlement/invoice/INV-2026-PRE-0198",
+    sentVia: ["In-app", "Email"],
+    createdAt: "2026-04-11 09:00:00",
+    refType: "invoice", refId: "INV-2026-PRE-0198",
   },
   {
     id: "alt-002",
@@ -677,6 +724,15 @@ export const defaultAlertPreferences: AlertPreference[] = [
   { type: "credit_low",                 enabled: true,  channels: ["In-app", "Email"] },
   { type: "credit_critical",            enabled: true,  channels: ["In-app", "Email", "SMS"] },
   { type: "invoice_overdue",            enabled: true,  channels: ["In-app", "Email"] },
+  /* POSTPAY 결제 데드라인 — 사전 알림 (결정 #4) */
+  { type: "postpay_invoice_d7",         enabled: true,  channels: ["In-app", "Email"] },
+  { type: "postpay_invoice_d3",         enabled: true,  channels: ["In-app", "Email"] },
+  { type: "postpay_invoice_d1",         enabled: true,  channels: ["In-app", "Email"] },
+  { type: "postpay_invoice_dday",       enabled: true,  channels: ["In-app", "Email", "SMS"] },
+  /* POSTPAY 연체 — 사후 alarm escalation */
+  { type: "postpay_overdue_d1",         enabled: true,  channels: ["In-app", "Email"] },
+  { type: "postpay_overdue_d7",         enabled: true,  channels: ["In-app", "Email"] },
+  { type: "postpay_overdue_d30",        enabled: true,  channels: ["In-app", "Email", "SMS"] },
   { type: "topup_confirmed",            enabled: true,  channels: ["In-app", "Email"] },
   { type: "topup_expired",              enabled: true,  channels: ["In-app", "Email"] },
   { type: "prepay_deadline_d7",         enabled: true,  channels: ["In-app", "Email"] },
@@ -713,6 +769,10 @@ export const undisableableAlerts: AlertType[] = [
   "booking_cancelled_by_hotel",
   "booking_auto_cancelled",
   "prepay_deadline_dday",
+  /* POSTPAY 핵심 알림은 끄지 못함 (자금 미수 위험) */
+  "postpay_invoice_dday",
+  "postpay_overdue_d7",
+  "postpay_overdue_d30",
 ];
 
 /* Display metadata per type — used by UI for icons, color, category labels */
@@ -720,6 +780,13 @@ export const alertTypeMeta: Record<AlertType, { label: string; category: AlertCa
   credit_low:                 { label: "Credit Low",                   category: "Settlement", priority: "P0" },
   credit_critical:            { label: "Credit Critical",              category: "Settlement", priority: "P0" },
   invoice_overdue:            { label: "Invoice Overdue",              category: "Settlement", priority: "P0" },
+  postpay_invoice_d7:         { label: "POSTPAY Invoice D-7",          category: "Settlement", priority: "P1" },
+  postpay_invoice_d3:         { label: "POSTPAY Invoice D-3",          category: "Settlement", priority: "P0" },
+  postpay_invoice_d1:         { label: "POSTPAY Invoice D-1",          category: "Settlement", priority: "P0" },
+  postpay_invoice_dday:       { label: "POSTPAY Invoice Due Today",    category: "Settlement", priority: "P0" },
+  postpay_overdue_d1:         { label: "POSTPAY Overdue 1 Day",        category: "Settlement", priority: "P0" },
+  postpay_overdue_d7:         { label: "POSTPAY Overdue 7 Days",       category: "Settlement", priority: "P0" },
+  postpay_overdue_d30:        { label: "POSTPAY Overdue 30 Days",      category: "Settlement", priority: "P0" },
   topup_confirmed:            { label: "Top-up Confirmed",             category: "Settlement", priority: "P1" },
   topup_expired:              { label: "Top-up Expired",               category: "Settlement", priority: "P0" },
   prepay_deadline_d7:         { label: "Payment Deadline D-7",         category: "Booking",    priority: "P0" },
