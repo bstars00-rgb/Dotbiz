@@ -25,6 +25,7 @@ import {
   type InvoiceDispute, type InvoiceDisputeReason, type PaymentReceipt, type ARAgingBucket,
 } from "@/mocks/settlement";
 import { tickets } from "@/mocks/tickets";
+import { alerts } from "@/mocks/alerts";
 import { companies, currentCompany } from "@/mocks/companies";
 import { bookings as allBookings, type Booking } from "@/mocks/bookings";
 import { downloadCSV, timestamp } from "@/lib/download";
@@ -1528,6 +1529,23 @@ function RaiseDisputeDialog({
       traces: [
         { date: nowFull, action: "Ticket Created (Auto)", by: currentUserEmail, note: `Invoice 분쟁 자동 라우팅 — ${disputeId}` },
       ],
+    });
+    /* 알림 자동 push (Notifications 점검 결정 #5):
+     * dispute_opened alert를 alerts에 추가 → 발행자에게 라우팅. */
+    alerts.unshift({
+      id: `alt-disp-${Date.now()}`,
+      type: "dispute_opened",
+      category: "Dispute",
+      priority: "P1",
+      customerCompanyId: companyId,
+      title: `Invoice 분쟁 제기됨 — ${invoiceNo}`,
+      body: `${DISPUTE_REASON_LABEL[reason]} · ${description.trim().slice(0, 80)}... ELLIS 검토 진행 중.`,
+      actionLabel: "View ticket",
+      actionPath: `/app/tickets?id=${ticketId}`,
+      sentVia: ["In-app", "Email"],
+      createdAt: nowFull,
+      refType: "invoice",
+      refId: invoiceNo,
     });
     toast.success("분쟁 제기 완료", {
       description: `티켓 ${ticketId} 자동 생성. 진행 상황은 Tickets 페이지에서 추적하세요.`,

@@ -16,7 +16,10 @@ import { Separator } from "@/components/ui/separator";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { useAuth } from "@/contexts/AuthContext";
-import { unreadAlertsFor } from "@/mocks/alerts";
+import { unreadAlertsFor, alerts } from "@/mocks/alerts";
+import { isAlertForUser } from "@/lib/alertRouting";
+import { useTickets } from "@/contexts/TicketsContext";
+import { invoiceDisputes } from "@/mocks/settlement";
 import { companies } from "@/mocks/companies";
 import { earnedStampsFor, STAMPS } from "@/mocks/rewards";
 import { useI18n } from "@/contexts/I18nContext";
@@ -115,12 +118,14 @@ export default function MainLayout() {
   const location = useLocation();
   const { hasRole, isAuthenticated, user, logout } = useAuth();
 
-  /* Compute unread alert count for current logged-in customer */
+  /* 사이드바 벨 카운트 — role 라우팅 적용 (2026-04-30 결정) */
+  const { tickets } = useTickets();
   const unreadCount = (() => {
-    const myCompany = companies.find(c => c.name === user?.company);
-    if (!myCompany) return 0;
-    return unreadAlertsFor(myCompany.id).length;
+    if (!user) return 0;
+    return alerts.filter(a => !a.dismissed && !a.readAt && isAlertForUser(a, user, tickets, invoiceDisputes)).length;
   })();
+  /* unreadAlertsFor — legacy 호환을 위해 임포트 유지하되 사용 중지 */
+  void unreadAlertsFor; void companies;
   const { locale, setLocale, t } = useI18n();
 
   /* Auth guard — redirect to login if not authenticated */

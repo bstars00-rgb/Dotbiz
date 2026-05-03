@@ -1,3 +1,11 @@
+/**
+ * ⚠ DEPRECATED (2026-04-30 결정 — Notifications 점검):
+ *   사용자에게 알림 설정 권한이 없는 정책 결정에 따라 이 패널은 더 이상
+ *   사용되지 않습니다. 라우팅은 시스템(`src/lib/alertRouting.ts`)에서 결정.
+ *
+ *   현재 파일은 향후 정책 변경 시 참조용으로 유지되며, 어떤 페이지에서도
+ *   import되지 않습니다. 새 사용 금지.
+ */
 import { useMemo, useState } from "react";
 import { Bell, Mail, Smartphone, MessageCircle, Save, AlertTriangle, Lock, Moon } from "lucide-react";
 import { Card } from "@/components/ui/card";

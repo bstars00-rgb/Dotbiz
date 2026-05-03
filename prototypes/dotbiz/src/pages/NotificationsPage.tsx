@@ -8,6 +8,9 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { alerts, type Alert as AlertRecord, type AlertCategory, alertTypeMeta } from "@/mocks/alerts";
 import { useAuth } from "@/contexts/AuthContext";
 import { companies } from "@/mocks/companies";
+import { isAlertForUser, isInQuietHours, isQuietMuted, groupAlerts } from "@/lib/alertRouting";
+import { useTickets } from "@/contexts/TicketsContext";
+import { invoiceDisputes } from "@/mocks/settlement";
 import { toast } from "sonner";
 
 const categoryIcons: Record<AlertCategory, typeof Bell> = {
@@ -23,14 +26,18 @@ const channelIcons = { "In-app": Bell, Email: Mail, SMS: Smartphone, Slack: Mess
 export default function NotificationsPage() {
   const navigate = useNavigate();
   const { user, hasRole } = useAuth();
+  const { tickets } = useTickets();
   const myCompany = companies.find(c => c.name === user?.company);
 
+  /* ── 라우팅 정책 (2026-04-30 결정) ──
+   * Master: 자기 회사 모두 / OP·Accounting: 본인 발행 티켓·분쟁만
+   * EllisOP: 본인 assignee / EllisAdmin: CMS 변경만
+   * 사용자 설정 권한 X — 시스템이 처음부터 지정. */
   const myAlerts = useMemo(() => {
-    if (!myCompany) return [];
     return [...alerts]
-      .filter(a => a.customerCompanyId === myCompany.id && !a.dismissed)
+      .filter(a => !a.dismissed && isAlertForUser(a, user, tickets, invoiceDisputes))
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-  }, [myCompany]);
+  }, [user, tickets]);
 
   const [categoryFilter, setCategoryFilter] = useState<"all" | AlertCategory>("all");
   const [unreadOnly, setUnreadOnly] = useState(false);
@@ -45,6 +52,15 @@ export default function NotificationsPage() {
     if (unreadOnly && isRead(a)) return false;
     return true;
   });
+
+  /* UI 그룹핑 — 같은 type+refId는 묶음 (최신 1건 + 카운트 배지) */
+  const grouped = useMemo(() => groupAlerts(filtered), [filtered]);
+
+  /* Quiet hours 표시 — P0 외 묶음 알림 카운트 */
+  const inQuietHours = isInQuietHours();
+  const quietMutedCount = inQuietHours
+    ? grouped.filter(g => isQuietMuted(g.primary)).length
+    : 0;
 
   const counts: Record<string, number> = { all: myAlerts.length };
   myAlerts.forEach(a => {
@@ -81,11 +97,7 @@ export default function NotificationsPage() {
           <Button variant="outline" size="sm" onClick={markAllRead} disabled={unreadCount === 0}>
             <CheckCheck className="h-3 w-3 mr-1" />Mark all read
           </Button>
-          {hasRole(["Master"]) && (
-            <Button variant="outline" size="sm" onClick={() => navigate("/app/client?tab=notifications")}>
-              <Settings className="h-3 w-3 mr-1" />Team Notification Settings
-            </Button>
-          )}
+          {/* "Team Notification Settings" 제거 — 결정: 누구도 설정 권한 없음, 시스템 지정. */}
         </div>
       </div>
 
@@ -101,26 +113,51 @@ export default function NotificationsPage() {
         </TabsList>
       </Tabs>
 
-      {/* Alert list */}
+      {/* Quiet hours 안내 */}
+      {inQuietHours && quietMutedCount > 0 && (
+        <Card className="p-3 bg-slate-50 dark:bg-slate-900/40 border-l-4 border-slate-400">
+          <p className="text-xs flex items-center gap-2">
+            🌙 <strong>Quiet Hours (22:00–08:00)</strong> · P0 긴급 외 알림은 묶음 처리. {quietMutedCount}건 후순위.
+          </p>
+        </Card>
+      )}
+
+      {/* 정책 안내 — 사용자가 변경 불가 */}
+      <Card className="p-3 bg-blue-50/40 dark:bg-blue-950/10 text-xs space-y-1">
+        <p>
+          <strong>📋 알림 라우팅 정책</strong> (시스템 지정 · 사용자 변경 불가)
+        </p>
+        <p className="text-muted-foreground">
+          {user?.role === "Master" && "Master: 자기 회사의 모든 알림 수신"}
+          {user?.role === "OP" && "OP: 본인이 발행한 티켓 + 본인 booking/reward 알림만"}
+          {user?.role === "Accounting" && "Accounting: 본인이 발행한 invoice 분쟁 알림만"}
+          {user?.role === "EllisOP" && "EllisOP: 본인 assignee 티켓 알림만"}
+          {user?.role === "EllisAdmin" && "EllisAdmin: 시스템 정책 변경 알림만"}
+        </p>
+      </Card>
+
+      {/* Alert list (그룹핑) */}
       <div className="space-y-2">
-        {filtered.length === 0 && (
+        {grouped.length === 0 && (
           <Card className="p-12 text-center text-muted-foreground">
             <Bell className="h-12 w-12 mx-auto mb-2 opacity-30" />
             <p className="text-sm">No notifications {unreadOnly ? "to read" : "in this category"}.</p>
           </Card>
         )}
 
-        {filtered.map(a => {
+        {grouped.map(g => {
+          const a = g.primary;
           const meta = alertTypeMeta[a.type];
           const Icon = categoryIcons[meta.category];
           const read = isRead(a);
+          const muted = isQuietMuted(a) && inQuietHours;
           const priorityBg = meta.priority === "P0"
             ? (read ? "bg-red-50/30 dark:bg-red-950/10" : "bg-red-50 dark:bg-red-950/20 border-l-4 border-red-500")
             : meta.priority === "P1"
             ? (read ? "bg-amber-50/20 dark:bg-amber-950/5" : "bg-amber-50 dark:bg-amber-950/10 border-l-4 border-amber-500")
             : (read ? "" : "bg-blue-50/30 dark:bg-blue-950/10 border-l-4 border-blue-500");
           return (
-            <Card key={a.id} className={`p-4 transition-colors hover:bg-muted/30 cursor-pointer ${priorityBg}`} onClick={() => handleClick(a)}>
+            <Card key={a.id} className={`p-4 transition-colors hover:bg-muted/30 cursor-pointer ${priorityBg} ${muted ? "opacity-60" : ""}`} onClick={() => handleClick(a)}>
               <div className="flex items-start gap-3">
                 <div className={`mt-0.5 h-8 w-8 rounded-full flex items-center justify-center shrink-0 ${meta.priority === "P0" ? "bg-red-100 dark:bg-red-900/40" : meta.priority === "P1" ? "bg-amber-100 dark:bg-amber-900/40" : "bg-slate-100 dark:bg-slate-800"}`}>
                   <Icon className={`h-4 w-4 ${meta.priority === "P0" ? "text-red-600" : meta.priority === "P1" ? "text-amber-600" : "text-slate-600"}`} />
@@ -130,6 +167,12 @@ export default function NotificationsPage() {
                   <div className="flex items-center gap-2 flex-wrap">
                     <h3 className={`text-sm ${read ? "font-normal text-muted-foreground" : "font-bold"}`}>{a.title}</h3>
                     {!read && <span className="inline-block w-2 h-2 rounded-full bg-red-500" />}
+                    {g.totalCount > 1 && (
+                      <Badge variant="outline" className="text-[10px]" title={`${g.totalCount} occurrences grouped`}>
+                        ×{g.totalCount}
+                      </Badge>
+                    )}
+                    {muted && <span className="text-[10px] text-muted-foreground">🌙 quiet</span>}
                   </div>
                   <p className={`text-xs mt-1 ${read ? "text-muted-foreground" : "text-foreground"}`}>{a.body}</p>
 

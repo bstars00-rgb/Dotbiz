@@ -126,6 +126,20 @@ export const alerts: Alert[] = [
     refType: "invoice", refId: "INV-2026-0089",
   },
   /* ── POSTPAY 연체 aging-bucket 알림 (예시 시드, 다른 고객사) ── */
+  /* EllisOP에 라우팅되는 alert — assignee가 본인인 분쟁 티켓의 ticket_reply */
+  {
+    id: "alt-ellisop-001",
+    type: "ticket_reply",
+    category: "Dispute", priority: "P1",
+    customerCompanyId: "comp-001", contractId: "ctr-001-sg",
+    title: "Invoice Dispute 진행 중 — Grand Hyatt 단가 검증 요청",
+    body: "TKT-2026-0421 · 호텔 측에 단가 검증 요청 송부됨. 응답 대기.",
+    actionLabel: "Open ticket",
+    actionPath: "/app/tickets?id=TKT-2026-0421",
+    sentVia: ["In-app", "Email"],
+    createdAt: "2026-04-23 09:30:00",
+    refType: "ticket", refId: "TKT-2026-0421",
+  },
   {
     id: "alt-postpay-overdue-7d",
     type: "postpay_overdue_d7",

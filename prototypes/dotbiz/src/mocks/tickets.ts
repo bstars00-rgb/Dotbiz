@@ -70,7 +70,7 @@ export const tickets: Ticket[] = [
     updatedAt: "2026-04-23 09:00",
     estimatedCompletion: "2026-04-25",
     description: "Invoice INV-2026-0089 — Grand Hyatt Seoul 예약 금액이 계약 단가 대비 $40 초과 청구됨. 사유: AmountMismatch.",
-    assignee: "Sarah Kim",
+    assignee: "cs@ohmyhotel.com",   /* EllisOP 라우팅 — 데모용 */
     linkedDisputeId: "disp-001",
     linkedInvoiceNo: "INV-2026-0089",
     traces: [
