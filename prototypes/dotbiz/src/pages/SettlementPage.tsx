@@ -687,14 +687,14 @@ export default function SettlementPage() {
           <TabsTrigger value="disputes">
             Disputes
             {(() => {
-              const open = disputesForCompany(myCompanyId).filter(d => d.status === "Open" || d.status === "UnderReview").length;
+              const open = disputesForCompany(activeCompany.id).filter(d => d.status === "Open" || d.status === "UnderReview").length;
               return open > 0 ? <span className="ml-1 text-[10px] bg-amber-500 text-white rounded-full px-1.5">{open}</span> : null;
             })()}
           </TabsTrigger>
           <TabsTrigger value="receipts">
             Payment Receipts
             {(() => {
-              const pending = paymentReceipts.filter(r => r.customerCompanyId === myCompanyId && r.status === "Pending-Match").length;
+              const pending = paymentReceipts.filter(r => r.customerCompanyId === activeCompany.id && r.status === "Pending-Match").length;
               return pending > 0 ? <span className="ml-1 text-[10px] bg-blue-500 text-white rounded-full px-1.5">{pending}</span> : null;
             })()}
           </TabsTrigger>
@@ -1108,7 +1108,7 @@ export default function SettlementPage() {
         {/* ══════ Disputes Tab — 결정 #1 (Accounting 분쟁 제기) ══════ */}
         <TabsContent value="disputes" className="space-y-4 mt-4">
           <DisputesSection
-            companyId={myCompanyId}
+            companyId={activeCompany.id}
             currentUserEmail={user?.email || ""}
             isAccounting={isAccounting}
             onOpenDispute={() => setRaiseDisputeOpen(true)}
@@ -1119,7 +1119,7 @@ export default function SettlementPage() {
         {/* ══════ Payment Receipts Tab — 결정 #1 (송금 증빙) ══════ */}
         <TabsContent value="receipts" className="space-y-4 mt-4">
           <ReceiptsSection
-            companyId={myCompanyId}
+            companyId={activeCompany.id}
             isAccounting={isAccounting}
             onUploadReceipt={() => setUploadReceiptOpen(true)}
           />
@@ -1131,7 +1131,7 @@ export default function SettlementPage() {
       <RaiseDisputeDialog
         open={raiseDisputeOpen}
         onOpenChange={setRaiseDisputeOpen}
-        companyId={myCompanyId}
+        companyId={activeCompany.id}
         currentUserEmail={user?.email || ""}
         availableInvoices={myInvoices.map(i => i.invoiceNo)}
       />
@@ -1140,7 +1140,7 @@ export default function SettlementPage() {
       <UploadReceiptDialog
         open={uploadReceiptOpen}
         onOpenChange={setUploadReceiptOpen}
-        companyId={myCompanyId}
+        companyId={activeCompany.id}
         currentUserEmail={user?.email || ""}
         availableInvoices={myInvoices.map(i => i.invoiceNo)}
       />
