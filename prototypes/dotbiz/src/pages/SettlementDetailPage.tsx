@@ -55,10 +55,13 @@ export default function SettlementDetailPage() {
       .filter((b): b is Booking => !!b);
   }, [invoice]);
 
-  if (!hasRole(["Master", "OP"])) {
+  /* ── 접근 권한 (Settlement 결정 #1 + Tickets 정합) ──
+   * Settlement 페이지가 허용하는 모든 role + 티켓 분쟁 컨텍스트 필요한 EllisOP.
+   * 종결된 booking이라도 invoice/billing 이력 조회 필요. */
+  if (!hasRole(["Master", "OP", "Accounting", "EllisOP", "EllisAdmin"])) {
     return (
       <div className="p-6">
-        <Alert><AlertTitle>Access Restricted</AlertTitle><AlertDescription>Settlement Detail requires Master or OP role.</AlertDescription></Alert>
+        <Alert><AlertTitle>Access Restricted</AlertTitle><AlertDescription>Settlement Detail requires Master, OP, Accounting, or ELLIS staff role.</AlertDescription></Alert>
       </div>
     );
   }
