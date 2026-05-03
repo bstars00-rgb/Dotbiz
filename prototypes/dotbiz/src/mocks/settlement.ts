@@ -727,3 +727,148 @@ export const purchaseByHotel = [
   { hotelName: "Shilla Stay Mapo", totalAmount: 4900, bookingCount: 35, avgTransaction: 140, share: 10.1 },
   { hotelName: "ANA Crowne Plaza Osaka", totalAmount: 3240, bookingCount: 18, avgTransaction: 180, share: 6.6 },
 ];
+
+/* ════════════════════════════════════════════════════════════════════
+ * Invoice Dispute & Payment Receipt — 2026-04-30 결정 #1 (Accounting 역할)
+ * ════════════════════════════════════════════════════════════════════
+ * 고객사 Accounting이 invoice를 검증하다 이상을 발견하면 분쟁 제기.
+ * 분쟁은 자동으로 ticket으로 라우팅 → ELLIS가 검토 후 처리.
+ * 송금 후엔 영수증을 첨부해 "송금했음" 증빙 (ELLIS가 입금 매칭 시 참고).
+ *
+ * DOTBIZ는 고객사로 돈을 보내지 않음. 모든 조정(Adjustment)은
+ * 다음 invoice의 (-) 라인 또는 별도 credit note로 처리.
+ */
+
+export type InvoiceDisputeStatus = "Open" | "UnderReview" | "Accepted" | "Rejected" | "Withdrawn";
+export type InvoiceDisputeReason =
+  | "AmountMismatch"        // 금액 불일치
+  | "BookingNotMine"        // 우리 예약 아님
+  | "DuplicateCharge"       // 중복 청구
+  | "AdjustmentMissing"     // 환불/조정 누락
+  | "TaxIncorrect"          // 세금 오류
+  | "Other";
+
+export interface InvoiceDispute {
+  id: string;
+  invoiceNo: string;
+  customerCompanyId: string;
+  raisedBy: string;          // Accounting/Master email
+  raisedAt: string;
+  reason: InvoiceDisputeReason;
+  description: string;
+  affectedBookingIds: string[];
+  disputedAmount: number;
+  status: InvoiceDisputeStatus;
+  ticketId?: string;         // 자동 생성된 티켓 (분쟁 → 티켓 라우팅)
+  resolvedAt?: string;
+  resolution?: string;
+}
+
+export const invoiceDisputes: InvoiceDispute[] = [
+  {
+    id: "disp-001",
+    invoiceNo: "INV-2026-0089",
+    customerCompanyId: "comp-001",
+    raisedBy: "accounting@dotbiz.com",
+    raisedAt: "2026-04-22",
+    reason: "AmountMismatch",
+    description: "Grand Hyatt Seoul 예약 금액이 계약 단가 대비 $40 초과 청구됨",
+    affectedBookingIds: ["bk-001"],
+    disputedAmount: 40,
+    status: "UnderReview",
+    ticketId: "TKT-2026-0421",
+  },
+  {
+    id: "disp-002",
+    invoiceNo: "INV-2026-0067",
+    customerCompanyId: "comp-001",
+    raisedBy: "accounting@dotbiz.com",
+    raisedAt: "2026-03-25",
+    reason: "AdjustmentMissing",
+    description: "ANA Osaka 예약 취소 후 cancellation fee 처리는 됐으나 조정 라인 누락",
+    affectedBookingIds: ["bk-004"],
+    disputedAmount: 65,
+    status: "Accepted",
+    ticketId: "TKT-2026-0325",
+    resolvedAt: "2026-04-02",
+    resolution: "다음 invoice에 -$65 adjustment 라인 추가됨 (BILL-2026-0010)",
+  },
+];
+
+export function disputesForInvoice(invoiceNo: string): InvoiceDispute[] {
+  return invoiceDisputes.filter(d => d.invoiceNo === invoiceNo);
+}
+
+export function disputesForCompany(companyId: string): InvoiceDispute[] {
+  return invoiceDisputes
+    .filter(d => d.customerCompanyId === companyId)
+    .sort((a, b) => b.raisedAt.localeCompare(a.raisedAt));
+}
+
+/* ── 송금 영수증 ──
+ * 고객사가 송금 후 첨부. ELLIS는 입금 확인 시 참조.
+ * 파일 자체는 별도 storage(여기선 mock URL).
+ */
+export interface PaymentReceipt {
+  id: string;
+  invoiceNo: string;
+  customerCompanyId: string;
+  uploadedBy: string;        // Accounting/Master email
+  uploadedAt: string;
+  amount: number;
+  currency: string;
+  remittedDate: string;      // 실제 송금일
+  bankReference?: string;    // 송금 reference / 거래번호
+  fileName: string;
+  fileUrl: string;           // mock — 실제는 S3 등
+  notes?: string;
+  status: "Pending-Match" | "Matched" | "Mismatched";
+}
+
+export const paymentReceipts: PaymentReceipt[] = [
+  {
+    id: "rcp-001",
+    invoiceNo: "INV-2026-0067",
+    customerCompanyId: "comp-001",
+    uploadedBy: "accounting@dotbiz.com",
+    uploadedAt: "2026-03-30",
+    amount: 1265,
+    currency: "USD",
+    remittedDate: "2026-03-30",
+    bankReference: "WIRE-KEB-20260330-1842",
+    fileName: "remittance-INV-0067.pdf",
+    fileUrl: "/mock/receipts/remittance-INV-0067.pdf",
+    notes: "ANA Osaka invoice 전액 송금",
+    status: "Matched",
+  },
+  {
+    id: "rcp-002",
+    invoiceNo: "INV-2026-0130",
+    customerCompanyId: "comp-001",
+    uploadedBy: "accounting@dotbiz.com",
+    uploadedAt: "2026-04-28",
+    amount: 3030,
+    currency: "USD",
+    remittedDate: "2026-04-28",
+    bankReference: "WIRE-KEB-20260428-2103",
+    fileName: "remittance-INV-0130.pdf",
+    fileUrl: "/mock/receipts/remittance-INV-0130.pdf",
+    notes: "분쟁 중인 disp-001 ($40) 차감하고 송금",
+    status: "Pending-Match",
+  },
+];
+
+export function receiptsForInvoice(invoiceNo: string): PaymentReceipt[] {
+  return paymentReceipts
+    .filter(r => r.invoiceNo === invoiceNo)
+    .sort((a, b) => b.uploadedAt.localeCompare(a.uploadedAt));
+}
+
+export const DISPUTE_REASON_LABEL: Record<InvoiceDisputeReason, string> = {
+  AmountMismatch: "금액 불일치",
+  BookingNotMine: "우리 예약 아님",
+  DuplicateCharge: "중복 청구",
+  AdjustmentMissing: "조정 누락",
+  TaxIncorrect: "세금 오류",
+  Other: "기타",
+};

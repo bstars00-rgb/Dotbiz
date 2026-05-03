@@ -54,7 +54,7 @@ const navSections: NavSection[] = [
       { i18nKey: "nav.dashboard",   label: "Dashboard",   icon: LayoutDashboard, path: "/app/dashboard" },
       { i18nKey: "nav.findHotel",   label: "Find Hotel",  icon: Search,          path: "/app/find-hotel" },
       { i18nKey: "nav.bookings",    label: "Bookings",    icon: CalendarCheck,   path: "/app/bookings" },
-      { i18nKey: "nav.settlement",  label: "Settlement",  icon: Wallet,          path: "/app/settlement", roles: ["Master"] },
+      { i18nKey: "nav.settlement",  label: "Settlement",  icon: Wallet,          path: "/app/settlement", roles: ["Master", "Accounting"] },
       { i18nKey: "nav.tickets",     label: "Tickets",     icon: Ticket,          path: "/app/tickets" },
     ],
   },

@@ -16,7 +16,12 @@ import { useTabParam } from "@/hooks/useTabParam";
 import { StateToolbar } from "@/components/StateToolbar";
 import { useAuth } from "@/contexts/AuthContext";
 import { useI18n } from "@/contexts/I18nContext";
-import { billingDetails, invoices, disputeSummary } from "@/mocks/settlement";
+import {
+  billingDetails, invoices, disputeSummary,
+  invoiceDisputes, disputesForCompany, paymentReceipts, receiptsForInvoice,
+  DISPUTE_REASON_LABEL,
+  type InvoiceDispute, type InvoiceDisputeReason, type PaymentReceipt,
+} from "@/mocks/settlement";
 import { companies, currentCompany } from "@/mocks/companies";
 import { bookings as allBookings, type Booking } from "@/mocks/bookings";
 import { downloadCSV, timestamp } from "@/lib/download";
@@ -241,6 +246,9 @@ export default function SettlementPage() {
   const [invStatus, setInvStatus] = useState("All");
   const [invAging, setInvAging] = useState<AgingBucket>("all");
   const [previewInvoice, setPreviewInvoice] = useState<InvoiceData | null>(null);
+  /* 결정 #1: 분쟁 제기 / 영수증 업로드 다이얼로그 상태 */
+  const [raiseDisputeOpen, setRaiseDisputeOpen] = useState(false);
+  const [uploadReceiptOpen, setUploadReceiptOpen] = useState(false);
 
   /* Pinned demo "today" — aligns with CLAUDE.md currentDate so mock aging
    * is stable regardless of real system clock. */
@@ -294,7 +302,11 @@ export default function SettlementPage() {
     return res;
   }, [invStatus, invAging, myInvoices]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (!hasRole(["Master"])) return (<div className="p-6"><Alert><AlertTitle>Access Restricted</AlertTitle><AlertDescription>Settlement page is only accessible to Master accounts.</AlertDescription></Alert></div>);
+  /* ── 접근 권한 (2026-04-30 결정 #1) ──
+   * Master / Accounting 모두 허용. Accounting은 조회 + 분쟁 제기 + 송금 증빙만.
+   * 송금 실행 / invoice 발행 같은 액션은 Master 또는 EllisAdmin 영역. */
+  if (!hasRole(["Master", "Accounting"])) return (<div className="p-6"><Alert><AlertTitle>Access Restricted</AlertTitle><AlertDescription>Settlement page is only accessible to Master and Accounting roles.</AlertDescription></Alert></div>);
+  const isAccounting = user?.role === "Accounting";
   if (state === "loading") return (<div className="p-6 space-y-4"><Skeleton className="h-10 w-full" /><div className="grid grid-cols-1 md:grid-cols-3 gap-4">{[1, 2, 3].map(i => <Skeleton key={i} className="h-24" />)}</div><Skeleton className="h-64 w-full" /><StateToolbar state={state} setState={setState} /></div>);
   if (state === "empty") return (<div className="p-6"><Card className="max-w-md mx-auto mt-20 p-6 text-center"><h2 className="text-xl font-semibold">No Settlement Data</h2><p className="text-muted-foreground mt-2">No settlement data available for the selected period.</p></Card><StateToolbar state={state} setState={setState} /></div>);
   if (state === "error") return (<div className="p-6"><Alert variant="destructive" className="max-w-md mx-auto"><AlertTitle>Settlement Error</AlertTitle><AlertDescription>Failed to load settlement data.</AlertDescription><Button className="mt-3" onClick={() => setState("success")}><RefreshCw className="h-4 w-4 mr-2" />Retry</Button></Alert><StateToolbar state={state} setState={setState} /></div>);
@@ -672,6 +684,20 @@ export default function SettlementPage() {
           {isPrepay && <TabsTrigger value="pending">Pending Payment {visiblePending.length > 0 && <span className="ml-1 text-[10px] bg-red-500 text-white rounded-full px-1.5">{visiblePending.length}</span>}</TabsTrigger>}
           <TabsTrigger value="invoices">Invoices</TabsTrigger>
           <TabsTrigger value="billing">Billing Details</TabsTrigger>
+          <TabsTrigger value="disputes">
+            Disputes
+            {(() => {
+              const open = disputesForCompany(myCompanyId).filter(d => d.status === "Open" || d.status === "UnderReview").length;
+              return open > 0 ? <span className="ml-1 text-[10px] bg-amber-500 text-white rounded-full px-1.5">{open}</span> : null;
+            })()}
+          </TabsTrigger>
+          <TabsTrigger value="receipts">
+            Payment Receipts
+            {(() => {
+              const pending = paymentReceipts.filter(r => r.customerCompanyId === myCompanyId && r.status === "Pending-Match").length;
+              return pending > 0 ? <span className="ml-1 text-[10px] bg-blue-500 text-white rounded-full px-1.5">{pending}</span> : null;
+            })()}
+          </TabsTrigger>
         </TabsList>
 
         {/* ══════ PREPAY Pending Payment Tab ══════ */}
@@ -1079,7 +1105,45 @@ export default function SettlementPage() {
           </Table>
         </TabsContent>
 
+        {/* ══════ Disputes Tab — 결정 #1 (Accounting 분쟁 제기) ══════ */}
+        <TabsContent value="disputes" className="space-y-4 mt-4">
+          <DisputesSection
+            companyId={myCompanyId}
+            currentUserEmail={user?.email || ""}
+            isAccounting={isAccounting}
+            onOpenDispute={() => setRaiseDisputeOpen(true)}
+            onJumpToTicket={(tid) => navigate(`/app/tickets?id=${encodeURIComponent(tid)}`)}
+          />
+        </TabsContent>
+
+        {/* ══════ Payment Receipts Tab — 결정 #1 (송금 증빙) ══════ */}
+        <TabsContent value="receipts" className="space-y-4 mt-4">
+          <ReceiptsSection
+            companyId={myCompanyId}
+            isAccounting={isAccounting}
+            onUploadReceipt={() => setUploadReceiptOpen(true)}
+          />
+        </TabsContent>
+
       </Tabs>
+
+      {/* Dispute 제기 다이얼로그 */}
+      <RaiseDisputeDialog
+        open={raiseDisputeOpen}
+        onOpenChange={setRaiseDisputeOpen}
+        companyId={myCompanyId}
+        currentUserEmail={user?.email || ""}
+        availableInvoices={myInvoices.map(i => i.invoiceNo)}
+      />
+
+      {/* Receipt 업로드 다이얼로그 */}
+      <UploadReceiptDialog
+        open={uploadReceiptOpen}
+        onOpenChange={setUploadReceiptOpen}
+        companyId={myCompanyId}
+        currentUserEmail={user?.email || ""}
+        availableInvoices={myInvoices.map(i => i.invoiceNo)}
+      />
 
       {/* Invoice Preview (A4 + 5 languages) */}
       <InvoicePreviewDialog open={!!previewInvoice} onOpenChange={(o) => !o && setPreviewInvoice(null)} invoice={previewInvoice} />
@@ -1123,5 +1187,452 @@ export default function SettlementPage() {
 
       <StateToolbar state={state} setState={setState} />
     </div>
+  );
+}
+
+
+/* ═════════════════════════════════════════════════
+ * Disputes Section — Accounting role 핵심 기능
+ *
+ * 고객사 Accounting이 invoice를 검증하다 이상을 발견하면 분쟁 제기.
+ * 분쟁은 자동으로 ticket으로 라우팅 → ELLIS가 검토 후 처리.
+ * 처리 결과(Accepted/Rejected)는 다음 invoice의 (-) 라인 또는 유지로 반영.
+ * ═════════════════════════════════════════════════ */
+function DisputesSection({
+  companyId, currentUserEmail, isAccounting, onOpenDispute, onJumpToTicket,
+}: {
+  companyId: string;
+  currentUserEmail: string;
+  isAccounting: boolean;
+  onOpenDispute: () => void;
+  onJumpToTicket: (ticketId: string) => void;
+}) {
+  const myDisputes = disputesForCompany(companyId);
+  const open = myDisputes.filter(d => d.status === "Open" || d.status === "UnderReview");
+  const closed = myDisputes.filter(d => d.status !== "Open" && d.status !== "UnderReview");
+
+  const statusBadge = (s: InvoiceDispute["status"]) => {
+    if (s === "Open")        return <Badge variant="destructive" className="text-[10px]">Open</Badge>;
+    if (s === "UnderReview") return <Badge variant="secondary" className="text-[10px]">Under Review</Badge>;
+    if (s === "Accepted")    return <Badge style={{ background: "#009505" }} className="text-[10px] text-white">Accepted</Badge>;
+    if (s === "Rejected")    return <Badge variant="outline" className="text-[10px]">Rejected</Badge>;
+    return <Badge variant="outline" className="text-[10px]">Withdrawn</Badge>;
+  };
+
+  return (
+    <div className="space-y-4">
+      <Alert className="border-amber-300/60 bg-amber-50 dark:bg-amber-950/20">
+        <AlertTitle className="text-sm flex items-center gap-2">
+          🛡️ Invoice 검증 → 분쟁 제기 워크플로우
+        </AlertTitle>
+        <AlertDescription className="text-xs">
+          Invoice의 금액·예약·세금에 이상이 있을 때 분쟁을 제기하면 자동으로
+          ELLIS 측 티켓이 생성됩니다. 처리 결과(인정/기각)는 다음 invoice의
+          조정 라인 또는 유지로 반영됩니다.
+          <br />
+          <strong>Accounting 권한:</strong> 분쟁 제기 + 처리 결과 추적 / Master 권한: 송금 보류 결정.
+        </AlertDescription>
+      </Alert>
+
+      <div className="flex items-center justify-between">
+        <div className="text-sm">
+          <span className="font-bold">{open.length}</span> open ·{" "}
+          <span className="text-muted-foreground">{closed.length} resolved · {myDisputes.length} total</span>
+        </div>
+        <Button onClick={onOpenDispute} size="sm" style={{ background: "#FF6000" }} className="text-white">
+          <Plus className="h-3.5 w-3.5 mr-1" />
+          분쟁 제기
+        </Button>
+      </div>
+
+      {myDisputes.length === 0 ? (
+        <Card className="p-10 text-center text-sm text-muted-foreground">
+          아직 제기된 분쟁이 없습니다. Invoice 검증 중 이상 발견 시 사용해주세요.
+        </Card>
+      ) : (
+        <Table>
+          <TableHeader>
+            <TableRow className="text-[11px]">
+              <TableHead>제기일</TableHead>
+              <TableHead>Invoice</TableHead>
+              <TableHead>사유</TableHead>
+              <TableHead>금액</TableHead>
+              <TableHead>예약 #</TableHead>
+              <TableHead>상태</TableHead>
+              <TableHead>티켓 / 결과</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {myDisputes.map(d => (
+              <TableRow key={d.id} className="text-xs">
+                <TableCell className="whitespace-nowrap">{d.raisedAt}</TableCell>
+                <TableCell className="font-mono text-[10px]">{d.invoiceNo}</TableCell>
+                <TableCell>{DISPUTE_REASON_LABEL[d.reason]}</TableCell>
+                <TableCell className="text-right font-medium">${d.disputedAmount.toLocaleString()}</TableCell>
+                <TableCell className="text-[10px] font-mono">{d.affectedBookingIds.join(", ")}</TableCell>
+                <TableCell>{statusBadge(d.status)}</TableCell>
+                <TableCell>
+                  {d.ticketId ? (
+                    <button
+                      className="text-[10px] text-[#0066cc] hover:underline font-mono"
+                      onClick={() => onJumpToTicket(d.ticketId!)}
+                    >
+                      {d.ticketId} →
+                    </button>
+                  ) : <span className="text-[10px] text-muted-foreground">—</span>}
+                  {d.resolution && (
+                    <p className="text-[10px] text-muted-foreground mt-0.5">{d.resolution}</p>
+                  )}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      )}
+
+      <p className="text-[10px] text-muted-foreground">
+        💡 DOTBIZ는 고객사로 환불을 송금하지 않습니다. 분쟁이 인정되면 다음 invoice의
+        조정(Adjustment) 라인 (-)으로 반영됩니다.
+      </p>
+    </div>
+  );
+}
+
+/* ═════════════════════════════════════════════════
+ * Receipts Section — 송금 증빙 업로드 + 매칭 상태 추적
+ * ═════════════════════════════════════════════════ */
+function ReceiptsSection({
+  companyId, isAccounting, onUploadReceipt,
+}: {
+  companyId: string;
+  isAccounting: boolean;
+  onUploadReceipt: () => void;
+}) {
+  const myReceipts = paymentReceipts
+    .filter(r => r.customerCompanyId === companyId)
+    .sort((a, b) => b.uploadedAt.localeCompare(a.uploadedAt));
+
+  const statusBadge = (s: PaymentReceipt["status"]) => {
+    if (s === "Matched")      return <Badge style={{ background: "#009505" }} className="text-[10px] text-white">Matched</Badge>;
+    if (s === "Pending-Match") return <Badge variant="secondary" className="text-[10px]">Pending Match</Badge>;
+    return <Badge variant="destructive" className="text-[10px]">Mismatched</Badge>;
+  };
+
+  return (
+    <div className="space-y-4">
+      <Alert className="border-blue-300/60 bg-blue-50 dark:bg-blue-950/20">
+        <AlertTitle className="text-sm flex items-center gap-2">
+          📎 송금 증빙 업로드 워크플로우
+        </AlertTitle>
+        <AlertDescription className="text-xs">
+          Invoice 송금 후 영수증을 첨부하면 ELLIS가 입금 매칭 시 참조합니다.
+          매칭 완료 후 invoice 상태가 <strong>Paid</strong>로 자동 전환됩니다.
+          <br />
+          <strong>Tip:</strong> 분쟁 중인 항목 차감 후 송금했다면 비고에 기재해주세요.
+        </AlertDescription>
+      </Alert>
+
+      <div className="flex items-center justify-between">
+        <div className="text-sm">
+          <span className="font-bold">{myReceipts.filter(r => r.status === "Pending-Match").length}</span> pending match ·{" "}
+          <span className="text-muted-foreground">{myReceipts.length} total receipts</span>
+        </div>
+        <Button onClick={onUploadReceipt} size="sm" style={{ background: "#FF6000" }} className="text-white">
+          <Plus className="h-3.5 w-3.5 mr-1" />
+          영수증 업로드
+        </Button>
+      </div>
+
+      {myReceipts.length === 0 ? (
+        <Card className="p-10 text-center text-sm text-muted-foreground">
+          업로드된 영수증이 없습니다. 송금 후 증빙 첨부로 매칭 속도를 높일 수 있습니다.
+        </Card>
+      ) : (
+        <Table>
+          <TableHeader>
+            <TableRow className="text-[11px]">
+              <TableHead>업로드</TableHead>
+              <TableHead>Invoice</TableHead>
+              <TableHead>송금일</TableHead>
+              <TableHead>금액</TableHead>
+              <TableHead>Bank Ref</TableHead>
+              <TableHead>파일</TableHead>
+              <TableHead>매칭</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {myReceipts.map(r => (
+              <TableRow key={r.id} className="text-xs">
+                <TableCell className="whitespace-nowrap">{r.uploadedAt}</TableCell>
+                <TableCell className="font-mono text-[10px]">{r.invoiceNo}</TableCell>
+                <TableCell className="whitespace-nowrap">{r.remittedDate}</TableCell>
+                <TableCell className="text-right font-medium">{r.currency} {r.amount.toLocaleString()}</TableCell>
+                <TableCell className="font-mono text-[10px]">{r.bankReference || "—"}</TableCell>
+                <TableCell>
+                  <button
+                    className="text-[10px] text-[#0066cc] hover:underline"
+                    onClick={() => toast.info("프로토타입에선 다운로드 시뮬레이션", { description: r.fileName })}
+                  >
+                    📎 {r.fileName}
+                  </button>
+                </TableCell>
+                <TableCell>{statusBadge(r.status)}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      )}
+    </div>
+  );
+}
+
+/* ═════════════════════════════════════════════════
+ * Raise Dispute Dialog
+ * ═════════════════════════════════════════════════ */
+function RaiseDisputeDialog({
+  open, onOpenChange, companyId, currentUserEmail, availableInvoices,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  companyId: string;
+  currentUserEmail: string;
+  availableInvoices: string[];
+}) {
+  const [invoiceNo, setInvoiceNo] = useState("");
+  const [reason, setReason] = useState<InvoiceDisputeReason>("AmountMismatch");
+  const [amount, setAmount] = useState("");
+  const [bookingIds, setBookingIds] = useState("");
+  const [description, setDescription] = useState("");
+
+  const reset = () => {
+    setInvoiceNo(""); setReason("AmountMismatch"); setAmount(""); setBookingIds(""); setDescription("");
+  };
+
+  const submit = () => {
+    if (!invoiceNo || !amount || !description.trim()) {
+      toast.error("Invoice, 금액, 설명은 필수입니다.");
+      return;
+    }
+    const ticketId = `TKT-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${Math.floor(Math.random() * 9000) + 1000}`;
+    /* 프로토타입: 새 분쟁을 invoiceDisputes에 push (페이지 리로드 시 사라짐).
+     * 프로덕션: POST /api/disputes → 백엔드가 ticket 자동 생성 */
+    invoiceDisputes.unshift({
+      id: `disp-local-${Date.now()}`,
+      invoiceNo,
+      customerCompanyId: companyId,
+      raisedBy: currentUserEmail,
+      raisedAt: new Date().toISOString().slice(0, 10),
+      reason,
+      description: description.trim(),
+      affectedBookingIds: bookingIds.split(",").map(s => s.trim()).filter(Boolean),
+      disputedAmount: Number(amount) || 0,
+      status: "Open",
+      ticketId,
+    });
+    toast.success("분쟁 제기 완료", {
+      description: `티켓 ${ticketId} 자동 생성. ELLIS 검토 후 처리 결과가 다음 invoice에 반영됩니다.`,
+    });
+    reset();
+    onOpenChange(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => { if (!v) reset(); onOpenChange(v); }}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Invoice 분쟁 제기</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div>
+            <label className="text-xs font-medium">Invoice No <span className="text-red-500">*</span></label>
+            <select
+              value={invoiceNo}
+              onChange={e => setInvoiceNo(e.target.value)}
+              className="w-full mt-1 border rounded px-2 py-1.5 text-sm bg-background"
+            >
+              <option value="">선택…</option>
+              {availableInvoices.map(no => <option key={no} value={no}>{no}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="text-xs font-medium">사유 <span className="text-red-500">*</span></label>
+            <select
+              value={reason}
+              onChange={e => setReason(e.target.value as InvoiceDisputeReason)}
+              className="w-full mt-1 border rounded px-2 py-1.5 text-sm bg-background"
+            >
+              {(Object.keys(DISPUTE_REASON_LABEL) as InvoiceDisputeReason[]).map(r => (
+                <option key={r} value={r}>{DISPUTE_REASON_LABEL[r]}</option>
+              ))}
+            </select>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-medium">분쟁 금액 (USD) <span className="text-red-500">*</span></label>
+              <Input
+                type="number"
+                value={amount}
+                onChange={e => setAmount(e.target.value)}
+                placeholder="40"
+                className="mt-1 text-sm"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium">예약 ID (콤마 구분)</label>
+              <Input
+                value={bookingIds}
+                onChange={e => setBookingIds(e.target.value)}
+                placeholder="bk-001, bk-002"
+                className="mt-1 text-sm font-mono text-[11px]"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="text-xs font-medium">상세 설명 <span className="text-red-500">*</span></label>
+            <textarea
+              value={description}
+              onChange={e => setDescription(e.target.value)}
+              placeholder="예: Grand Hyatt Seoul 예약 금액이 계약 단가 대비 $40 초과 청구됨"
+              rows={3}
+              className="w-full mt-1 border rounded px-2 py-1.5 text-sm bg-background"
+            />
+          </div>
+          <Alert className="border-blue-200 bg-blue-50 dark:bg-blue-950/20">
+            <AlertDescription className="text-xs">
+              제기 즉시 ELLIS 측 티켓이 자동 생성되며 검토가 시작됩니다. 평균 검토 기간 1-3 영업일.
+            </AlertDescription>
+          </Alert>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" onClick={() => onOpenChange(false)}>취소</Button>
+            <Button onClick={submit} style={{ background: "#FF6000" }} className="text-white">제기하기</Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/* ═════════════════════════════════════════════════
+ * Upload Receipt Dialog
+ * ═════════════════════════════════════════════════ */
+function UploadReceiptDialog({
+  open, onOpenChange, companyId, currentUserEmail, availableInvoices,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  companyId: string;
+  currentUserEmail: string;
+  availableInvoices: string[];
+}) {
+  const [invoiceNo, setInvoiceNo] = useState("");
+  const [amount, setAmount] = useState("");
+  const [currency, setCurrency] = useState("USD");
+  const [remittedDate, setRemittedDate] = useState("");
+  const [bankRef, setBankRef] = useState("");
+  const [fileName, setFileName] = useState("");
+  const [notes, setNotes] = useState("");
+
+  const reset = () => {
+    setInvoiceNo(""); setAmount(""); setCurrency("USD"); setRemittedDate("");
+    setBankRef(""); setFileName(""); setNotes("");
+  };
+
+  const submit = () => {
+    if (!invoiceNo || !amount || !remittedDate || !fileName) {
+      toast.error("Invoice, 금액, 송금일, 파일은 필수입니다.");
+      return;
+    }
+    /* 프로토타입: 새 영수증을 paymentReceipts에 push */
+    paymentReceipts.unshift({
+      id: `rcp-local-${Date.now()}`,
+      invoiceNo,
+      customerCompanyId: companyId,
+      uploadedBy: currentUserEmail,
+      uploadedAt: new Date().toISOString().slice(0, 10),
+      amount: Number(amount) || 0,
+      currency,
+      remittedDate,
+      bankReference: bankRef || undefined,
+      fileName,
+      fileUrl: `/mock/receipts/${fileName}`,
+      notes: notes || undefined,
+      status: "Pending-Match",
+    });
+    toast.success("영수증 업로드 완료", {
+      description: `${invoiceNo} · ELLIS 입금 매칭 후 invoice가 Paid로 전환됩니다.`,
+    });
+    reset();
+    onOpenChange(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => { if (!v) reset(); onOpenChange(v); }}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>송금 영수증 업로드</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div>
+            <label className="text-xs font-medium">Invoice No <span className="text-red-500">*</span></label>
+            <select
+              value={invoiceNo}
+              onChange={e => setInvoiceNo(e.target.value)}
+              className="w-full mt-1 border rounded px-2 py-1.5 text-sm bg-background"
+            >
+              <option value="">선택…</option>
+              {availableInvoices.map(no => <option key={no} value={no}>{no}</option>)}
+            </select>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <div className="col-span-2">
+              <label className="text-xs font-medium">송금 금액 <span className="text-red-500">*</span></label>
+              <Input type="number" value={amount} onChange={e => setAmount(e.target.value)} className="mt-1 text-sm" />
+            </div>
+            <div>
+              <label className="text-xs font-medium">통화</label>
+              <select value={currency} onChange={e => setCurrency(e.target.value)} className="w-full mt-1 border rounded px-2 py-1.5 text-sm bg-background">
+                {["USD", "KRW", "JPY", "VND", "SGD"].map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-medium">송금일 <span className="text-red-500">*</span></label>
+              <Input type="date" value={remittedDate} onChange={e => setRemittedDate(e.target.value)} className="mt-1 text-sm" />
+            </div>
+            <div>
+              <label className="text-xs font-medium">Bank Reference</label>
+              <Input value={bankRef} onChange={e => setBankRef(e.target.value)} placeholder="WIRE-..." className="mt-1 text-sm font-mono text-[11px]" />
+            </div>
+          </div>
+          <div>
+            <label className="text-xs font-medium">파일명 <span className="text-red-500">*</span></label>
+            <Input
+              value={fileName}
+              onChange={e => setFileName(e.target.value)}
+              placeholder="remittance-INV-2026-XXXX.pdf"
+              className="mt-1 text-sm font-mono text-[11px]"
+            />
+            <p className="text-[10px] text-muted-foreground mt-1">
+              프로토타입: 파일명만 기록. 프로덕션에선 실제 파일 업로드 (PDF/JPG, max 10MB).
+            </p>
+          </div>
+          <div>
+            <label className="text-xs font-medium">비고</label>
+            <textarea
+              value={notes}
+              onChange={e => setNotes(e.target.value)}
+              placeholder="예: 분쟁 중인 disp-001 ($40) 차감하고 송금"
+              rows={2}
+              className="w-full mt-1 border rounded px-2 py-1.5 text-sm bg-background"
+            />
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" onClick={() => onOpenChange(false)}>취소</Button>
+            <Button onClick={submit} style={{ background: "#FF6000" }} className="text-white">업로드</Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
