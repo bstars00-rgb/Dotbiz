@@ -1,3 +1,15 @@
+/**
+ * Dashboard — 정책 결정 (2026-04-30):
+ *
+ *   "대시보드는 현재 유지. 최소한의 예약 관련만 보이는 게 깔끔함."
+ *
+ * 의도: 예약·매출 4개 KPI + 차트 + 베스트셀러 호텔만 노출.
+ * AR Aging / Dispute / Ticket SLA / Tier Progress 같은 운영 KPI는
+ * 의도적으로 **추가하지 않음** (각자 전용 페이지에서 추적).
+ *
+ * 향후 KPI 추가 제안이 들어오면 이 정책으로 사양 차단 — 대시보드 비대화 방지.
+ * Role별 섹션 분기, drill-down 확장도 같은 이유로 보류.
+ */
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import { Search, Gift, RefreshCw, CalendarDays } from "lucide-react";
