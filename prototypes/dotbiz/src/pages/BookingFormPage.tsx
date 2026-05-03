@@ -16,21 +16,53 @@ import { useScreenState } from "@/hooks/useScreenState";
 import { useFormValidation } from "@/hooks/useFormValidation";
 import { StateToolbar } from "@/components/StateToolbar";
 import { useAuth } from "@/contexts/AuthContext";
-import { userPointsState, hotelPointsBoost, estimatedElsForBooking, ELS_REDEEM_AT_BOOKING_POLICY } from "@/mocks/rewards";
+import { userPointsState, hotelPointsBoost, estimatedElsForBooking, ELS_REDEEM_AT_BOOKING_POLICY, compositeTierScore, tierForComposite, DEFAULT_COMPOSITE_WEIGHTS } from "@/mocks/rewards";
 import { currentCompany } from "@/mocks/companies";
 import { hotels } from "@/mocks/hotels";
 import { getRoomsByHotel } from "@/mocks/rooms";
 import PaymentDialog from "@/components/PaymentDialog";
 import { toast } from "sonner";
 
-const FORM_STORAGE_KEY = "dotbiz_booking_form";
+const FORM_STORAGE_KEY = "dotbiz_booking_form_v2";
+const FORM_TTL_HOURS = 24;     /* 결정 #4: 24시간 후 자동 만료 */
 
-function loadSavedForm() {
+interface SavedDraft {
+  bookerName?: string;
+  bookerEmail?: string;
+  bookerMobile?: string;
+  bookerCode?: string;
+  mobileCountry?: string;
+  travelers?: Array<Record<string, string | number>>;
+  specialReqs?: string[];
+  customRequest?: string;
+  expectedCheckIn?: string;
+  /* 복구 시 가용성·요금 비교용 */
+  savedAt: number;
+  hotelId: string;
+  roomId: string;
+  checkIn: string;
+  checkOut: string;
+  savedRoomPrice: number;
+}
+
+/** localStorage에서 draft 복구. TTL(24h) 경과 시 null 반환 + 자동 청소. */
+function loadSavedForm(): SavedDraft | null {
   try {
-    const saved = sessionStorage.getItem(FORM_STORAGE_KEY);
-    if (saved) return JSON.parse(saved);
+    const saved = localStorage.getItem(FORM_STORAGE_KEY);
+    if (!saved) return null;
+    const parsed = JSON.parse(saved) as SavedDraft;
+    const ageHours = (Date.now() - (parsed.savedAt || 0)) / 3600000;
+    if (ageHours > FORM_TTL_HOURS) {
+      localStorage.removeItem(FORM_STORAGE_KEY);
+      return null;
+    }
+    return parsed;
   } catch { /* ignore */ }
   return null;
+}
+
+function clearSavedForm() {
+  try { localStorage.removeItem(FORM_STORAGE_KEY); } catch { /* ignore */ }
 }
 
 export default function BookingFormPage() {
@@ -73,6 +105,12 @@ export default function BookingFormPage() {
   const [travelerErrors, setTravelerErrors] = useState(false);
   const [paymentOpen, setPaymentOpen] = useState(false);
 
+  /* ── Decision #6: 환불불가 동의 (non-refundable acknowledge) ── */
+  const [nonRefundableAcked, setNonRefundableAcked] = useState(false);
+
+  /* ── Decision #4: 24h draft 복구 시 요금/매진 변경 감지 ── */
+  const [draftAlert, setDraftAlert] = useState<{ kind: "price" | "soldout"; before?: number; after?: number } | null>(null);
+
   /* Billing type from ELLIS (via auth context) */
   const billingType = user?.billingType || "POSTPAY";
 
@@ -85,22 +123,46 @@ export default function BookingFormPage() {
   const checkIn = searchParams.get("checkin") || sessionStorage.getItem("dotbiz_booking_checkin") || "2026-04-22";
   const checkOut = searchParams.get("checkout") || sessionStorage.getItem("dotbiz_booking_checkout") || "2026-04-23";
 
-  /* Auto-save form data + booking params to sessionStorage */
+  /* Auto-save (localStorage + 24h TTL + price/availability metadata) */
   useEffect(() => {
-    const data = {
+    const data: SavedDraft = {
       bookerName, bookerEmail, bookerMobile, bookerCode, mobileCountry,
       travelers, specialReqs: Array.from(specialReqs), customRequest, expectedCheckIn,
+      savedAt: Date.now(),
+      hotelId, roomId, checkIn, checkOut,
+      savedRoomPrice: room?.price || 0,
     };
-    sessionStorage.setItem(FORM_STORAGE_KEY, JSON.stringify(data));
+    try { localStorage.setItem(FORM_STORAGE_KEY, JSON.stringify(data)); } catch { /* ignore quota */ }
+    /* 진행 중 검색·예약 컨텍스트는 sessionStorage로 (탭 단위) */
     sessionStorage.setItem("dotbiz_booking_hotel", hotelId);
     sessionStorage.setItem("dotbiz_booking_room", roomId);
     sessionStorage.setItem("dotbiz_booking_checkin", checkIn);
     sessionStorage.setItem("dotbiz_booking_checkout", checkOut);
-  }, [bookerName, bookerEmail, bookerMobile, bookerCode, mobileCountry, travelers, specialReqs, customRequest, expectedCheckIn, hotelId, roomId, checkIn, checkOut]);
+  }, [bookerName, bookerEmail, bookerMobile, bookerCode, mobileCountry, travelers, specialReqs, customRequest, expectedCheckIn, hotelId, roomId, checkIn, checkOut, room?.price]);
+
+  /* 복구 시 1회: 요금/매진 변경 감지 */
+  useEffect(() => {
+    const draft = loadSavedForm();
+    if (!draft) return;
+    if (draft.hotelId !== hotelId || draft.roomId !== roomId) return;
+    /* 매진 검사: room.remaining === 0 */
+    if (room && typeof room.remaining === "number" && room.remaining === 0) {
+      setDraftAlert({ kind: "soldout" });
+      return;
+    }
+    /* 요금 변경 검사 */
+    if (room && draft.savedRoomPrice && draft.savedRoomPrice !== room.price) {
+      setDraftAlert({ kind: "price", before: draft.savedRoomPrice, after: room.price });
+    }
+  }, [hotelId, roomId, room]);
   const nights = Math.max(1, Math.round((new Date(checkOut).getTime() - new Date(checkIn).getTime()) / 86400000));
   const totalPrice = room ? room.price * nights : 0;
   const isFreeCancel = room?.cancellationPolicy === "free_cancel";
   const freeCancelDate = isFreeCancel ? (() => { const d = new Date(checkIn); d.setDate(d.getDate() - 2); return d.toISOString().split("T")[0]; })() : "";
+
+  /* Decision #6: non-refundable 동의 필요 (free cancel이 아닌 경우) */
+  const isNonRefundable = room?.cancellationPolicy === "non_refundable";
+  const requiresAck = isNonRefundable;
 
   const handleCreate = () => {
     const e1 = validate("bookerName", bookerName, { required: true, rules: [{ type: "required", message: "Name is required" }] });
@@ -108,6 +170,14 @@ export default function BookingFormPage() {
     if (e1 || e2) { setFormError("Please fill in all required fields."); return; }
     const hasNames = travelers.every(t => t.lastName && t.firstName);
     if (!hasNames) { setFormError("Please enter Last Name and First Name for all travelers."); setTravelerErrors(true); return; }
+    if (requiresAck && !nonRefundableAcked) {
+      setFormError("환불불가 예약입니다. 동의 체크박스를 확인해주세요.");
+      return;
+    }
+    if (draftAlert?.kind === "soldout") {
+      setFormError("이 객실이 매진되었습니다. 다시 검색해주세요.");
+      return;
+    }
     setFormError(null);
     setTravelerErrors(false);
     setConfirmOpen(true);
@@ -125,6 +195,37 @@ export default function BookingFormPage() {
       </div>
 
       {formError && <Alert variant="destructive"><AlertDescription>{formError}</AlertDescription></Alert>}
+
+      {/* 24h draft 복구 시 요금/매진 변경 감지 (결정 #4) */}
+      {draftAlert?.kind === "soldout" && (
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>이 객실이 매진되었습니다</AlertTitle>
+          <AlertDescription className="flex items-center justify-between gap-3 flex-wrap">
+            <span>임시저장한 입력 후 가용성이 변동되었습니다. 다시 검색해주세요.</span>
+            <Button size="sm" variant="outline" onClick={() => { clearSavedForm(); navigate("/app/find-hotel"); }}>
+              다시 검색
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+      {draftAlert?.kind === "price" && (
+        <Alert className="border-amber-300 bg-amber-50 dark:bg-amber-950/20">
+          <AlertTriangle className="h-4 w-4 text-amber-600" />
+          <AlertTitle className="text-amber-900 dark:text-amber-200">요금이 변경되었습니다</AlertTitle>
+          <AlertDescription className="text-amber-800 dark:text-amber-300 flex items-center justify-between gap-3 flex-wrap">
+            <span>
+              이전 저장 시점: <strong>USD {draftAlert.before?.toFixed(2)}/박</strong>
+              {" → "}
+              현재: <strong>USD {draftAlert.after?.toFixed(2)}/박</strong>
+              {" "}({(draftAlert.after! - draftAlert.before!) >= 0 ? "+" : ""}{((draftAlert.after! - draftAlert.before!)).toFixed(2)})
+            </span>
+            <Button size="sm" variant="outline" onClick={() => setDraftAlert(null)}>
+              확인 (계속 진행)
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* ── Booker ── */}
       <Card className="p-5">
@@ -341,12 +442,32 @@ export default function BookingFormPage() {
         </div>
       </Card>
 
+      {/* ── Decision #6: 환불불가 동의 (non-refundable acknowledge) ── */}
+      {requiresAck && (
+        <Card className="p-4 border-l-4 border-l-red-500 bg-red-50/50 dark:bg-red-950/10">
+          <label className="flex items-start gap-3 cursor-pointer">
+            <Checkbox
+              checked={nonRefundableAcked}
+              onCheckedChange={(v) => setNonRefundableAcked(!!v)}
+              className="mt-0.5"
+            />
+            <div className="text-sm space-y-1">
+              <p className="font-bold text-red-700 dark:text-red-300">⚠ 환불불가 예약 동의</p>
+              <p className="text-xs text-red-700/90 dark:text-red-300/90">
+                이 예약은 <strong>환불불가</strong>입니다. 예약 생성 후 어떤 이유로도 취소·환불·변경이 불가합니다.
+                내용을 모두 확인했으며 동의합니다.
+              </p>
+            </div>
+          </label>
+        </Card>
+      )}
+
       {/* ── Actions ── */}
       <div className="flex justify-end gap-3 pb-4">
         {billingType === "PREPAY" && !isFreeCancel ? (
-          <Button onClick={handleCreate} style={{ background: "#DC2626" }} className="px-8"><CreditCard className="h-4 w-4 mr-2" />Pay & Book</Button>
+          <Button onClick={handleCreate} style={{ background: "#DC2626" }} className="px-8" disabled={requiresAck && !nonRefundableAcked}><CreditCard className="h-4 w-4 mr-2" />Pay & Book</Button>
         ) : (
-          <Button onClick={handleCreate} style={{ background: "#FF6000" }} className="px-8">Create</Button>
+          <Button onClick={handleCreate} style={{ background: "#FF6000" }} className="px-8" disabled={requiresAck && !nonRefundableAcked}>Create</Button>
         )}
         <Button variant="outline" onClick={() => navigate(-1)}>Close</Button>
       </div>
@@ -357,6 +478,10 @@ export default function BookingFormPage() {
         sessionStorage.setItem("dotbiz_booking_room", roomId);
         sessionStorage.setItem("dotbiz_booking_checkin", checkIn);
         sessionStorage.setItem("dotbiz_booking_checkout", checkOut);
+        /* FX lock 시점 기록 (결정 #1) */
+        sessionStorage.setItem("dotbiz_booking_fx_locked_at", new Date().toISOString());
+        sessionStorage.setItem("dotbiz_booking_fx_rate", "1.0"); /* prices already USD */
+        clearSavedForm();
         navigate("/app/booking/complete");
       }} />
 
@@ -377,6 +502,10 @@ export default function BookingFormPage() {
                 sessionStorage.setItem("dotbiz_booking_room", roomId);
                 sessionStorage.setItem("dotbiz_booking_checkin", checkIn);
                 sessionStorage.setItem("dotbiz_booking_checkout", checkOut);
+                /* FX lock 시점 기록 (결정 #1) */
+                sessionStorage.setItem("dotbiz_booking_fx_locked_at", new Date().toISOString());
+                sessionStorage.setItem("dotbiz_booking_fx_rate", "1.0");
+                clearSavedForm();
                 toast.success("Booking created!", { description: "Redirecting to review..." });
                 navigate("/app/booking/confirm");
               }
@@ -416,8 +545,23 @@ function ElsRedeemAtBookingPanel({ totalPrice }: { totalPrice: number }) {
   const userState = userPointsState[user.email];
   const personalBalance = userState?.balance || 0;
 
-  /* 사용 가능 최대 금액 (정책: 예약 금액 × maxRedeemRatio, 잔액 한도) */
-  const maxByRatio = Math.floor(totalPrice * ELS_REDEEM_AT_BOOKING_POLICY.maxRedeemRatio);
+  /* ── Decision #2: Tier별 차등 차감 비율 ──
+   * Bronze 5% / Silver 7% / Gold 10% / Platinum 12% / Diamond 15% (잠정)
+   * 어드민에서 튜닝 가능 — 현재는 클라이언트 계산. */
+  const tierBasedRatio: Record<string, number> = {
+    Bronze:   0.05,
+    Silver:   0.07,
+    Gold:     0.10,
+    Platinum: 0.12,
+    Diamond:  0.15,
+  };
+  const userTier = userState
+    ? tierForComposite({ bookingCount: userState.bookingCount, totalRevenueUsd: userState.totalRevenueUsd }, DEFAULT_COMPOSITE_WEIGHTS)
+    : null;
+  const effectiveRatio = userTier ? tierBasedRatio[userTier.name] : ELS_REDEEM_AT_BOOKING_POLICY.maxRedeemRatio;
+
+  /* 사용 가능 최대 금액 (Tier 차등 적용) */
+  const maxByRatio = Math.floor(totalPrice * effectiveRatio);
   const maxRedeem = Math.min(maxByRatio, personalBalance);
   const usdDiscount = redeemAmount * ELS_REDEEM_AT_BOOKING_POLICY.elsToUsdRate;
   const finalPrice = Math.max(0, totalPrice - usdDiscount);
@@ -431,7 +575,10 @@ function ElsRedeemAtBookingPanel({ totalPrice }: { totalPrice: number }) {
             ELS로 결제 일부 차감 (선택)
           </h2>
           <p className="text-xs text-muted-foreground mt-1">
-            보유 ELS의 일부를 이번 예약 결제에 사용. 차감 비율 한도 {Math.round(ELS_REDEEM_AT_BOOKING_POLICY.maxRedeemRatio * 100)}% (잠정).
+            보유 ELS의 일부를 이번 예약 결제에 사용.
+            {userTier && (
+              <> 차감 한도: <strong style={{ color: userTier.color }}>{userTier.icon} {userTier.name}</strong> {Math.round(effectiveRatio * 100)}%</>
+            )}
           </p>
         </div>
         <label className="flex items-center gap-2 text-xs cursor-pointer">

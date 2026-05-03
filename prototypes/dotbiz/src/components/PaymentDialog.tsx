@@ -67,6 +67,10 @@ export default function PaymentDialog({ open, onOpenChange, amount, currency = "
   const [savedCards, setSavedCards] = useState<SavedCard[]>([]);
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
   const [showSaveConfirm, setShowSaveConfirm] = useState(false);
+  /* Decision #3: 결제 실패 시 즉시 실패 + 사용자 재시도 (자동 재시도 X) */
+  const [paymentError, setPaymentError] = useState<string | null>(null);
+  /* 데모 시뮬레이션: 카드번호 끝자리 "0000"이면 실패 (테스트 카드) */
+  const willFail = (digits: string) => digits.endsWith("0000");
 
   useEffect(() => {
     if (open) {
@@ -75,6 +79,7 @@ export default function PaymentDialog({ open, onOpenChange, amount, currency = "
       setCardNumber(""); setExpiry(""); setCvv(""); setName("");
       setSaveCardCheck(true);
       setShowSaveConfirm(false);
+      setPaymentError(null);
     }
   }, [open]);
 
@@ -122,10 +127,24 @@ export default function PaymentDialog({ open, onOpenChange, amount, currency = "
 
     setTimeout(() => {
       setLoading(false);
+      const digits = (cardNumber || "").replace(/\s/g, "") || "1111222233334444";
+      /* Decision #3: 즉시 실패 처리 (자동 재시도 X) */
+      if (willFail(digits)) {
+        setPaymentError("결제가 거절되었습니다 (카드사 응답: insufficient funds). 다른 카드로 재시도해주세요.");
+        toast.error("Payment declined", { description: "Try a different card or contact your bank." });
+        return;
+      }
       onOpenChange(false);
       toast.success("Payment completed successfully!", { description: "Booking confirmed. Redirecting..." });
       setTimeout(() => onPaymentComplete(), 300);
     }, 2000);
+  };
+
+  const handleRetry = () => {
+    setPaymentError(null);
+    /* 새 카드로 재시도 시 입력 클리어 */
+    setSelectedCardId(null);
+    setCardNumber(""); setExpiry(""); setCvv("");
   };
 
   const useNewCard = selectedCardId === null || selectedCardId === "new";
@@ -196,9 +215,27 @@ export default function PaymentDialog({ open, onOpenChange, amount, currency = "
           <Shield className="h-3.5 w-3.5" />Powered by DOTBIZ Payment Gateway
         </div>
 
+        {/* Decision #3: 결제 실패 즉시 표시 + 사용자 재시도 */}
+        {paymentError && (
+          <div className="rounded-lg border border-red-300 bg-red-50 dark:bg-red-950/20 p-3 mb-2">
+            <p className="text-sm font-semibold text-red-700 dark:text-red-300">❌ 결제 실패</p>
+            <p className="text-xs text-red-700/90 dark:text-red-300/90 mt-1">{paymentError}</p>
+            <p className="text-[10px] text-muted-foreground mt-2">
+              자동 재시도는 적용되지 않습니다 (다중 청구 위험). 다른 카드로 직접 재시도해주세요.
+            </p>
+            <div className="flex justify-end gap-2 mt-2">
+              <Button size="sm" variant="outline" onClick={handleRetry}>다른 카드로 재시도</Button>
+            </div>
+          </div>
+        )}
+
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancel</Button>
-          <Button className="bg-[#FF6000] hover:bg-[#e55500] text-white" onClick={handlePay} disabled={loading}>
+          <Button
+            className="bg-[#FF6000] hover:bg-[#e55500] text-white"
+            onClick={handlePay}
+            disabled={loading || !!paymentError}
+          >
             {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
             Pay {currency} {amount.toLocaleString()}
           </Button>
