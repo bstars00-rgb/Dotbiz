@@ -684,3 +684,93 @@ export function fileToDataUrl(file: File): Promise<string> {
     reader.readAsDataURL(file);
   });
 }
+
+/* ════════════════════════════════════════════════════════════════════
+ * B2C Syndication Policy — 2026-04-30 결정
+ * ════════════════════════════════════════════════════════════════════
+ * 사용자 결정 (확정):
+ *   1. 익명화 — 이중 구조:
+ *      • B2C 공개: "여행 전문가 · {회사} · {국가}" (실명 X)
+ *      • ELLIS 내부: 식별 가능 (실명 + 이메일 + 회사 + 국가)
+ *      → AdminReviewsPage / Risk Dashboard 등 isInternal=true 사용자만
+ *
+ *   2. Featured 선정 — 호텔별 TOP 3 (helpful votes 기준) + helpful 상위
+ *
+ *   3. Featured 추가 보상 — ELLIS 어드민이 결정·변경·수정 (변동)
+ *      → AdminEconomicsPage reviewRewardFormula.featuredBonus
+ *
+ *   4. 인용 라이센스 — CC BY-SA (원문 노출 허용, 동의 시점 명시)
+ *
+ *   5. 거부권 (철회) — ELS 적립된 건은 철회 불가 (lock-in)
+ *      → review.elsAwarded > 0이면 OP 자가 철회 차단
+ *      → ELLIS 측 Takedown만 가능 (단, 부정 사용 적발 시)
+ *
+ *   6. 퇴사/계정 삭제 — 삭제 불가 (B2C/B2B 모두 노출 유지)
+ *      → 단, ELLIS 내부에서 takedown 가능
+ *      → OP 계정 비활성화돼도 리뷰는 영구 보존 (감사 + 신뢰성)
+ */
+
+/** B2C 공개용 익명 표기 — 실명 대신 "여행 전문가" 페르소나 */
+export function displayPersonaForB2C(review: HotelReview): {
+  persona: string;
+  company: string;
+  country: string;
+} {
+  return {
+    persona: "여행 전문가",
+    company: review.reviewerCompany,
+    country: review.reviewerCountry,
+  };
+}
+
+/** ELLIS 내부 식별 정보 — isInternal=true 사용자만 호출 */
+export function displayIdentityForInternal(review: HotelReview): {
+  email: string;
+  name: string;
+  company: string;
+  country: string;
+} {
+  return {
+    email: review.reviewerEmail,
+    name: review.reviewerName,
+    company: review.reviewerCompany,
+    country: review.reviewerCountry,
+  };
+}
+
+/** OP 자가 철회 가능 여부 — ELS 적립된 건은 lock-in */
+export function canSelfWithdraw(review: HotelReview): boolean {
+  if (review.status !== "Approved") return true;       /* Pending/Rejected는 영향 X */
+  return review.elsAwarded === 0;                       /* ELS 받았으면 철회 불가 */
+}
+
+/** ELLIS Takedown 가능 여부 — 항상 가능 (내부 권한) */
+export function canEllisInternalTakedown(): boolean {
+  return true;
+}
+
+/** 호텔별 Featured 리뷰 선정 (TOP 3 by helpful votes, Approved + syndicationConsent only) */
+export function featuredReviewsForHotel(hotelId: string, all: HotelReview[]): HotelReview[] {
+  return all
+    .filter(r => r.hotelId === hotelId && r.status === "Approved" && r.syndicationConsent)
+    .sort((a, b) => b.helpfulVotes - a.helpfulVotes)
+    .slice(0, 3);
+}
+
+/** 신디케이션 라이센스 문구 (CC BY-SA, 동의 다이얼로그에 표시) */
+export const SYNDICATION_LICENSE_TEXT = `
+귀하의 리뷰는 Creative Commons BY-SA 4.0 라이선스 하에
+DOTBIZ 및 OhMyHotel B2C 채널에 게시됩니다.
+
+표기:
+  • B2C 공개 시: "여행 전문가 · {회사명} · {국가}" (실명 비공개)
+  • ELLIS 내부: 식별 가능 (감사·신뢰성 목적)
+
+권리 및 제한:
+  • 적립된 ELS가 있는 리뷰는 철회 불가
+  • 게재 후 OhMyHotel은 60일 내 자동 모더레이션 결과를 통보
+  • OP 계정 비활성화 후에도 리뷰는 보존 (단, ELLIS는 takedown 권한 보유)
+  • 표절·부정 사용 발견 시 ELLIS는 즉시 takedown + ELS 클로백
+
+귀하는 위 조건에 동의하는 경우에만 신디케이션을 활성화할 수 있습니다.
+`.trim();

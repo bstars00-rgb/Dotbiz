@@ -1185,23 +1185,40 @@ export default function HotelDetailPage() {
                   <Card key={r.id} className="p-5">
                     <div className="flex items-start justify-between gap-3 flex-wrap">
                       <div className="flex items-start gap-3">
-                        <div className="h-10 w-10 rounded-full flex items-center justify-center font-bold text-sm" style={{ background: "#FF600022", color: "#FF6000" }}>
-                          {r.reviewerName.slice(0, 2).toUpperCase()}
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <p className="font-semibold text-sm">{r.reviewerName}</p>
-                            {r.verifiedStay && (
-                              <Badge variant="outline" className="text-[9px] text-green-700 border-green-300">
-                                <CheckCircle2 className="h-2.5 w-2.5 mr-0.5" />
-                                Verified stay
-                              </Badge>
-                            )}
-                          </div>
-                          <p className="text-[11px] text-muted-foreground">
-                            {r.reviewerCompany} · {r.reviewerCountry} · {r.stayedAt ? `Stayed ${r.stayedAt}` : "Submitted anonymously"}
-                          </p>
-                        </div>
+                        {/* B2C 정책 (2026-04-30): 외부 사용자에겐 "여행 전문가" 페르소나.
+                         * ELLIS 내부 사용자(isInternal=true)에게만 실명 노출. */}
+                        {(() => {
+                          const isInternal = user?.isInternal;
+                          const displayName = isInternal ? r.reviewerName : "여행 전문가";
+                          const initials = isInternal ? r.reviewerName.slice(0, 2).toUpperCase() : "✈";
+                          return (
+                            <>
+                              <div className="h-10 w-10 rounded-full flex items-center justify-center font-bold text-sm" style={{ background: "#FF600022", color: "#FF6000" }}>
+                                {initials}
+                              </div>
+                              <div>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <p className="font-semibold text-sm">{displayName}</p>
+                                  {isInternal && (
+                                    <Badge variant="outline" className="text-[9px] text-blue-700 border-blue-300">
+                                      🛡️ ELLIS 내부 식별
+                                    </Badge>
+                                  )}
+                                  {r.verifiedStay && (
+                                    <Badge variant="outline" className="text-[9px] text-green-700 border-green-300">
+                                      <CheckCircle2 className="h-2.5 w-2.5 mr-0.5" />
+                                      Verified stay
+                                    </Badge>
+                                  )}
+                                </div>
+                                <p className="text-[11px] text-muted-foreground">
+                                  {r.reviewerCompany} · {r.reviewerCountry} · {r.stayedAt ? `Stayed ${r.stayedAt}` : "Submitted anonymously"}
+                                  {isInternal && <span className="ml-1 text-blue-600 font-mono text-[10px]">({r.reviewerEmail})</span>}
+                                </p>
+                              </div>
+                            </>
+                          );
+                        })()}
                       </div>
                       <div className="flex items-center gap-1">
                         {[1, 2, 3, 4, 5].map(n => (
@@ -1376,15 +1393,34 @@ export default function HotelDetailPage() {
             </div>
 
             <div>
-              <h4 className="font-bold mb-1">4. Your rights</h4>
+              <h4 className="font-bold mb-1">4. Your rights (정책 v2 — 2026-04-30 갱신)</h4>
               <ul className="text-xs space-y-0.5 pl-4 list-disc">
-                <li><strong>Edit</strong>: Minor corrections allowed within 30 days of approval.</li>
-                <li><strong>Delete</strong>: You may request review removal anytime. Upon deletion,
-                  any related ELS reward may be reclaimed (clawback).</li>
-                <li><strong>Takedown</strong>: DOTBIZ may remove reviews for policy violations, legal
-                  requests, or hotel disputes with documented evidence. You will be notified with reason.</li>
-                <li><strong>Access</strong>: You can download all your reviews as CSV from My Account.</li>
+                <li><strong>Edit</strong>: 승인 후 30일 내 사소한 수정 가능.</li>
+                <li><strong>Self-Withdraw (자가 철회)</strong>: <span className="text-red-600 font-medium">ELS가 적립된 리뷰는 철회 불가 (lock-in)</span>.
+                  ELS 미적립(Pending/Rejected) 리뷰는 언제든 삭제 가능.</li>
+                <li><strong>퇴사 / 계정 비활성화</strong>: 리뷰는 영구 보존. OhMyHotel B2C/B2B에 계속 노출되며
+                  자가 삭제 불가. 단 OhMyHotel(ELLIS)은 takedown 권한을 보유.</li>
+                <li><strong>Takedown</strong>: OhMyHotel은 정책 위반/법적 요청/호텔 분쟁/부정 사용 시
+                  takedown 가능. 사유는 이메일로 통보.</li>
+                <li><strong>Access</strong>: My Account에서 본인 리뷰 CSV 다운로드 가능.</li>
               </ul>
+            </div>
+
+            <div>
+              <h4 className="font-bold mb-1">4-A. 익명화 정책 (B2C 노출 시)</h4>
+              <p className="text-xs leading-relaxed">
+                B2C 공개 시 작성자 표기는 <strong>"여행 전문가 · {"{회사명}"} · {"{국가}"}"</strong>로 익명화됩니다.
+                실명·이메일은 일반 소비자에게 노출되지 않습니다. 단, OhMyHotel(ELLIS) 내부 모더레이션·감사 목적으로
+                작성자 식별 정보는 보존됩니다.
+              </p>
+            </div>
+
+            <div>
+              <h4 className="font-bold mb-1">4-B. 인용 라이선스</h4>
+              <p className="text-xs leading-relaxed">
+                귀하의 리뷰는 <strong>Creative Commons BY-SA 4.0</strong> 라이선스 하에 게재되며,
+                OhMyHotel B2C 채널에 원문 그대로 노출될 수 있습니다.
+              </p>
             </div>
 
             <div>

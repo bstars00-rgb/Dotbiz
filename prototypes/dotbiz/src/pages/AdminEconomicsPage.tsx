@@ -85,6 +85,7 @@ interface LiveSettings {
     photo: number;
     first: number;
     monthlyCap: number;
+    featuredBonus: number;  /* B2C 신디케이션 결정 #3 — Featured 선정 시 추가 ELS, 변동 가능 */
   };
   elsNonTransferable: boolean;
   elsExpiryMonths: number;
@@ -128,7 +129,7 @@ export default function AdminEconomicsPage() {
     hotelBoosts: HOTEL_POINTS_BOOSTS.map(b => ({ ...b })),
     promoMaxMultiplier: 1.25,
     stampBonuses: { ...STAMP_BONUS_BY_RARITY },
-    reviewRewardFormula: { base: 3, quality: 2, photo: 2, first: 5, monthlyCap: 5 },
+    reviewRewardFormula: { base: 3, quality: 2, photo: 2, first: 5, monthlyCap: 5, featuredBonus: 5 },
     elsNonTransferable: true,
     elsExpiryMonths: 24,
     tierPolicy: {
