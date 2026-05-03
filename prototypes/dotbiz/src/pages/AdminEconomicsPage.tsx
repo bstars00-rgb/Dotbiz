@@ -100,6 +100,15 @@ interface LiveSettings {
   };
   /* 상품별 minTier 매핑 — 마케팅팀이 운용. 키는 product.id */
   tierLocks: Record<string, "Bronze" | "Silver" | "Gold" | "Platinum" | "Diamond" | "none">;
+  /* Tickets SLA 정책 — 변동 가능, 어드민 튜닝 */
+  ticketsSla: {
+    enabled: boolean;
+    highHours: number;
+    mediumHours: number;
+    lowHours: number;
+    autoEscalateHours: number;
+    reopenAllowed: boolean;
+  };
 }
 
 export default function AdminEconomicsPage() {
@@ -133,6 +142,17 @@ export default function AdminEconomicsPage() {
       acc[p.id] = (p.minTier || "none") as LiveSettings["tierLocks"][string];
       return acc;
     }, {} as LiveSettings["tierLocks"]),
+    /* ── Tickets SLA 정책 (2026-04-30) — 변동 가능 ──
+     * 우선순위별 응답/해결 SLA. 추후 CS 오케스트라 플랫폼이 이 룰 기반으로 자동화.
+     * 단위: 시간(hours). enabled=false면 SLA 추적 비활성. */
+    ticketsSla: {
+      enabled: true,
+      highHours: 4,
+      mediumHours: 24,
+      lowHours: 72,
+      autoEscalateHours: 6,  /* overdue + N시간 후 매니저 알림 */
+      reopenAllowed: false,  /* 종결 후 재오픈 — 결정으로 false */
+    },
   });
 
   const [sessionChanges, setSessionChanges] = useState<ParameterChange[]>([]);
@@ -1140,6 +1160,9 @@ function PolicyTab({
       {/* ── Shop Tier 잠금 매트릭스 ── */}
       <TierLockMatrix settings={settings} setSettings={setSettings} recordChange={recordChange} />
 
+      {/* ── Tickets SLA 정책 ── */}
+      <TicketsSlaEditor settings={settings} setSettings={setSettings} recordChange={recordChange} />
+
       {/* ── 자동 모더레이션 규칙 설정 (신규) ── */}
       <Card className="p-5" style={{ borderLeft: `4px solid #FF6000` }}>
         <div className="flex items-center justify-between gap-3 mb-3">
@@ -2016,6 +2039,186 @@ function TierLockMatrix({
       <p className="text-[10px] text-muted-foreground mt-2">
         * 변경은 즉시 모든 OP의 Shop 화면에 반영. 잠긴 상품은 카드는 보이되 "🔒 Unlock at X" 표시.
       </p>
+    </Card>
+  );
+}
+
+
+/* ═════════════════════════════════════════════════
+ * Tickets SLA Editor — 결정 (Tickets 점검)
+ *
+ * 우선순위별 응답/해결 SLA + 자동 escalation 시간.
+ * 변동 가능 (고정 X) — CS 오케스트라 플랫폼이 이 값 기반 자동화.
+ * ═════════════════════════════════════════════════ */
+function TicketsSlaEditor({
+  settings, setSettings, recordChange,
+}: {
+  settings: LiveSettings;
+  setSettings: React.Dispatch<React.SetStateAction<LiveSettings>>;
+  recordChange: (key: string, label: string, before: string, after: string) => void;
+}) {
+  const sla = settings.ticketsSla;
+
+  const update = <K extends keyof LiveSettings["ticketsSla"]>(
+    key: K, value: LiveSettings["ticketsSla"][K], label: string,
+  ) => {
+    const before = String(sla[key]);
+    const after = String(value);
+    setSettings(s => ({ ...s, ticketsSla: { ...s.ticketsSla, [key]: value } }));
+    recordChange(`TICKETS_SLA_${String(key).toUpperCase()}`, label, before, after);
+  };
+
+  return (
+    <Card className="p-5" style={{ borderLeft: "4px solid #DC2626" }}>
+      <div className="flex items-center justify-between mb-3">
+        <div>
+          <h3 className="font-bold flex items-center gap-2">
+            🎫 Tickets SLA 정책 — 변동 가능
+          </h3>
+          <p className="text-xs text-muted-foreground mt-1">
+            우선순위별 SLA · 자동 에스컬레이션 · 재오픈 허용 여부.
+            <br />
+            CS 오케스트라 플랫폼이 이 룰 기반으로 자동화 (추후 별도 기획).
+          </p>
+        </div>
+        <label className="flex items-center gap-2 text-xs cursor-pointer">
+          <input type="checkbox" checked={sla.enabled} onChange={e => update("enabled", e.target.checked, "SLA 추적 활성화")} />
+          <span>SLA 추적 {sla.enabled ? "활성" : "비활성"}</span>
+        </label>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* High */}
+        <div className="border rounded p-3 bg-red-50 dark:bg-red-950/20 border-l-4 border-l-red-500">
+          <div className="flex items-center justify-between mb-2">
+            <Badge variant="destructive" className="text-[10px]">High</Badge>
+            <span className="text-[10px] text-muted-foreground">긴급 처리</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Input
+              type="number" min={1} max={72} step={1}
+              value={sla.highHours}
+              onChange={e => update("highHours", Math.max(1, Number(e.target.value) || 4), "High 우선순위 SLA")}
+              disabled={!sla.enabled}
+              className="text-sm font-mono"
+            />
+            <span className="text-xs whitespace-nowrap">시간</span>
+          </div>
+          <div className="grid grid-cols-3 gap-1 mt-2 text-[10px]">
+            {[2, 4, 8].map(v => (
+              <button
+                key={v}
+                disabled={!sla.enabled}
+                onClick={() => update("highHours", v, "High 우선순위 SLA")}
+                className={`border rounded px-1 py-1 ${sla.highHours === v ? "border-red-500 bg-red-100 dark:bg-red-900/30 font-bold" : "border-border hover:bg-muted"}`}
+              >
+                {v}h
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Medium */}
+        <div className="border rounded p-3 bg-amber-50 dark:bg-amber-950/20 border-l-4 border-l-amber-500">
+          <div className="flex items-center justify-between mb-2">
+            <Badge variant="secondary" className="text-[10px]">Medium</Badge>
+            <span className="text-[10px] text-muted-foreground">표준</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Input
+              type="number" min={4} max={168} step={1}
+              value={sla.mediumHours}
+              onChange={e => update("mediumHours", Math.max(4, Number(e.target.value) || 24), "Medium 우선순위 SLA")}
+              disabled={!sla.enabled}
+              className="text-sm font-mono"
+            />
+            <span className="text-xs whitespace-nowrap">시간</span>
+          </div>
+          <div className="grid grid-cols-3 gap-1 mt-2 text-[10px]">
+            {[8, 24, 48].map(v => (
+              <button
+                key={v}
+                disabled={!sla.enabled}
+                onClick={() => update("mediumHours", v, "Medium 우선순위 SLA")}
+                className={`border rounded px-1 py-1 ${sla.mediumHours === v ? "border-amber-500 bg-amber-100 dark:bg-amber-900/30 font-bold" : "border-border hover:bg-muted"}`}
+              >
+                {v}h
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Low */}
+        <div className="border rounded p-3 bg-blue-50 dark:bg-blue-950/20 border-l-4 border-l-blue-500">
+          <div className="flex items-center justify-between mb-2">
+            <Badge variant="outline" className="text-[10px]">Low</Badge>
+            <span className="text-[10px] text-muted-foreground">일반</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Input
+              type="number" min={24} max={336} step={1}
+              value={sla.lowHours}
+              onChange={e => update("lowHours", Math.max(24, Number(e.target.value) || 72), "Low 우선순위 SLA")}
+              disabled={!sla.enabled}
+              className="text-sm font-mono"
+            />
+            <span className="text-xs whitespace-nowrap">시간</span>
+          </div>
+          <div className="grid grid-cols-3 gap-1 mt-2 text-[10px]">
+            {[48, 72, 168].map(v => (
+              <button
+                key={v}
+                disabled={!sla.enabled}
+                onClick={() => update("lowHours", v, "Low 우선순위 SLA")}
+                className={`border rounded px-1 py-1 ${sla.lowHours === v ? "border-blue-500 bg-blue-100 dark:bg-blue-900/30 font-bold" : "border-border hover:bg-muted"}`}
+              >
+                {v}h
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Escalation + Reopen */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4">
+        <div className="border rounded p-3 bg-muted/30">
+          <p className="text-sm font-semibold mb-1">자동 에스컬레이션</p>
+          <p className="text-[11px] text-muted-foreground mb-2">
+            SLA 초과 후 N시간 → 매니저에게 인앱 알림.
+          </p>
+          <div className="flex items-center gap-2">
+            <Input
+              type="number" min={1} max={48} step={1}
+              value={sla.autoEscalateHours}
+              onChange={e => update("autoEscalateHours", Math.max(1, Number(e.target.value) || 6), "Escalation hours")}
+              disabled={!sla.enabled}
+              className="text-sm font-mono w-32"
+            />
+            <span className="text-xs">시간 후 알림</span>
+          </div>
+        </div>
+        <div className="border rounded p-3 bg-muted/30">
+          <p className="text-sm font-semibold mb-1">종결 티켓 재오픈</p>
+          <p className="text-[11px] text-muted-foreground mb-2">
+            Completed/Rejected 후 다시 처리 허용 여부. 결정: 불가.
+          </p>
+          <label className="flex items-center gap-2 text-xs cursor-pointer">
+            <input
+              type="checkbox"
+              checked={sla.reopenAllowed}
+              onChange={e => update("reopenAllowed", e.target.checked, "재오픈 허용")}
+            />
+            <span>재오픈 허용 {sla.reopenAllowed ? "✅" : "🔒 불가 (권장)"}</span>
+          </label>
+        </div>
+      </div>
+
+      <div className="mt-4 p-3 rounded border-l-4 border-amber-500 bg-amber-50 dark:bg-amber-950/20">
+        <p className="text-[11px] text-amber-900 dark:text-amber-200">
+          🤖 <strong>CS 오케스트라 플랫폼 (추후):</strong> 반복 패턴은 자동 처리, 복잡 케이스만 OP에 라우팅.
+          이 SLA 값이 자동화 룰의 입력으로 사용될 예정.
+        </p>
+      </div>
     </Card>
   );
 }

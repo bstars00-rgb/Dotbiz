@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { useSearchParams, useNavigate } from "react-router";
-import { Search, Plus, Clock, CheckCircle2, AlertTriangle, XCircle, Bot, Send, Sparkles } from "lucide-react";
+import { Search, Plus, Clock, CheckCircle2, AlertTriangle, XCircle, Bot, Send, Sparkles, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -9,11 +9,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { Ticket } from "@/mocks/tickets";
 import { useI18n } from "@/contexts/I18nContext";
 import { useTickets } from "@/contexts/TicketsContext";
+import { useAuth } from "@/contexts/AuthContext";
 import CreateTicketDialog from "@/components/CreateTicketDialog";
 import { toast } from "sonner";
 
@@ -44,8 +46,27 @@ function isOverdue(ticket: Ticket): boolean {
 export default function TicketManagementPage() {
   const { t } = useI18n();
   const { tickets, updateStatus, addTrace } = useTickets();
+  const { user } = useAuth();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+
+  /* ── 권한 정책 (2026-04-30 결정) ──
+   * - OP: 모든 티켓 생성/조회/처리 가능 (회사의 운영 담당자)
+   * - Master: 조회만 (생성/처리 X — 권한 분리, 책임 명확화)
+   * - Accounting: Settlement Dispute 티켓만 조회 가능 (다른 type은 숨김)
+   * - EllisAdmin: 내부 운영 — 조회 가능 (assignment는 추후 ELLIS 분리 시)
+   *
+   * 솔로 마스터 회사: OP 1명 등록 필수. 미등록 시 페이지 진입은 가능하나
+   * 티켓 생성 불가 + OP 등록 유도 배너 노출.
+   */
+  const role = user?.role;
+  const isOP = role === "OP";
+  const isMaster = role === "Master";
+  const isAccounting = role === "Accounting";
+  const isEllisAdmin = role === "EllisAdmin";
+  const canCreate = isOP;
+  const canProcess = isOP || isEllisAdmin;       /* 처리(상태 변경/답변)는 OP + 내부 */
+  const canView = isOP || isMaster || isAccounting || isEllisAdmin;
   const [statusTab, setStatusTab] = useState("All");
   const [typeFilter, setTypeFilter] = useState("All");
   const [searchQuery, setSearchQuery] = useState(searchParams.get("booking") || "");
@@ -82,6 +103,8 @@ export default function TicketManagementPage() {
 
   const filtered = useMemo(() => {
     let result = [...tickets];
+    /* Accounting은 Settlement 분쟁 티켓만 보임 (결정 #4) */
+    if (isAccounting) result = result.filter(t => t.ticketType === "Invoice Dispute");
     if (statusTab !== "All") result = result.filter(t => t.status === statusTab);
     if (typeFilter !== "All") result = result.filter(t => t.ticketType === typeFilter);
     if (searchQuery) {
@@ -89,7 +112,7 @@ export default function TicketManagementPage() {
       result = result.filter(t => t.id.toLowerCase().includes(q) || t.bookingId.toLowerCase().includes(q) || t.hotelName.toLowerCase().includes(q) || t.guestName.toLowerCase().includes(q));
     }
     return result;
-  }, [tickets, statusTab, typeFilter, searchQuery]);
+  }, [tickets, statusTab, typeFilter, searchQuery, isAccounting]);
 
   const counts = {
     All: tickets.length,
@@ -102,19 +125,76 @@ export default function TicketManagementPage() {
 
   const handleStatusChange = (status: Ticket["status"]) => {
     if (!selectedTicket) return;
+    if (!canProcess) {
+      toast.error("처리 권한 없음", { description: "OP 계정만 티켓 상태를 변경할 수 있습니다." });
+      return;
+    }
     updateStatus(selectedTicket.id, status, `Status changed to ${status} via agent action`, "Agent");
     toast.success(`Ticket ${selectedTicket.id} → ${status}`);
   };
 
   const handleReply = () => {
     if (!selectedTicket || !replyText.trim()) return;
+    if (!canProcess) {
+      toast.error("답변 권한 없음", { description: "OP 계정만 답변할 수 있습니다." });
+      return;
+    }
     addTrace(selectedTicket.id, "Agent Reply", replyText.trim(), "Agent");
     toast.success("Reply sent");
     setReplyText("");
   };
 
+  /* 권한 없는 role은 진입 차단 (현재 모든 인증 role 허용이지만 안전망) */
+  if (!canView) {
+    return (
+      <div className="p-6">
+        <Alert>
+          <Lock className="h-4 w-4" />
+          <AlertTitle>접근 권한 없음</AlertTitle>
+          <AlertDescription>티켓 시스템에 접근할 수 있는 role이 아닙니다.</AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
+
   return (
     <div className="p-6 space-y-4">
+      {/* ── 권한 정책 배너 (결정) ──
+       * Master에게는 "조회만 가능" / Accounting에는 "Settlement 분쟁 한정" 명시. */}
+      {isMaster && (
+        <Alert className="border-blue-200 bg-blue-50 dark:bg-blue-950/20">
+          <Lock className="h-4 w-4 text-blue-600" />
+          <AlertTitle className="text-sm">조회 전용</AlertTitle>
+          <AlertDescription className="text-xs">
+            Master 계정은 티켓을 <strong>조회만</strong> 할 수 있습니다.
+            티켓 생성/처리는 OP 계정의 권한입니다. 솔로 마스터 회사라도
+            Master Account 페이지에서 OP 계정을 등록한 후 OP로 로그인해 티켓을 생성하세요.
+          </AlertDescription>
+        </Alert>
+      )}
+      {isAccounting && (
+        <Alert className="border-purple-200 bg-purple-50 dark:bg-purple-950/20">
+          <Lock className="h-4 w-4 text-purple-600" />
+          <AlertTitle className="text-sm">Settlement 분쟁 전용</AlertTitle>
+          <AlertDescription className="text-xs">
+            Accounting 계정은 <strong>Invoice Dispute 티켓만</strong> 조회·처리할 수 있습니다.
+            다른 카테고리(취소/날짜 변경/특수 요청 등)는 OP가 처리합니다.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* CS 자동화 placeholder — 추후 별도 오케스트라 플랫폼 도입 예정 */}
+      {(isOP || isEllisAdmin) && (
+        <Alert className="border-amber-200/60 bg-amber-50/60 dark:bg-amber-950/10">
+          <Bot className="h-4 w-4 text-amber-700" />
+          <AlertTitle className="text-sm">🤖 CS 자동화 — 추후 별도 오케스트라 플랫폼</AlertTitle>
+          <AlertDescription className="text-xs">
+            반복 패턴(취소 룰 내 / 단순 문의 / 표준 답변)은 자동 처리, 복잡 케이스만 OP에 라우팅.
+            SLA/라우팅 규칙은 어드민 정책에서 변동 가능 (고정 X).
+          </AlertDescription>
+        </Alert>
+      )}
+
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <h1 className="text-2xl font-bold">{t("page.tickets")}</h1>
@@ -122,9 +202,15 @@ export default function TicketManagementPage() {
             <Badge variant="destructive" className="text-xs">{overdueCount} Overdue</Badge>
           )}
         </div>
-        <Button onClick={() => setCreateOpen(true)} style={{ background: "#FF6000" }}>
-          <Plus className="h-4 w-4 mr-1" />New Ticket
-        </Button>
+        {canCreate ? (
+          <Button onClick={() => setCreateOpen(true)} style={{ background: "#FF6000" }}>
+            <Plus className="h-4 w-4 mr-1" />New Ticket
+          </Button>
+        ) : (
+          <Button disabled variant="outline" title="OP 계정만 티켓 생성 가능">
+            <Lock className="h-4 w-4 mr-1" />OP only
+          </Button>
+        )}
       </div>
 
       {/* Summary Cards */}
@@ -336,7 +422,19 @@ export default function TicketManagementPage() {
                         </Button>
                       )}
                       {(selectedTicket.status === "Completed" || selectedTicket.status === "Rejected") && (
-                        <p className="text-xs text-muted-foreground italic">Ticket is closed. No further actions available.</p>
+                        <div className="space-y-1.5">
+                          <p className="text-xs font-medium text-muted-foreground">
+                            🔒 이 티켓은 종결되었습니다. 재오픈 불가.
+                          </p>
+                          <p className="text-[11px] text-muted-foreground">
+                            추가 문의가 있다면 새 티켓을 생성하세요. 종결된 티켓의 traces는 감사 로그용으로 영구 보존됩니다.
+                          </p>
+                          {canCreate && (
+                            <Button size="sm" variant="outline" className="text-xs" onClick={() => { setSelectedTicket(null); setCreateOpen(true); }}>
+                              <Plus className="h-3 w-3 mr-1" />새 티켓 생성
+                            </Button>
+                          )}
+                        </div>
                       )}
                     </div>
                   </Card>

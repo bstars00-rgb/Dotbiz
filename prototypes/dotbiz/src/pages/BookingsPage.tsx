@@ -975,17 +975,36 @@ export default function BookingsPage() {
                 </Table>
               </Card>
 
-              {/* Bottom Actions (DIDA style) */}
+              {/* Bottom Actions (DIDA style) ──
+               * 결정: 캔슬 룰 범위 내 = 즉시 취소 (티켓 X) / 룰 밖 = 취소 불가, 티켓도 불가.
+               * 부분 취소 우회 티켓 옵션 제거. Non-refundable·deadline 경과는 full charge. */}
               <div className="flex items-center justify-between pt-2">
-                <p className="text-xs text-muted-foreground">Friendly reminder: If your itinerary changes and you need to apply for partial cancellation, please consult our customer service team by <button className="text-primary underline" onClick={() => { setTicketBooking(selectedBooking); setTicketOpen(true); setSelectedBooking(null); }}>submitting a ticket</button>.</p>
+                <p className="text-xs text-muted-foreground">
+                  {(() => {
+                    const isFreeCancel = new Date(selectedBooking.cancelDeadline) > new Date();
+                    const isNonRefundable = selectedBooking.cancellationPolicy === "non_refundable";
+                    if (isNonRefundable) return "🔒 Non-refundable: 취소 불가. 일반 문의는 OP가 별도 티켓을 생성하세요.";
+                    if (isFreeCancel)    return "✅ Free cancel 가능: 데드라인 내 즉시 취소 (티켓 불필요).";
+                    return "⏰ 데드라인 경과: 취소 불가. 부분 환불을 위한 티켓도 발행할 수 없습니다.";
+                  })()}
+                </p>
                 <div className="flex gap-2 shrink-0 ml-4">
-                  {selectedBooking.bookingStatus !== "Cancelled" && (
-                    <Button variant="outline" size="sm" className="border-red-300 text-red-500 hover:bg-red-50" onClick={() => {
-                      if (new Date(selectedBooking.cancelDeadline) > new Date()) setCancelOpen(true);
-                      else toast.error("Cancellation deadline has passed.", { description: "Full charge will be applied." });
-                    }}>Cancel</Button>
-                  )}
-                  <Button size="sm" style={{ background: "#FF6000" }} onClick={() => { setTicketBooking(selectedBooking); setTicketOpen(true); setSelectedBooking(null); }}>Submit Ticket</Button>
+                  {selectedBooking.bookingStatus !== "Cancelled" && (() => {
+                    const isFreeCancel = new Date(selectedBooking.cancelDeadline) > new Date();
+                    const isNonRefundable = selectedBooking.cancellationPolicy === "non_refundable";
+                    const canCancel = isFreeCancel && !isNonRefundable;
+                    return (
+                      <Button
+                        variant="outline" size="sm"
+                        disabled={!canCancel}
+                        className={canCancel ? "border-red-300 text-red-500 hover:bg-red-50" : ""}
+                        onClick={() => canCancel && setCancelOpen(true)}
+                        title={!canCancel ? "취소 룰을 벗어난 예약은 취소 불가" : undefined}
+                      >
+                        {canCancel ? "Cancel" : "🔒 Cancel Locked"}
+                      </Button>
+                    );
+                  })()}
                 </div>
               </div>
             </div>
