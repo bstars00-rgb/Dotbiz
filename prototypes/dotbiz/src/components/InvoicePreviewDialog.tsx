@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useI18n } from "@/contexts/I18nContext";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -89,7 +90,9 @@ const L: Record<string, Record<Lang, string>> = {
 };
 
 export default function InvoicePreviewDialog({ open, onOpenChange, invoice, customer }: Props) {
-  const [lang, setLang] = useState<Lang>("EN");
+  /* Invoice 언어 기본값 = 사용자 메인 언어 (i18n locale) — 결정 #4 */
+  const { locale: i18nLocale } = useI18n();
+  const [lang, setLang] = useState<Lang>((i18nLocale as Lang) || "EN");
   const [showLogo, setShowLogo] = useState(true);
   const [showBankInfo, setShowBankInfo] = useState(true);
   const [emailOpen, setEmailOpen] = useState(false);

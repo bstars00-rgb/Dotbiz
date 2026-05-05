@@ -21,6 +21,7 @@ import { currentCompany } from "@/mocks/companies";
 import { voucherSettings } from "@/mocks/clientManagement";
 import CreateTicketDialog from "@/components/CreateTicketDialog";
 import { useAuth } from "@/contexts/AuthContext";
+import { useI18n } from "@/contexts/I18nContext";
 import { searchCountries } from "@/lib/countries";
 import { downloadCSV, downloadHTML, addExportHistory, getExportHistory, redownloadExport, timestamp, type ExportRecord } from "@/lib/download";
 // DateRangePicker replaced with native date inputs for compact DIDA-style filter
@@ -252,8 +253,10 @@ export default function BookingsPage() {
   const [voucherOpen, setVoucherOpen] = useState(false);
   const [voucherShowLogo, setVoucherShowLogo] = useState(false);
   const [voucherShowClientLogo, setVoucherShowClientLogo] = useState(true);
-  const [voucherShowQR, setVoucherShowQR] = useState(false);
-  const [voucherLang, setVoucherLang] = useState<"EN" | "KO" | "JA" | "ZH" | "VI">("EN");
+  /* Voucher QR 기능 제거 (2026-05-04 결정) — 호텔 체크인 흐름에 불필요. */
+  /* Voucher 언어 기본값 = 사용자 메인 언어 (i18n locale) — 결정 #4 */
+  const { locale: i18nLocale } = useI18n();
+  const [voucherLang, setVoucherLang] = useState<"EN" | "KO" | "JA" | "ZH" | "VI">(i18nLocale as "EN" | "KO" | "JA" | "ZH" | "VI" || "EN");
   const [ticketOpen, setTicketOpen] = useState(false);
   const [ticketBooking, setTicketBooking] = useState<typeof bookings[0] | null>(null);
   const [rowsPerPage, setRowsPerPage] = useState(20);
@@ -1144,10 +1147,6 @@ export default function BookingsPage() {
               <Checkbox checked={voucherShowLogo} onCheckedChange={c => setVoucherShowLogo(!!c)} />
               Show OhMyHotel info
             </label>
-            <label className="flex items-center gap-2 text-sm cursor-pointer">
-              <Checkbox checked={voucherShowQR} onCheckedChange={c => setVoucherShowQR(!!c)} />
-              Show hotel QR code
-            </label>
             <div className="flex items-center gap-2 text-sm">
               <span className="text-muted-foreground">Language:</span>
               {(["EN", "KO", "JA", "ZH", "VI"] as const).map(lang => (
@@ -1224,16 +1223,6 @@ export default function BookingsPage() {
                 {/* Title */}
                 <div className="mb-6 flex items-center justify-between">
                   <h1 className="text-3xl font-bold" style={{ color: "#FF6000" }}>{t("title")}</h1>
-                  {voucherShowQR && (
-                    <div className="text-center">
-                      <div className="w-20 h-20 bg-white border-2 border-slate-900 p-1.5">
-                        <div className="w-full h-full grid grid-cols-8 gap-[1px]">
-                          {Array.from({ length: 64 }).map((_, i) => (<div key={i} className={Math.random() > 0.5 ? "bg-slate-900" : "bg-white"} />))}
-                        </div>
-                      </div>
-                      <p className="text-[9px] text-slate-600 mt-1">Scan for more</p>
-                    </div>
-                  )}
                 </div>
 
                 {/* Booking Information */}

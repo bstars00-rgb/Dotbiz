@@ -1,4 +1,33 @@
-/* Browser-safe file download utilities */
+/* Browser-safe file download utilities
+ *
+ * ════════════════════════════════════════════════════════════════════
+ * Voucher / Invoice 정책 (2026-05-04 결정 — 8가지 점검 영역 마무리)
+ * ════════════════════════════════════════════════════════════════════
+ *
+ * #1 Voucher QR — ❌ 미제공 (호텔 체크인 흐름에 불필요, 제거됨)
+ * #2 Invoice 보안 — 시각적 seal + 서명 (현 상태 유지, PDF 암호화 X)
+ * #3 보존 정책 — 발급 후 7년 (법정) + 자동 아카이빙
+ *    · 회계법: 한국·일본·중국·베트남·싱가포르 모두 7년 표준
+ *    · 7년 경과 후 ELLIS 백오피스에서 read-only 아카이브로 이전
+ *    · 고객 요청 삭제 불가 (회계 감사 위반)
+ * #4 다국어 기본값 — 사용자 i18n locale 자동 적용
+ *    · BookingsPage voucherLang / InvoicePreviewDialog lang
+ *    · 사용자가 언어 변경 시 그대로 따라감
+ * #5 자동 발송 — ELLIS(DOTBIZ 백엔드)에서 SMTP/SES로 발송
+ *    · Voucher: 체크인 D-1 자동
+ *    · Invoice: 정산 사이클 도래 시 자동
+ *    · from: noreply@ohmyhotel.com / reply-to: 회사별 설정
+ *    · 발송 기록은 ELLIS DB에 영구 저장 (audit)
+ *    · 고객사 Master가 ClientManagement에서 on/off / 받는 사람 관리
+ *    · 프로토타입에선 미구현 (정책만 명문화)
+ * #6 첨부 형식 — Invoice = PDF + CSV (booking breakdown)
+ *    · CSV는 회계팀 import용 booking → amount → account mapping
+ * #7 URL 보안 — 로그인 + RBAC
+ *    · 현재: Blob URL 일회용 (브라우저 안전)
+ *    · 서버 다운로드 URL 도입 시: 로그인 + customerCompanyId 검증
+ *    · 본인 회사 invoice만 다운로드 가능 (cross-tenant 차단)
+ *    · Master / Accounting / EllisAdmin / EllisOP만 접근
+ */
 
 function escapeCsv(v: unknown): string {
   const s = v == null ? "" : String(v);
