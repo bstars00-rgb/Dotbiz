@@ -265,6 +265,11 @@ export default function BookingsPage() {
   /* ── Filters ── */
   const [filterDateType, setFilterDateType] = useState(searchParams.get("dateType") || "Booking");
   const [filterBookingStatus, setFilterBookingStatus] = useState(searchParams.get("status") || "All");
+  /* API Integration 점검 결정 (2026-05-04): API 파트너는 별도 시스템·SLA 없이
+   * BookingsPage의 Source 필터로 자기 API 예약만 확인 가능. */
+  const [filterBookingSource, setFilterBookingSource] = useState<"All" | "API Integration" | "DOTBIZ Direct">(
+    (searchParams.get("source") as "All" | "API Integration" | "DOTBIZ Direct") || "All"
+  );
 
   /* URL param quick filters: free_cancel_24h, free_cancel_3d, upcoming_24h, upcoming_3d */
   const quickFilter = searchParams.get("filter") || "";
@@ -361,6 +366,10 @@ export default function BookingsPage() {
   /* ── Filtering ── */
   const filtered = useMemo(() => {
     let result = [...localBookings];
+    /* Source 필터 — instant chip (Search 버튼과 무관하게 즉시 적용) */
+    if (filterBookingSource !== "All") {
+      result = result.filter(b => b.bookingSource === filterBookingSource);
+    }
     const now = new Date();
     const in24h = new Date(now.getTime() + 24 * 60 * 60 * 1000);
     const in3d = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
@@ -424,7 +433,7 @@ export default function BookingsPage() {
       if (appliedFilters.groupId) result = result.filter(b => b.groupBookingId.toLowerCase().includes(appliedFilters.groupId.toLowerCase()));
     }
     return result;
-  }, [localBookings, quickFilter, appliedFilters]);
+  }, [localBookings, quickFilter, appliedFilters, filterBookingSource]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / rowsPerPage));
   const paginated = filtered.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
@@ -450,6 +459,40 @@ export default function BookingsPage() {
           </Badge>
         )}
       </div>
+
+      {/* ── Source 필터 chip — API 점검 결정 (2026-05-04) ──
+       * API 파트너가 자기 API 예약만 확인하는 용도.
+       * 별도 API 전용 페이지/SLA/webhook 제공 X — BookingsPage 단일 통로. */}
+      {(() => {
+        const apiCount = localBookings.filter(b => b.bookingSource === "API Integration").length;
+        const uiCount  = localBookings.filter(b => b.bookingSource === "DOTBIZ Direct").length;
+        if (apiCount === 0 && uiCount === 0) return null;
+        const chips: Array<{ key: "All" | "API Integration" | "DOTBIZ Direct"; label: string; count: number }> = [
+          { key: "All", label: "All Sources", count: localBookings.length },
+          { key: "DOTBIZ Direct", label: "🖥️ UI Booking", count: uiCount },
+          { key: "API Integration", label: "🔌 API Integration", count: apiCount },
+        ];
+        return (
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="text-xs text-muted-foreground">Source:</span>
+            {chips.map(c => (
+              <button
+                key={c.key}
+                onClick={() => setFilterBookingSource(c.key)}
+                className={`px-2.5 py-1 rounded-full text-[11px] border transition-all ${
+                  filterBookingSource === c.key
+                    ? c.key === "API Integration" ? "border-purple-500 bg-purple-50 dark:bg-purple-950/30 font-bold text-purple-700"
+                    : c.key === "DOTBIZ Direct"   ? "border-[#FF6000] bg-[#FF6000]/10 font-bold text-[#FF6000]"
+                    : "border-foreground bg-foreground/5 font-bold"
+                    : "border-border hover:bg-muted"
+                }`}
+              >
+                {c.label} <span className="ml-0.5 text-[9px] opacity-70">({c.count})</span>
+              </button>
+            ))}
+          </div>
+        );
+      })()}
 
       {/* ── Quick stats: Free Cancellation / Upcoming Bookings ──
        * 2026-04-30: FindHotelPage에서 이전. 일일 운영 페이지(Bookings)에 더 적합. */}
