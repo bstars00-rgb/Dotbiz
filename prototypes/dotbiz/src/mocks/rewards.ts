@@ -1068,13 +1068,17 @@ export const MIN_REDEEM_ELS = 10;
 
 /** 호텔 부스트 최대 배율 (Hard Cap, 2026-05-06 신규).
  *
- * 마진 7% 가정에서 안전한 한계:
- *   • Diamond (1.5×) + boost 1.5× = 1.125% 적립 (마진의 16.07% 환원)
- *   • 실질 마진 5.87% 유지 (최악 케이스에서도 break-even 안전)
+ * 마진 7% 가정에서 보수적 한계:
+ *   • Diamond (1.5×) + boost 1.25× = 0.9375% 적립 (마진의 13.4% 환원)
+ *   • 실질 마진 6.06% 유지 (안전 영역 + 마케팅 예산 여유)
  *
  * 단일 호텔 캠페인의 boost는 절대 이 값을 초과하지 못한다.
- * AdminEconomicsPage에서 튜닝 가능. 변경 시 POLICY_CHANGELOG 기록. */
-export const MAX_HOTEL_BOOST = 1.5;
+ * AdminEconomicsPage에서 튜닝 가능. 변경 시 POLICY_CHANGELOG 기록.
+ *
+ * 변경 이력:
+ *   2026-05-06 최초 도입: 1.5×
+ *   2026-05-06 보수적 조정: 1.5× → 1.25× (실질 마진 6% 사수) */
+export const MAX_HOTEL_BOOST = 1.25;
 
 /** Boost 안전 적용 — Hard Cap 초과분은 cap으로 clamp. */
 export function clampBoost(multiplier: number, cap: number = MAX_HOTEL_BOOST): number {
@@ -1518,5 +1522,14 @@ export const POLICY_CHANGELOG: PolicyChange[] = [
     before: "캡 1.25× (튜닝 가능, 시스템 절대 한도 없음)",
     after: "MAX_HOTEL_BOOST = 1.5× (시스템 절대 한도) · 어드민 cap도 1.5× 초과 불가",
     reason: "마진 7% 가정에서 Diamond + boost 1.5× = 실질 마진 5.87% 사수 (안전 영역). hotelPointsBoost() 호출 시 자동 clamp.",
+  },
+  {
+    changedAt: "2026-05-06",
+    changedBy: "ellis@ohmyhotel.com",
+    category: "Hotel Boost",
+    field: "Hotel Boost Hard Cap",
+    before: "MAX_HOTEL_BOOST = 1.5×",
+    after: "MAX_HOTEL_BOOST = 1.25× (보수적 조정)",
+    reason: "마진 7% 가정에서 Diamond + boost 1.25× = 실질 마진 6.06% (보다 안전). 마케팅 예산 여유 확보 + 향후 cap 상향 옵션 보존.",
   },
 ];
