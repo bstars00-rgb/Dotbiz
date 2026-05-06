@@ -225,7 +225,7 @@ export default function RewardsMallPage() {
           ELS Wallet &amp; Rewards
         </h1>
         <p className="text-sm text-muted-foreground mt-0.5">
-          Your personal <strong className="text-[#FF6000]">ELS</strong> — earned on every booking.
+          Your personal <strong className="text-[#FF6000]">ELS</strong> — earned at checkout (post-stay).
           Non-transferable. Redeem for local rewards and collect{" "}
           <button
             onClick={() => setTab("stamps")}
@@ -266,7 +266,7 @@ export default function RewardsMallPage() {
                 {rank.tier.multiplier}×
               </span>
               <span className="text-[11px] text-muted-foreground">
-                on every booking
+                at checkout (post-stay)
               </span>
             </div>
             <p className="text-[10px] text-muted-foreground mt-1">
@@ -980,7 +980,7 @@ export default function RewardsMallPage() {
                         <div className="h-8 w-8 rounded-md flex items-center justify-center bg-muted">
                           {tx.type === "Earned-Welcome" ? "🎉" :
                            tx.type === "Earned-Milestone" ? "🏆" :
-                           tx.type === "Earned-Booking" ? <Flame className="h-4 w-4 text-[#FF6000]" /> :
+                           tx.type === "Earned-Checkout" ? <Flame className="h-4 w-4 text-[#FF6000]" /> :
                            tx.type === "Earned-Tier-Bonus" ? <Sparkles className="h-4 w-4 text-[#FF6000]" /> :
                            tx.type === "Used-Redeem" ? <Gift className="h-4 w-4" /> :
                            <Clock className="h-4 w-4" />}

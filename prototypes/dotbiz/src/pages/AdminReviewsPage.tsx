@@ -212,7 +212,7 @@ export default function AdminReviewsPage() {
     setTakedownNote("");
     setDetail(null);
     toast.warning(`Takedown: ${r.title.slice(0, 40)}…`, {
-      description: `Review removed from B2B and B2C. ELS clawback flagged (${r.elsAwarded} ELS).`,
+      description: `Review removed from B2B and B2C. ELS는 영구 보존됩니다 (${r.elsAwarded} ELS, 회수 X).`,
     });
   };
 

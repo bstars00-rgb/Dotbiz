@@ -844,7 +844,7 @@ export function earnedStampsFor(userEmail: string): EarnedStamp[] {
 
   /* Derive from transaction history for first-times */
   const txs = pointsTransactions.filter(t => t.userEmail === userEmail);
-  const firstBookingTx = txs.filter(t => t.type === "Earned-Booking").sort((a, b) => a.date.localeCompare(b.date))[0];
+  const firstBookingTx = txs.filter(t => t.type === "Earned-Checkout").sort((a, b) => a.date.localeCompare(b.date))[0];
   const firstRedeemTx  = txs.filter(t => t.type === "Used-Redeem").sort((a, b) => a.date.localeCompare(b.date))[0];
 
   const now = new Date();
@@ -1096,7 +1096,13 @@ export function hotelPointsBoost(hotelId: string): HotelPointsBoost | null {
 /* Compute expected ELS for a booking: base × tier × hotel boost.
  * Base earn rate: 0.5 ELS per $100 (0.005/$ — 2026-05-06 결정).
  * 정수화 X — 소수점 허용 (예: $100 → 0.5 ELS).
- * floor 0 허용 — $20 미만 예약은 0 ELS도 가능. */
+ * floor 0 허용 — $20 미만 예약은 0 ELS도 가능.
+ *
+ * ⚠️ 적립 트리거: 체크아웃 시점 (post-stay), NOT 예약 확정 시점.
+ * 트랜잭션 타입은 "Earned-Checkout" — 취소/노쇼 예약은 적립되지 않음.
+ * (호텔 로열티 표준 정합: Hilton/Marriott 모두 stay 완료 시 적립)
+ * 이 함수는 "예상 적립액"을 계산해 BookingForm에 표시할 뿐, 실제 적립은
+ * checkout 이벤트가 트리거. */
 export function estimatedElsForBooking(params: {
   usdValue: number;
   bookingCount: number;       /* for tier */
@@ -1123,7 +1129,7 @@ export function formatEls(amount: number): { els: string; usd: string } {
 }
 
 /* ── Points transactions (per-user history) ── */
-export type PointsTxType = "Earned-Booking" | "Earned-Welcome" | "Earned-Milestone" | "Earned-Tier-Bonus" | "Used-Redeem" | "Expired";
+export type PointsTxType = "Earned-Checkout" | "Earned-Review" | "Earned-Welcome" | "Earned-Milestone" | "Earned-Tier-Bonus" | "Used-Redeem" | "Expired";
 export interface PointsTransaction {
   id: string;
   userEmail: string;
@@ -1138,20 +1144,20 @@ export interface PointsTransaction {
 
 export const pointsTransactions: PointsTransaction[] = [
   /* TravelCo master (KR) */
-  { id: "ptx-001", userEmail: "master@dotbiz.com", date: "2026-04-20", type: "Earned-Booking",  description: "Booking K26041511201H01 · Fairmont SG",     amount: 2, balance: 185, bookingId: "bk-016" },
+  { id: "ptx-001", userEmail: "master@dotbiz.com", date: "2026-04-20", type: "Earned-Checkout",  description: "Booking K26041511201H01 · Fairmont SG",     amount: 2, balance: 185, bookingId: "bk-016" },
   { id: "ptx-002", userEmail: "master@dotbiz.com", date: "2026-04-15", type: "Used-Redeem",     description: "Redeemed CGV 영화 관람권",                amount: -14, balance: 183, productId: "kr-cgv" },
-  { id: "ptx-003", userEmail: "master@dotbiz.com", date: "2026-04-10", type: "Earned-Booking",  description: "Booking K26031016208H01 · ANA Osaka",       amount: 3,  balance: 197, bookingId: "bk-004" },
+  { id: "ptx-003", userEmail: "master@dotbiz.com", date: "2026-04-10", type: "Earned-Checkout",  description: "Booking K26031016208H01 · ANA Osaka",       amount: 3,  balance: 197, bookingId: "bk-004" },
   { id: "ptx-004", userEmail: "master@dotbiz.com", date: "2026-03-28", type: "Earned-Milestone",description: "🌱 10 Bookings milestone",                amount: 1,  balance: 194, },
-  { id: "ptx-005", userEmail: "master@dotbiz.com", date: "2026-03-20", type: "Earned-Booking",  description: "Booking K26032014532H01 · Grand Hyatt Seoul", amount: 1, balance: 193, bookingId: "bk-001" },
+  { id: "ptx-005", userEmail: "master@dotbiz.com", date: "2026-03-20", type: "Earned-Checkout",  description: "Booking K26032014532H01 · Grand Hyatt Seoul", amount: 1, balance: 193, bookingId: "bk-001" },
   /* OP @ TravelCo */
-  { id: "ptx-101", userEmail: "op@dotbiz.com",     date: "2026-04-18", type: "Earned-Booking",  description: "Booking K26041209084H01 · Banyan Tree Seoul",amount: 1,  balance: 96,  bookingId: "bk-017" },
+  { id: "ptx-101", userEmail: "op@dotbiz.com",     date: "2026-04-18", type: "Earned-Checkout",  description: "Booking K26041209084H01 · Banyan Tree Seoul",amount: 1,  balance: 96,  bookingId: "bk-017" },
   { id: "ptx-102", userEmail: "op@dotbiz.com",     date: "2026-04-10", type: "Used-Redeem",     description: "Redeemed 스타벅스 아메리카노",              amount: -5, balance: 95, productId: "kr-starbucks-5k" },
-  { id: "ptx-103", userEmail: "op@dotbiz.com",     date: "2026-04-01", type: "Earned-Booking",  description: "Booking K26040109301H01 · Park Hyatt Saigon", amount: 1, balance: 100, bookingId: "bk-009" },
+  { id: "ptx-103", userEmail: "op@dotbiz.com",     date: "2026-04-01", type: "Earned-Checkout",  description: "Booking K26040109301H01 · Park Hyatt Saigon", amount: 1, balance: 100, bookingId: "bk-009" },
   /* GOTADI master (VN) */
-  { id: "ptx-201", userEmail: "gotadi@dotbiz.com", date: "2026-04-20", type: "Earned-Booking",  description: "Booking K26042016224H01 · Metropole Hanoi", amount: 11, balance: 112, bookingId: "bk-023" },
+  { id: "ptx-201", userEmail: "gotadi@dotbiz.com", date: "2026-04-20", type: "Earned-Checkout",  description: "Booking K26042016224H01 · Metropole Hanoi", amount: 11, balance: 112, bookingId: "bk-023" },
   { id: "ptx-202", userEmail: "gotadi@dotbiz.com", date: "2026-04-15", type: "Used-Redeem",     description: "Redeemed GrabFood 100k VND",              amount: -7, balance: 101, productId: "vn-grab-food-100k" },
   { id: "ptx-203", userEmail: "gotadi@dotbiz.com", date: "2026-04-05", type: "Earned-Milestone",description: "⭐ 50 Bookings milestone",                amount: 5,  balance: 108, },
-  { id: "ptx-204", userEmail: "gotadi@dotbiz.com", date: "2026-04-01", type: "Earned-Booking",  description: "Booking K26040109301H01 · Park Hyatt Saigon", amount: 13, balance: 103, bookingId: "bk-009" },
+  { id: "ptx-204", userEmail: "gotadi@dotbiz.com", date: "2026-04-01", type: "Earned-Checkout",  description: "Booking K26040109301H01 · Park Hyatt Saigon", amount: 13, balance: 103, bookingId: "bk-009" },
 ];
 
 export function pointsHistoryFor(userEmail: string): PointsTransaction[] {
@@ -1459,5 +1465,32 @@ export const POLICY_CHANGELOG: PolicyChange[] = [
     before: "리뷰 takedown / 분쟁 / 클로백 등 다중 회수 경로",
     after: "영구 보존 (전체 시스템) — 부정 적발 시에만 ELLIS Admin 수동 클로백",
     reason: "단순화 + OP 신뢰 보장.",
+  },
+  {
+    changedAt: "2026-05-06",
+    changedBy: "ellis@ohmyhotel.com",
+    category: "ELS Earning",
+    field: "적립 트리거",
+    before: "예약 확정 시점 (booking confirmation)",
+    after: "체크아웃 시점 (post-stay) — Earned-Checkout 트랜잭션",
+    reason: "취소·노쇼 리스크 제거. 호텔 로열티 표준(Hilton/Marriott) 정합. 실제 stay 완료한 예약만 ELS 적립.",
+  },
+  {
+    changedAt: "2026-05-06",
+    changedBy: "ellis@ohmyhotel.com",
+    category: "Tier System",
+    field: "Tier 6단계 확장",
+    before: "5단계 (Bronze/Silver/Gold/Platinum/Diamond)",
+    after: "6단계 — Emerald 1.4× 추가 ($500K~$1M, Platinum↔Diamond 사이)",
+    reason: "중간 사용자 유인 강화. 마진 환원율 0.7%로 안전 영역.",
+  },
+  {
+    changedAt: "2026-05-06",
+    changedBy: "ellis@ohmyhotel.com",
+    category: "ELS Earning",
+    field: "리뷰 ELS 적립 트리거",
+    before: "리뷰 승인 후 적립",
+    after: "리뷰 작성 즉시 적립 (Earned-Review 트랜잭션)",
+    reason: "리뷰는 작성 자체가 가치 있는 행위. 승인 대기 없이 즉시 인정. takedown 시에도 ELS는 영구 보존 (회수 X).",
   },
 ];
