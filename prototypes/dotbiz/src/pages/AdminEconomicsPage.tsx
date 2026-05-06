@@ -74,8 +74,8 @@ interface LiveSettings {
   elsBookingEarnRate: number;
   elsUsdPeg: number;
   rewardPoolBudgetKrw: number | null;    /* null = uncapped */
-  tierMultipliers: [number, number, number, number, number];
-  tierThresholds: [number, number, number, number];  /* Silver/Gold/Plat/Diamond */
+  tierMultipliers: [number, number, number, number, number, number];
+  tierThresholds: [number, number, number, number, number];  /* Silver/Gold/Plat/Emerald/Diamond */
   hotelBoosts: HotelPointsBoost[];
   promoMaxMultiplier: number;
   stampBonuses: Record<StampRarity, number>;
@@ -124,8 +124,8 @@ export default function AdminEconomicsPage() {
     elsBookingEarnRate: 0.005,
     elsUsdPeg: 1.0,
     rewardPoolBudgetKrw: null,
-    tierMultipliers: [TIERS[0].multiplier, TIERS[1].multiplier, TIERS[2].multiplier, TIERS[3].multiplier, TIERS[4].multiplier] as [number, number, number, number, number],
-    tierThresholds: [TIERS[1].minBookings, TIERS[2].minBookings, TIERS[3].minBookings, TIERS[4].minBookings] as [number, number, number, number],
+    tierMultipliers: [TIERS[0].multiplier, TIERS[1].multiplier, TIERS[2].multiplier, TIERS[3].multiplier, TIERS[4].multiplier, TIERS[5].multiplier] as [number, number, number, number, number, number],
+    tierThresholds: [TIERS[1].minBookings, TIERS[2].minBookings, TIERS[3].minBookings, TIERS[4].minBookings, TIERS[5].minBookings] as [number, number, number, number, number],
     hotelBoosts: HOTEL_POINTS_BOOSTS.map(b => ({ ...b })),
     promoMaxMultiplier: 1.25,
     stampBonuses: { ...STAMP_BONUS_BY_RARITY },
@@ -1911,7 +1911,8 @@ function TierPolicyV2Editor({
             {sampleScore < settings.tierThresholds[0] ? "Bronze" :
              sampleScore < settings.tierThresholds[1] ? "Silver" :
              sampleScore < settings.tierThresholds[2] ? "Gold" :
-             sampleScore < settings.tierThresholds[3] ? "Platinum" : "Diamond"}
+             sampleScore < settings.tierThresholds[3] ? "Platinum" :
+             sampleScore < settings.tierThresholds[4] ? "Emerald" : "Diamond"}
           </strong>
         </p>
       </div>

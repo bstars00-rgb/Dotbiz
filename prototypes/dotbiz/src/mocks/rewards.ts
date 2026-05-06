@@ -146,7 +146,7 @@ export const MILESTONES: Milestone[] = [
 
 /* ── Tier system ──
  * Based on cumulative bookingCount. Multiplier applied on top of base earn. */
-export type Tier = "Bronze" | "Silver" | "Gold" | "Platinum" | "Diamond";
+export type Tier = "Bronze" | "Silver" | "Gold" | "Platinum" | "Emerald" | "Diamond";
 
 export interface TierDef {
   name: Tier;
@@ -183,7 +183,7 @@ export const TIERS: TierDef[] = [
     ring: "#c69266", glow: "#a16b3f33",
     icon: "🥉",
     tagline: "The beginning of a long journey",
-    globalPct: 42,
+    globalPct: 41,
     perks: ["1.0× ELS earn rate", "Standard support"],
   },
   {
@@ -214,16 +214,29 @@ export const TIERS: TierDef[] = [
   },
   {
     name: "Platinum",
-    minRevenueUsd: 200_000, maxRevenueUsd: 1_000_000,
-    minBookings: 500, maxBookings: 1500,    /* legacy */
+    minRevenueUsd: 200_000, maxRevenueUsd: 500_000,
+    minBookings: 500, maxBookings: 1000,    /* legacy */
     multiplier: 1.3,
     color: "#7c7aa7", colorSoft: "#8b9dc320",
     gradient: "linear-gradient(135deg, #e0e7ff, #a5b4fc, #6366f1)",
     ring: "#a5b4fc", glow: "#6366f144",
     icon: "💠",
     tagline: "Among the best",
-    globalPct: 5,
+    globalPct: 4,
     perks: ["1.3× ELS earn rate", "Dedicated account manager", "VIP room upgrades"],
+  },
+  {
+    name: "Emerald",
+    minRevenueUsd: 500_000, maxRevenueUsd: 1_000_000,
+    minBookings: 1000, maxBookings: 1500,    /* legacy */
+    multiplier: 1.4,
+    color: "#059669", colorSoft: "#10b98120",
+    gradient: "linear-gradient(135deg, #d1fae5, #6ee7b7, #059669)",
+    ring: "#6ee7b7", glow: "#10b98155",
+    icon: "💚",
+    tagline: "Excellence in motion",
+    globalPct: 2,
+    perks: ["1.4× ELS earn rate", "Priority concierge support", "Premium hotel partnership"],
   },
   {
     name: "Diamond",
@@ -271,6 +284,7 @@ export const TIER_QUARTERLY_RETENTION_USD: Record<Tier, number> = {
   Silver: 2_500,       /* $10K × 25% */
   Gold: 12_500,        /* $50K × 25% */
   Platinum: 50_000,    /* $200K × 25% */
+  Emerald: 125_000,    /* $500K × 25% */
   Diamond: 250_000,    /* $1M × 25% */
 };
 
@@ -505,7 +519,7 @@ export function canRedeemProduct(_userTier: Tier, _product: RewardProduct): bool
 
 /** @deprecated — Tier 잠금 기능 삭제됨. 빈 결과 반환. */
 export function lockedProductsByTier(_userTier: Tier, _products: RewardProduct[]): Record<Tier, RewardProduct[]> {
-  return { Bronze: [], Silver: [], Gold: [], Platinum: [], Diamond: [] };
+  return { Bronze: [], Silver: [], Gold: [], Platinum: [], Emerald: [], Diamond: [] };
 }
 
 /* ══════════════════════════════════════════════════════════════════════
