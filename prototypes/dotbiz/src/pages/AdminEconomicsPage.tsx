@@ -30,6 +30,7 @@ import {
   HOTEL_POINTS_BOOSTS,
   TIERS,
   STAMP_BONUS_BY_RARITY,
+  MAX_HOTEL_BOOST,
   riskSnapshot,
   fraudFlags,
   rewardProducts,
@@ -127,7 +128,7 @@ export default function AdminEconomicsPage() {
     tierMultipliers: [TIERS[0].multiplier, TIERS[1].multiplier, TIERS[2].multiplier, TIERS[3].multiplier, TIERS[4].multiplier, TIERS[5].multiplier] as [number, number, number, number, number, number],
     tierThresholds: [TIERS[1].minBookings, TIERS[2].minBookings, TIERS[3].minBookings, TIERS[4].minBookings, TIERS[5].minBookings] as [number, number, number, number, number],
     hotelBoosts: HOTEL_POINTS_BOOSTS.map(b => ({ ...b })),
-    promoMaxMultiplier: 1.25,
+    promoMaxMultiplier: MAX_HOTEL_BOOST,  /* 2026-05-06: 1.25 → 1.5 (Hard Cap) */
     stampBonuses: { ...STAMP_BONUS_BY_RARITY },
     reviewRewardFormula: { base: 3, quality: 2, photo: 2, first: 5, monthlyCap: 5, featuredBonus: 5 },
     elsNonTransferable: true,
@@ -715,6 +716,14 @@ function PromotionsTab({
 
   const saveMaxCap = () => {
     if (maxCap === settings.promoMaxMultiplier) return;
+    /* Hard Cap: 시스템 절대 한도(MAX_HOTEL_BOOST) 초과 불가 */
+    if (maxCap > MAX_HOTEL_BOOST) {
+      toast.error(`Boost cap은 시스템 한도 ${MAX_HOTEL_BOOST}× 를 초과할 수 없습니다`, {
+        description: "마진 7% 가정에서 Diamond 사용자가 break-even 안전선에 도달합니다.",
+      });
+      setMaxCap(MAX_HOTEL_BOOST);
+      return;
+    }
     recordChange("PROMO_MAX_MULTIPLIER", "프로모 배수 상한",
       `${settings.promoMaxMultiplier}×`, `${maxCap}×`);
     setSettings(s => ({ ...s, promoMaxMultiplier: maxCap }));
@@ -724,6 +733,11 @@ function PromotionsTab({
     setBoosts(list => list.filter(b => b.hotelId !== hotelId));
   };
   const updateBoost = (hotelId: string, field: keyof HotelPointsBoost, value: any) => {
+    /* multiplier 필드는 cap 강제 적용 */
+    if (field === "multiplier" && typeof value === "number" && value > MAX_HOTEL_BOOST) {
+      toast.error(`Boost는 ${MAX_HOTEL_BOOST}× 를 초과할 수 없습니다`);
+      value = MAX_HOTEL_BOOST;
+    }
     setBoosts(list => list.map(b => b.hotelId === hotelId ? { ...b, [field]: value } : b));
   };
   const addBoost = () => {
@@ -733,6 +747,10 @@ function PromotionsTab({
     }
     if (boosts.some(b => b.hotelId === newBoost.hotelId)) {
       toast.error("이미 프로모 중인 호텔입니다");
+      return;
+    }
+    if (newBoost.multiplier > MAX_HOTEL_BOOST) {
+      toast.error(`Boost는 ${MAX_HOTEL_BOOST}× 를 초과할 수 없습니다`);
       return;
     }
     setBoosts(list => [...list, { ...newBoost }]);
@@ -754,7 +772,7 @@ function PromotionsTab({
               <Badge className="text-[9px] text-white" style={{ background: IMPACT_COLOR.High }}>HIGH</Badge>
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              단일 호텔 프로모 배수의 최대치. 이 값 이상은 시스템이 거부함.
+              단일 호텔 프로모 배수의 최대치. 시스템 절대 한도 <strong className="text-[#FF6000]">{MAX_HOTEL_BOOST}×</strong> 초과 불가.
             </p>
           </div>
           <Button size="sm" onClick={saveMaxCap} disabled={maxCap === settings.promoMaxMultiplier}
@@ -769,7 +787,7 @@ function PromotionsTab({
             type="number"
             step="0.05"
             min="1.0"
-            max="2.0"
+            max={MAX_HOTEL_BOOST}
             value={maxCap}
             onChange={e => setMaxCap(Number(e.target.value))}
             className="w-32 font-mono"
@@ -778,13 +796,20 @@ function PromotionsTab({
           <input
             type="range"
             min="1.0"
-            max="2.0"
+            max={MAX_HOTEL_BOOST}
             step="0.05"
             value={maxCap}
             onChange={e => setMaxCap(Number(e.target.value))}
             className="flex-1 accent-[#FF6000]"
           />
           <span className="text-sm text-muted-foreground whitespace-nowrap">= +{((maxCap - 1) * 100).toFixed(0)}% 최대</span>
+        </div>
+        <div className="mt-3 p-2.5 rounded border border-amber-300/60 bg-amber-50 dark:bg-amber-950/20 text-[11px]">
+          <p className="font-semibold text-amber-900 dark:text-amber-200">⚠️ 안전 분석 (마진 7% 기준)</p>
+          <p className="text-amber-800 dark:text-amber-300 mt-1">
+            현재 cap {maxCap}×: Diamond(1.5×) + boost {maxCap}× = 적립률 <strong>{(0.5 * 1.5 * maxCap).toFixed(2)}%</strong>
+            · 마진 환원율 <strong>{((0.5 * 1.5 * maxCap) / 7 * 100).toFixed(1)}%</strong> · 실질 마진 <strong>{(7 - 0.5 * 1.5 * maxCap).toFixed(2)}%</strong>
+          </p>
         </div>
       </Card>
 

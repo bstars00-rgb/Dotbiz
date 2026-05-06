@@ -1066,6 +1066,22 @@ export const ELS_BOOKING_EARN_RATE = 0.005;
  * 잔액이 이 값 미만이면 redeem 불가. UI에서 disabled 처리. */
 export const MIN_REDEEM_ELS = 10;
 
+/** 호텔 부스트 최대 배율 (Hard Cap, 2026-05-06 신규).
+ *
+ * 마진 7% 가정에서 안전한 한계:
+ *   • Diamond (1.5×) + boost 1.5× = 1.125% 적립 (마진의 16.07% 환원)
+ *   • 실질 마진 5.87% 유지 (최악 케이스에서도 break-even 안전)
+ *
+ * 단일 호텔 캠페인의 boost는 절대 이 값을 초과하지 못한다.
+ * AdminEconomicsPage에서 튜닝 가능. 변경 시 POLICY_CHANGELOG 기록. */
+export const MAX_HOTEL_BOOST = 1.5;
+
+/** Boost 안전 적용 — Hard Cap 초과분은 cap으로 clamp. */
+export function clampBoost(multiplier: number, cap: number = MAX_HOTEL_BOOST): number {
+  if (multiplier <= 1.0) return 1.0;
+  return Math.min(multiplier, cap);
+}
+
 export interface HotelPointsBoost {
   hotelId: string;
   /** Multiplier applied to base ELS on top of tier multiplier.
@@ -1090,7 +1106,8 @@ export function hotelPointsBoost(hotelId: string): HotelPointsBoost | null {
   const b = HOTEL_POINTS_BOOSTS.find(x => x.hotelId === hotelId);
   if (!b) return null;
   if (new Date(b.expiresAt) < new Date()) return null;   /* expired */
-  return b;
+  /* Hard Cap 적용 — 등록값이 cap을 초과해도 cap으로 clamp (안전장치) */
+  return { ...b, multiplier: clampBoost(b.multiplier) };
 }
 
 /* Compute expected ELS for a booking: base × tier × hotel boost.
@@ -1492,5 +1509,14 @@ export const POLICY_CHANGELOG: PolicyChange[] = [
     before: "리뷰 승인 후 적립",
     after: "리뷰 작성 즉시 적립 (Earned-Review 트랜잭션)",
     reason: "리뷰는 작성 자체가 가치 있는 행위. 승인 대기 없이 즉시 인정. takedown 시에도 ELS는 영구 보존 (회수 X).",
+  },
+  {
+    changedAt: "2026-05-06",
+    changedBy: "ellis@ohmyhotel.com",
+    category: "Hotel Boost",
+    field: "Hotel Boost Hard Cap",
+    before: "캡 1.25× (튜닝 가능, 시스템 절대 한도 없음)",
+    after: "MAX_HOTEL_BOOST = 1.5× (시스템 절대 한도) · 어드민 cap도 1.5× 초과 불가",
+    reason: "마진 7% 가정에서 Diamond + boost 1.5× = 실질 마진 5.87% 사수 (안전 영역). hotelPointsBoost() 호출 시 자동 clamp.",
   },
 ];
