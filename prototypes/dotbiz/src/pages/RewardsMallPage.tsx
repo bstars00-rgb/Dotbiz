@@ -606,10 +606,7 @@ export default function RewardsMallPage() {
                       <div className="flex items-center justify-between mt-2">
                         <div>
                           <p className="text-base font-bold" style={{ color: "#FF6000" }}>
-                            {p.pointsCost}<span className="text-[10px] ml-0.5">P</span>
-                          </p>
-                          <p className="text-[10px] text-muted-foreground">
-                            Face: {p.faceCurrency} {p.faceValue.toLocaleString()}
+                            {p.pointsCost}<span className="text-[10px] ml-0.5">ELS</span>
                           </p>
                         </div>
                         <Button
@@ -712,7 +709,7 @@ export default function RewardsMallPage() {
                       <div>
                         <p className="font-semibold text-sm">{v.productName}</p>
                         <p className="text-[11px] text-muted-foreground">
-                          {v.brand} · Face {v.faceCurrency} {v.faceValue.toLocaleString()} · Redeemed {v.redeemedAt}
+                          {v.brand} · Redeemed {v.redeemedAt}
                         </p>
                       </div>
                     </div>
@@ -1259,11 +1256,10 @@ export default function RewardsMallPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Redeem {redeemTarget?.name}?</AlertDialogTitle>
             <AlertDialogDescription>
-              You'll be charged <strong>{redeemTarget?.pointsCost} P</strong> from your balance of <strong>{mystate.balance} P</strong>. You'll receive a{" "}
-              {redeemTarget?.deliveryMethod === "email-code" ? "code by email" :
-               redeemTarget?.deliveryMethod === "in-app-voucher" ? "coupon in your My Coupons tab" :
-               "barcode"}
-              . Face value: <strong>{redeemTarget?.faceCurrency} {redeemTarget?.faceValue.toLocaleString()}</strong>.
+              You'll be charged <strong>{redeemTarget?.pointsCost} ELS</strong> from your balance of <strong>{mystate.balance} ELS</strong>. 운영팀 확인 후 24시간 이내{" "}
+              {redeemTarget?.deliveryMethod === "email-code" ? "이메일로 쿠폰 코드 발송" :
+               redeemTarget?.deliveryMethod === "in-app-voucher" ? "My Coupons 탭에 쿠폰 등록" :
+               "바코드 발송"}됩니다.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -1307,7 +1303,7 @@ export default function RewardsMallPage() {
                   </Button>
                 </div>
                 <p className="text-[10px] text-muted-foreground mt-2">
-                  Face value {redeemedVoucher.faceCurrency} {redeemedVoucher.faceValue.toLocaleString()} · Expires {redeemedVoucher.expiresAt}
+                  Expires {redeemedVoucher.expiresAt}
                 </p>
               </div>
               <div className="flex justify-end">
