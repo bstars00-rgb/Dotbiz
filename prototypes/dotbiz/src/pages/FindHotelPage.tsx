@@ -17,8 +17,9 @@ import { StateToolbar } from "@/components/StateToolbar";
 import { hotels } from "@/mocks/hotels";
 import {
   HOTEL_POINTS_BOOSTS, hotelPointsBoost,
-  userPointsState, compositeTierScore, tierForComposite,
+  userPointsState, tierForComposite,
   DEFAULT_COMPOSITE_WEIGHTS,
+  ELS_BOOKING_EARN_RATE,
 } from "@/mocks/rewards";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -677,7 +678,7 @@ export default function FindHotelPage() {
                               Per $1,000 booking
                             </p>
                             <p className="text-sm font-bold" style={{ color: "#FF6000" }}>
-                              {Math.max(1, Math.round(1000 * 0.01 * userMultiplier * boost.multiplier))} ELS
+                              {(1000 * ELS_BOOKING_EARN_RATE * userMultiplier * boost.multiplier).toFixed(1)} ELS
                             </p>
                           </div>
                           <span className="text-[9px] text-muted-foreground">
