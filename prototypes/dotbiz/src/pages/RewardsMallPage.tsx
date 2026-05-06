@@ -26,7 +26,7 @@ import {
   formatEls, earnedStampsFor, expiringElsFor, ELS_EXPIRY_MONTHS,
   STAMPS, RARITY_META, type StampRarity,
   HOTEL_POINTS_BOOSTS, hotelPointsBoost,
-  canRedeemProduct,
+  ELS_BOOKING_EARN_RATE, MIN_REDEEM_ELS,
   type RewardProduct, type UserPointsState, type RedeemedVoucher,
 } from "@/mocks/rewards";
 import { toast } from "sonner";
@@ -248,9 +248,6 @@ export default function RewardsMallPage() {
             <p className="text-4xl font-bold mt-1" style={{ color: "#FF6000" }}>
               {mystate.balance.toLocaleString()}<span className="text-lg ml-1 text-muted-foreground">ELS</span>
             </p>
-            <p className="text-[11px] text-muted-foreground mt-1">
-              {formatEls(mystate.balance).usd} <span className="opacity-60">· 1 ELS = 1 USD</span>
-            </p>
           </div>
 
           {/* ── Earn rate breakdown ── */}
@@ -275,7 +272,7 @@ export default function RewardsMallPage() {
             <p className="text-[10px] text-muted-foreground mt-1">
               <span className="font-mono">$1,000</span> booking →{" "}
               <strong style={{ color: rank.tier.color }}>
-                {Math.max(1, Math.round(1000 * 0.01 * rank.tier.multiplier))} ELS
+                {(1000 * ELS_BOOKING_EARN_RATE * rank.tier.multiplier).toFixed(1)} ELS
               </strong>
               {rank.tier.multiplier > 1 && (
                 <> (+{Math.round((rank.tier.multiplier - 1) * 100)}% vs Bronze)</>
@@ -300,7 +297,7 @@ export default function RewardsMallPage() {
               ))}
             </div>
             <p className="text-[9px] text-muted-foreground mt-1.5 italic">
-              💡 Base 1 ELS / $100 · tier × hotel promo stack (e.g. Gold 1.2× × +15% = <strong>1.38×</strong>)
+              💡 Base 0.5% earn (1 ELS / $200) · tier × hotel promo stack · 최소 redeem {MIN_REDEEM_ELS} ELS
             </p>
 
             {/* ── Next tier unlock nudge ── */}
@@ -533,29 +530,15 @@ export default function RewardsMallPage() {
       {/* ─────────── SHOP tab ─────────── */}
       {tab === "shop" && (
         <>
-          {/* Tier 잠금 안내 — 다음 단계 해금 미리보기 */}
-          {(() => {
-            const myProductsAll = rewardProducts.filter(p => p.countryCode === countryCode);
-            const lockedNext = myProductsAll.filter(p => {
-              if (!p.minTier) return false;
-              const myIdx = TIERS.findIndex(t => t.name === rank.tier.name);
-              const reqIdx = TIERS.findIndex(t => t.name === p.minTier);
-              return reqIdx === myIdx + 1; /* 바로 다음 tier에서 잠금 해제될 상품 */
-            });
-            if (lockedNext.length === 0 || rank.tier.name === "Diamond") return null;
-            const nextTierName = TIERS[TIERS.findIndex(t => t.name === rank.tier.name) + 1]?.name;
-            return (
-              <Alert className="border-purple-300/60 bg-purple-50 dark:bg-purple-950/20">
-                <AlertTitle className="text-sm flex items-center gap-2 text-purple-900 dark:text-purple-200">
-                  ✨ {nextTierName} 등급에서 잠금 해제 — {lockedNext.length}개 상품
-                </AlertTitle>
-                <AlertDescription className="text-xs text-purple-800 dark:text-purple-300">
-                  {lockedNext.slice(0, 3).map(p => `${p.emoji} ${p.brand}`).join(" · ")}
-                  {lockedNext.length > 3 && ` · 외 ${lockedNext.length - 3}개`}
-                </AlertDescription>
-              </Alert>
-            );
-          })()}
+          {/* 정책 안내 — 2026-05-06: Tier 잠금 폐기, MIN_REDEEM_ELS 도입 */}
+          <Alert className="border-orange-300/60 bg-orange-50 dark:bg-orange-950/20">
+            <AlertTitle className="text-sm flex items-center gap-2 text-orange-900 dark:text-orange-200">
+              💡 모든 상품은 등급 제한 없이 redeem 가능 · 최소 {MIN_REDEEM_ELS} ELS 필요
+            </AlertTitle>
+            <AlertDescription className="text-xs text-orange-800 dark:text-orange-300">
+              쿠폰 코드는 redeem 신청 후 ELLIS 운영팀이 확인하여 24시간 이내 발급합니다 (자동 발급 X).
+            </AlertDescription>
+          </Alert>
 
           {/* Search + category */}
           <div className="flex items-center gap-3 flex-wrap">
@@ -582,29 +565,16 @@ export default function RewardsMallPage() {
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
               {myProducts.map(p => {
-                /* Tier 잠금 체크 — minTier가 있고 사용자 tier보다 높으면 locked.
-                 * 잠긴 상품도 카드는 보이되 "🔒 Unlock at Silver" 등 표시 + 클릭 시 toast 안내. */
-                const userTier = rank.tier.name;
-                const locked = !canRedeemProduct(userTier, p);
-                const affordable = mystate.balance >= p.pointsCost;
+                /* 2026-05-06: Tier 잠금 폐기. MIN_REDEEM_ELS 미만 잔액일 때만 차단. */
+                const belowMin = mystate.balance < MIN_REDEEM_ELS;
+                const affordable = mystate.balance >= p.pointsCost && !belowMin;
                 return (
                   <Card
                     key={p.id}
                     className={`p-0 overflow-hidden transition-all relative ${
-                      locked ? "opacity-50" : affordable ? "hover:shadow-md hover:border-[#FF6000]/40" : "opacity-70"
+                      affordable ? "hover:shadow-md hover:border-[#FF6000]/40" : "opacity-70"
                     }`}
                   >
-                    {/* Lock overlay — 클릭 가능하지만 시각적으로 잠긴 표시 */}
-                    {locked && (
-                      <div className="absolute inset-0 z-10 pointer-events-none flex items-center justify-center">
-                        <div className="absolute inset-0 bg-black/30 backdrop-blur-[1px]" />
-                        <div className="relative px-3 py-1.5 rounded-full bg-white/95 dark:bg-slate-900/95 shadow-md flex items-center gap-1.5 text-xs font-bold">
-                          <span>🔒</span>
-                          <span>Unlock at <span style={{ color: "#FF6000" }}>{p.minTier}</span></span>
-                        </div>
-                      </div>
-                    )}
-
                     {/* Cover */}
                     <div
                       className="h-28 flex flex-col items-center justify-center text-white relative"
@@ -621,15 +591,6 @@ export default function RewardsMallPage() {
                           title={p.monthlyRedemptions ? `${p.monthlyRedemptions.toLocaleString()} OPs redeemed this month` : "Top seller this month"}
                         >
                           🔥 Best Seller
-                        </span>
-                      )}
-                      {p.minTier && !locked && (
-                        <span
-                          className="absolute bottom-2 left-2 px-1.5 py-0.5 rounded text-[9px] font-bold text-white flex items-center gap-0.5 shadow-md"
-                          style={{ background: "rgba(0,0,0,0.5)" }}
-                          title={`${p.minTier} 이상 전용 상품`}
-                        >
-                          ✨ {p.minTier}
                         </span>
                       )}
                     </div>
@@ -653,20 +614,20 @@ export default function RewardsMallPage() {
                         </div>
                         <Button
                           size="sm"
-                          disabled={locked || !affordable}
+                          disabled={!affordable}
                           onClick={() => {
-                            if (locked) {
-                              toast.info(`🔒 ${p.minTier} 등급에서 잠금 해제`, {
-                                description: `${userTier} → ${p.minTier} 승급 시 이 상품을 리딤할 수 있습니다.`,
+                            if (belowMin) {
+                              toast.info(`최소 ${MIN_REDEEM_ELS} ELS부터 redeem 가능`, {
+                                description: `현재 잔액: ${mystate.balance} ELS`,
                               });
                               return;
                             }
                             setRedeemTarget(p);
                           }}
-                          style={!locked && affordable ? { background: "#FF6000" } : undefined}
-                          className={!locked && affordable ? "text-white h-7 text-xs" : "h-7 text-xs"}
+                          style={affordable ? { background: "#FF6000" } : undefined}
+                          className={affordable ? "text-white h-7 text-xs" : "h-7 text-xs"}
                         >
-                          {locked ? "Locked" : affordable ? "Redeem" : "Short"}
+                          {affordable ? "Redeem" : belowMin ? `Min ${MIN_REDEEM_ELS}` : "Short"}
                         </Button>
                       </div>
                     </div>
@@ -996,7 +957,6 @@ export default function RewardsMallPage() {
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
               <h2 className="text-sm font-semibold">Wallet Activity</h2>
               <Badge variant="outline" className="text-[10px]">{allTx.length} entries</Badge>
-              <span className="text-[10px] text-muted-foreground">1 ELS = 1 USD</span>
               <Button
                 size="sm"
                 variant="outline"

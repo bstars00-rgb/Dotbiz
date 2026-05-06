@@ -121,7 +121,7 @@ export default function AdminEconomicsPage() {
   /* ── 모든 hooks를 조건부 return 이전에 선언 (Rules of Hooks 준수) ── */
   /* Live editable settings */
   const [settings, setSettings] = useState<LiveSettings>({
-    elsBookingEarnRate: 0.01,
+    elsBookingEarnRate: 0.005,
     elsUsdPeg: 1.0,
     rewardPoolBudgetKrw: null,
     tierMultipliers: [TIERS[0].multiplier, TIERS[1].multiplier, TIERS[2].multiplier, TIERS[3].multiplier, TIERS[4].multiplier] as [number, number, number, number, number],
@@ -1158,8 +1158,7 @@ function PolicyTab({
       {/* ── Tier 정책 v2 — 편집 가능한 튜닝 UI ── */}
       <TierPolicyV2Editor settings={settings} setSettings={setSettings} recordChange={recordChange} />
 
-      {/* ── Shop Tier 잠금 매트릭스 ── */}
-      <TierLockMatrix settings={settings} setSettings={setSettings} recordChange={recordChange} />
+      {/* ── Shop Tier 잠금 매트릭스 — 2026-05-06 폐기 (#6) ── */}
 
       {/* ── Tickets SLA 정책 ── */}
       <TicketsSlaEditor settings={settings} setSettings={setSettings} recordChange={recordChange} />
@@ -1921,128 +1920,9 @@ function TierPolicyV2Editor({
 }
 
 /* ═════════════════════════════════════════════════
- * Shop Tier 잠금 매트릭스
+ * Shop Tier 잠금 매트릭스 — 2026-05-06 폐기 (#6)
+ * 모든 상품은 등급 제한 없이 redeem 가능. 컴포넌트 제거됨.
  * ═════════════════════════════════════════════════ */
-function TierLockMatrix({
-  settings, setSettings, recordChange,
-}: {
-  settings: LiveSettings;
-  setSettings: React.Dispatch<React.SetStateAction<LiveSettings>>;
-  recordChange: (key: string, label: string, before: string, after: string) => void;
-}) {
-  const tierOptions: Array<"none" | Tier> = ["none", "Bronze", "Silver", "Gold", "Platinum", "Diamond"];
-  const [filterCountry, setFilterCountry] = useState<string>("all");
-
-  const setLock = (productId: string, tier: "none" | Tier) => {
-    const before = settings.tierLocks[productId] || "none";
-    if (before === tier) return;
-    setSettings(s => ({ ...s, tierLocks: { ...s.tierLocks, [productId]: tier } }));
-    const product = rewardProducts.find(p => p.id === productId);
-    recordChange(
-      `TIER_LOCK_${productId}`,
-      `${product?.brand || productId} 잠금 Tier`,
-      before,
-      tier,
-    );
-  };
-
-  const stats = tierOptions.reduce((acc, t) => {
-    acc[t] = Object.values(settings.tierLocks).filter(v => v === t).length;
-    return acc;
-  }, {} as Record<string, number>);
-
-  const countries = Array.from(new Set(rewardProducts.map(p => p.countryCode)));
-  const filtered = filterCountry === "all"
-    ? rewardProducts
-    : rewardProducts.filter(p => p.countryCode === filterCountry);
-
-  return (
-    <Card className="p-5" style={{ borderLeft: "4px solid #FF6000" }}>
-      <div className="flex items-center justify-between mb-3">
-        <div>
-          <h3 className="font-bold flex items-center gap-2">
-            <Package className="h-4 w-4" style={{ color: "#FF6000" }} />
-            Shop Tier 잠금 매트릭스
-          </h3>
-          <p className="text-xs text-muted-foreground mt-1">
-            상품별 최소 Tier 설정. "—"는 모든 사용자가 리딤 가능.
-          </p>
-        </div>
-        <select
-          value={filterCountry}
-          onChange={e => setFilterCountry(e.target.value)}
-          className="border rounded px-2 py-1 text-xs bg-background"
-        >
-          <option value="all">전 국가</option>
-          {countries.map(c => <option key={c} value={c}>{c}</option>)}
-        </select>
-      </div>
-
-      <div className="grid grid-cols-6 gap-2 mb-3">
-        {tierOptions.map(t => (
-          <div key={t} className="border rounded p-2 text-center bg-muted/30">
-            <p className="text-[9px] text-muted-foreground uppercase">{t === "none" ? "전체 공개" : t}</p>
-            <p className="text-lg font-bold">{stats[t]}</p>
-          </div>
-        ))}
-      </div>
-
-      <div className="overflow-x-auto rounded border" style={{ maxHeight: "400px" }}>
-        <Table>
-          <TableHeader className="sticky top-0 z-10 bg-background shadow-sm">
-            <TableRow className="text-[11px]">
-              <TableHead className="w-16">국가</TableHead>
-              <TableHead>상품</TableHead>
-              <TableHead className="text-right whitespace-nowrap">Cost</TableHead>
-              <TableHead>최소 Tier (클릭하여 변경)</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filtered.map(p => {
-              const currentLock = settings.tierLocks[p.id] || "none";
-              return (
-                <TableRow key={p.id} className="text-xs">
-                  <TableCell className="text-[10px]">{p.countryCode}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <span className="text-base">{p.emoji}</span>
-                      <div>
-                        <p className="font-medium">{p.name}</p>
-                        <p className="text-[10px] text-muted-foreground">{p.brand} · {p.category}</p>
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-right whitespace-nowrap font-mono">{p.pointsCost} P</TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-1 flex-wrap">
-                      {tierOptions.map(t => (
-                        <button
-                          key={t}
-                          onClick={() => setLock(p.id, t)}
-                          className={`px-2 py-1 rounded text-[10px] border transition-all ${
-                            currentLock === t
-                              ? "border-[#FF6000] bg-[#FF6000]/10 font-bold text-[#FF6000]"
-                              : "border-border hover:bg-muted"
-                          }`}
-                        >
-                          {t === "none" ? "—" : t}
-                        </button>
-                      ))}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
-      </div>
-
-      <p className="text-[10px] text-muted-foreground mt-2">
-        * 변경은 즉시 모든 OP의 Shop 화면에 반영. 잠긴 상품은 카드는 보이되 "🔒 Unlock at X" 표시.
-      </p>
-    </Card>
-  );
-}
 
 
 /* ═════════════════════════════════════════════════

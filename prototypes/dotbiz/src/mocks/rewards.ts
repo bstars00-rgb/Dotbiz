@@ -79,53 +79,51 @@ export const rewardProducts: RewardProduct[] = [
   /* ═════════ KR — Korea (local suppliers) ═════════ */
   { id: "kr-starbucks-5k",   countryCode: "KR", supplierRegion: "Korea", brand: "Starbucks",     name: "스타벅스 아메리카노",      description: "Tall Americano 기프티콘, 전국 매장 사용 가능", category: "Coffee",    pointsCost: 3,    faceValue: 4500,     faceCurrency: "KRW", emoji: "☕", gradient: "linear-gradient(135deg, #006241, #1e3932)", deliveryMethod: "email-code", isBestSeller: true, monthlyRedemptions: 1842 },
   { id: "kr-starbucks-tx",   countryCode: "KR", supplierRegion: "Korea", brand: "Starbucks",     name: "스타벅스 디저트 세트",      description: "아메리카노 + 조각케이크 세트 기프티콘",     category: "Coffee",    pointsCost: 8,    faceValue: 11000,    faceCurrency: "KRW", emoji: "🍰", gradient: "linear-gradient(135deg, #006241, #a97c50)", deliveryMethod: "email-code" },
-  { id: "kr-kakao-taxi",     countryCode: "KR", supplierRegion: "Korea", brand: "Kakao T",       name: "카카오T 블루 5,000원",      description: "카카오T 블루 택시 쿠폰 5,000원",              category: "Transport", pointsCost: 3,    faceValue: 5000,     faceCurrency: "KRW", emoji: "🚕", gradient: "linear-gradient(135deg, #FEE500, #3C1E1E)", deliveryMethod: "in-app-voucher" },
-  { id: "kr-cgv",            countryCode: "KR", supplierRegion: "Korea", brand: "CGV",           name: "CGV 영화 관람권",          description: "CGV 2D 일반 영화 1매",                         category: "Entertainment" as RewardCategory, pointsCost: 10, faceValue: 14000, faceCurrency: "KRW", emoji: "🎬", gradient: "linear-gradient(135deg, #dc0000, #1a1a1a)", deliveryMethod: "email-code" },
-  { id: "kr-baemin",         countryCode: "KR", supplierRegion: "Korea", brand: "배달의민족",      name: "배민 상품권 10,000원",      description: "배달의민족 배달 주문 10,000원 상품권",        category: "Food",      pointsCost: 7,    faceValue: 10000,    faceCurrency: "KRW", emoji: "🍱", gradient: "linear-gradient(135deg, #00c9a7, #004d40)", deliveryMethod: "in-app-voucher", isBestSeller: true, monthlyRedemptions: 1203 },
-  { id: "kr-naverpay-20k",   countryCode: "KR", supplierRegion: "Korea", brand: "네이버페이",      name: "네이버페이 포인트 20,000",   description: "네이버페이 20,000 포인트 충전 (즉시 사용)",   category: "MobilePay", pointsCost: 14,   faceValue: 20000,    faceCurrency: "KRW", emoji: "💚", gradient: "linear-gradient(135deg, #03C75A, #0e5c2f)", deliveryMethod: "in-app-voucher", isBestSeller: true, monthlyRedemptions: 987 },
-  { id: "kr-oliveyoung",     countryCode: "KR", supplierRegion: "Korea", brand: "올리브영",        name: "올리브영 15,000원 상품권",   description: "온라인/오프라인 매장 사용 가능",               category: "Beauty",    pointsCost: 10,   faceValue: 15000,    faceCurrency: "KRW", emoji: "💄", gradient: "linear-gradient(135deg, #82d400, #2d5500)", deliveryMethod: "email-code" },
-  { id: "kr-tving",          countryCode: "KR", supplierRegion: "Korea", brand: "TVING",         name: "TVING 스탠다드 1개월",      description: "TVING 스탠다드 플랜 1개월 이용권",             category: "Streaming", pointsCost: 10,   faceValue: 13900,    faceCurrency: "KRW", emoji: "📺", gradient: "linear-gradient(135deg, #e4002b, #8b0000)", deliveryMethod: "email-code", minTier: "Silver" },
-  { id: "kr-coupang-30k",    countryCode: "KR", supplierRegion: "Korea", brand: "쿠팡",           name: "쿠팡 상품권 30,000원",      description: "쿠팡 전 상품 사용 가능 상품권",                category: "Shopping",  pointsCost: 20,   faceValue: 30000,    faceCurrency: "KRW", emoji: "🛒", gradient: "linear-gradient(135deg, #f74b0d, #8b2a06)", deliveryMethod: "email-code", minTier: "Gold" },
+  { id: "kr-kakao-taxi",     countryCode: "KR", supplierRegion: "Korea", brand: "Kakao T",       name: "카카오T 블루 5,000원",      description: "카카오T 블루 택시 쿠폰 5,000원",              category: "Transport", pointsCost: 10,   faceValue: 5000,     faceCurrency: "KRW", emoji: "🚕", gradient: "linear-gradient(135deg, #FEE500, #3C1E1E)", deliveryMethod: "in-app-voucher" },
+  { id: "kr-cgv",            countryCode: "KR", supplierRegion: "Korea", brand: "CGV",           name: "CGV 영화 관람권",          description: "CGV 2D 일반 영화 1매",                         category: "Entertainment" as RewardCategory, pointsCost: 20, faceValue: 14000, faceCurrency: "KRW", emoji: "🎬", gradient: "linear-gradient(135deg, #dc0000, #1a1a1a)", deliveryMethod: "email-code" },
+  { id: "kr-baemin",         countryCode: "KR", supplierRegion: "Korea", brand: "배달의민족",      name: "배민 상품권 10,000원",      description: "배달의민족 배달 주문 10,000원 상품권",        category: "Food",      pointsCost: 14,   faceValue: 10000,    faceCurrency: "KRW", emoji: "🍱", gradient: "linear-gradient(135deg, #00c9a7, #004d40)", deliveryMethod: "in-app-voucher", isBestSeller: true, monthlyRedemptions: 1203 },
+  { id: "kr-naverpay-20k",   countryCode: "KR", supplierRegion: "Korea", brand: "네이버페이",      name: "네이버페이 포인트 20,000",   description: "네이버페이 20,000 포인트 충전 (즉시 사용)",   category: "MobilePay", pointsCost: 28,   faceValue: 20000,    faceCurrency: "KRW", emoji: "💚", gradient: "linear-gradient(135deg, #03C75A, #0e5c2f)", deliveryMethod: "in-app-voucher", isBestSeller: true, monthlyRedemptions: 987 },
+  { id: "kr-oliveyoung",     countryCode: "KR", supplierRegion: "Korea", brand: "올리브영",        name: "올리브영 15,000원 상품권",   description: "온라인/오프라인 매장 사용 가능",               category: "Beauty",    pointsCost: 20,   faceValue: 15000,    faceCurrency: "KRW", emoji: "💄", gradient: "linear-gradient(135deg, #82d400, #2d5500)", deliveryMethod: "email-code" },
+  { id: "kr-tving",          countryCode: "KR", supplierRegion: "Korea", brand: "TVING",         name: "TVING 스탠다드 1개월",      description: "TVING 스탠다드 플랜 1개월 이용권",             category: "Streaming", pointsCost: 20,   faceValue: 13900,    faceCurrency: "KRW", emoji: "📺", gradient: "linear-gradient(135deg, #e4002b, #8b0000)", deliveryMethod: "email-code" },
+  { id: "kr-coupang-30k",    countryCode: "KR", supplierRegion: "Korea", brand: "쿠팡",           name: "쿠팡 상품권 30,000원",      description: "쿠팡 전 상품 사용 가능 상품권",                category: "Shopping",  pointsCost: 40,   faceValue: 30000,    faceCurrency: "KRW", emoji: "🛒", gradient: "linear-gradient(135deg, #f74b0d, #8b2a06)", deliveryMethod: "email-code" },
 
   /* ═════════ JP — Japan ═════════ */
-  { id: "jp-starbucks",      countryCode: "JP", supplierRegion: "Japan", brand: "Starbucks JP",  name: "スターバックス ドリンクチケット",   description: "Any drink Tall size, all stores in Japan",     category: "Coffee",    pointsCost: 5,    faceValue: 700,      faceCurrency: "JPY", emoji: "☕", gradient: "linear-gradient(135deg, #006241, #1e3932)", deliveryMethod: "email-code", isBestSeller: true, monthlyRedemptions: 624 },
-  { id: "jp-rakuten",        countryCode: "JP", supplierRegion: "Japan", brand: "楽天ポイント",     name: "楽天ポイント 2,000",          description: "2,000 Rakuten points for online shopping",    category: "Shopping",  pointsCost: 14,   faceValue: 2000,     faceCurrency: "JPY", emoji: "🛍️", gradient: "linear-gradient(135deg, #bf0000, #660000)", deliveryMethod: "in-app-voucher" },
-  { id: "jp-ubereats",       countryCode: "JP", supplierRegion: "Japan", brand: "Uber Eats JP",  name: "Uber Eats 1,500円クーポン",   description: "Uber Eats 1,500円 off on any order",          category: "Food",      pointsCost: 10,   faceValue: 1500,     faceCurrency: "JPY", emoji: "🍜", gradient: "linear-gradient(135deg, #06c167, #003d1f)", deliveryMethod: "in-app-voucher" },
-  { id: "jp-amazon-3k",      countryCode: "JP", supplierRegion: "Japan", brand: "Amazon JP",     name: "Amazon ギフト券 3,000円",     description: "Amazon.co.jp ギフト券",                        category: "Shopping",  pointsCost: 20,   faceValue: 3000,     faceCurrency: "JPY", emoji: "📦", gradient: "linear-gradient(135deg, #ff9900, #232f3e)", deliveryMethod: "email-code", minTier: "Gold" },
-  { id: "jp-suica",          countryCode: "JP", supplierRegion: "Japan", brand: "Suica",         name: "Suica チャージ 2,000円",      description: "Mobile Suica charge (iOS/Android)",           category: "Transport", pointsCost: 14,   faceValue: 2000,     faceCurrency: "JPY", emoji: "🚇", gradient: "linear-gradient(135deg, #00a550, #004d24)", deliveryMethod: "in-app-voucher" },
-  { id: "jp-netflix",        countryCode: "JP", supplierRegion: "Japan", brand: "Netflix JP",    name: "Netflix プリペイド 1,500円",  description: "Netflix JP prepaid card",                     category: "Streaming", pointsCost: 10,   faceValue: 1500,     faceCurrency: "JPY", emoji: "🎬", gradient: "linear-gradient(135deg, #e50914, #221f1f)", deliveryMethod: "email-code" },
+  { id: "jp-starbucks",      countryCode: "JP", supplierRegion: "Japan", brand: "Starbucks JP",  name: "スターバックス ドリンクチケット",   description: "Any drink Tall size, all stores in Japan",     category: "Coffee",    pointsCost: 10,   faceValue: 700,      faceCurrency: "JPY", emoji: "☕", gradient: "linear-gradient(135deg, #006241, #1e3932)", deliveryMethod: "email-code", isBestSeller: true, monthlyRedemptions: 624 },
+  { id: "jp-rakuten",        countryCode: "JP", supplierRegion: "Japan", brand: "楽天ポイント",     name: "楽天ポイント 2,000",          description: "2,000 Rakuten points for online shopping",    category: "Shopping",  pointsCost: 28,   faceValue: 2000,     faceCurrency: "JPY", emoji: "🛍️", gradient: "linear-gradient(135deg, #bf0000, #660000)", deliveryMethod: "in-app-voucher" },
+  { id: "jp-ubereats",       countryCode: "JP", supplierRegion: "Japan", brand: "Uber Eats JP",  name: "Uber Eats 1,500円クーポン",   description: "Uber Eats 1,500円 off on any order",          category: "Food",      pointsCost: 20,   faceValue: 1500,     faceCurrency: "JPY", emoji: "🍜", gradient: "linear-gradient(135deg, #06c167, #003d1f)", deliveryMethod: "in-app-voucher" },
+  { id: "jp-amazon-3k",      countryCode: "JP", supplierRegion: "Japan", brand: "Amazon JP",     name: "Amazon ギフト券 3,000円",     description: "Amazon.co.jp ギフト券",                        category: "Shopping",  pointsCost: 40,   faceValue: 3000,     faceCurrency: "JPY", emoji: "📦", gradient: "linear-gradient(135deg, #ff9900, #232f3e)", deliveryMethod: "email-code" },
+  { id: "jp-suica",          countryCode: "JP", supplierRegion: "Japan", brand: "Suica",         name: "Suica チャージ 2,000円",      description: "Mobile Suica charge (iOS/Android)",           category: "Transport", pointsCost: 28,   faceValue: 2000,     faceCurrency: "JPY", emoji: "🚇", gradient: "linear-gradient(135deg, #00a550, #004d24)", deliveryMethod: "in-app-voucher" },
+  { id: "jp-netflix",        countryCode: "JP", supplierRegion: "Japan", brand: "Netflix JP",    name: "Netflix プリペイド 1,500円",  description: "Netflix JP prepaid card",                     category: "Streaming", pointsCost: 20,   faceValue: 1500,     faceCurrency: "JPY", emoji: "🎬", gradient: "linear-gradient(135deg, #e50914, #221f1f)", deliveryMethod: "email-code" },
 
   /* ═════════ CN — China (Hong Kong supplier) ═════════ */
-  { id: "cn-wechat-50",      countryCode: "CN", supplierRegion: "Hong Kong", brand: "WeChat Pay",   name: "微信红包 50元",              description: "WeChat 红包 50元, instant credit",             category: "MobilePay", pointsCost: 7,    faceValue: 50,       faceCurrency: "CNY", emoji: "💬", gradient: "linear-gradient(135deg, #07c160, #004d1e)", deliveryMethod: "in-app-voucher" },
-  { id: "cn-alipay-100",     countryCode: "CN", supplierRegion: "Hong Kong", brand: "Alipay",       name: "支付宝充值 100元",           description: "Alipay account top-up 100 CNY",                category: "MobilePay", pointsCost: 14,   faceValue: 100,      faceCurrency: "CNY", emoji: "💳", gradient: "linear-gradient(135deg, #1677ff, #002d6b)", deliveryMethod: "in-app-voucher" },
-  { id: "cn-meituan-30",     countryCode: "CN", supplierRegion: "Hong Kong", brand: "Meituan",      name: "美团外卖券 30元",             description: "Meituan food delivery voucher",                category: "Food",      pointsCost: 4,    faceValue: 30,       faceCurrency: "CNY", emoji: "🥟", gradient: "linear-gradient(135deg, #ffc300, #806000)", deliveryMethod: "in-app-voucher" },
-  { id: "cn-jd-150",         countryCode: "CN", supplierRegion: "Hong Kong", brand: "JD.com",       name: "京东 E-card 150元",          description: "JD.com store credit",                          category: "Shopping",  pointsCost: 20,   faceValue: 150,      faceCurrency: "CNY", emoji: "🛍️", gradient: "linear-gradient(135deg, #e1251b, #7a0e0a)", deliveryMethod: "email-code", minTier: "Gold" },
-  { id: "cn-didi-25",        countryCode: "CN", supplierRegion: "Hong Kong", brand: "DiDi",         name: "滴滴出行 25元",               description: "DiDi ride credit 25 CNY",                      category: "Transport", pointsCost: 3,    faceValue: 25,       faceCurrency: "CNY", emoji: "🚗", gradient: "linear-gradient(135deg, #ff6900, #663000)", deliveryMethod: "in-app-voucher" },
-  { id: "cn-iqiyi",          countryCode: "CN", supplierRegion: "Hong Kong", brand: "iQiyi",        name: "爱奇艺 VIP 1个月",            description: "iQiyi VIP membership 1 month",                 category: "Streaming", pointsCost: 5,    faceValue: 40,       faceCurrency: "CNY", emoji: "📺", gradient: "linear-gradient(135deg, #00be06, #004d02)", deliveryMethod: "email-code" },
+  { id: "cn-wechat-50",      countryCode: "CN", supplierRegion: "Hong Kong", brand: "WeChat Pay",   name: "微信红包 50元",              description: "WeChat 红包 50元, instant credit",             category: "MobilePay", pointsCost: 14,   faceValue: 50,       faceCurrency: "CNY", emoji: "💬", gradient: "linear-gradient(135deg, #07c160, #004d1e)", deliveryMethod: "in-app-voucher" },
+  { id: "cn-alipay-100",     countryCode: "CN", supplierRegion: "Hong Kong", brand: "Alipay",       name: "支付宝充值 100元",           description: "Alipay account top-up 100 CNY",                category: "MobilePay", pointsCost: 28,   faceValue: 100,      faceCurrency: "CNY", emoji: "💳", gradient: "linear-gradient(135deg, #1677ff, #002d6b)", deliveryMethod: "in-app-voucher" },
+  { id: "cn-meituan-30",     countryCode: "CN", supplierRegion: "Hong Kong", brand: "Meituan",      name: "美团外卖券 30元",             description: "Meituan food delivery voucher",                category: "Food",      pointsCost: 10,   faceValue: 30,       faceCurrency: "CNY", emoji: "🥟", gradient: "linear-gradient(135deg, #ffc300, #806000)", deliveryMethod: "in-app-voucher" },
+  { id: "cn-jd-150",         countryCode: "CN", supplierRegion: "Hong Kong", brand: "JD.com",       name: "京东 E-card 150元",          description: "JD.com store credit",                          category: "Shopping",  pointsCost: 40,   faceValue: 150,      faceCurrency: "CNY", emoji: "🛍️", gradient: "linear-gradient(135deg, #e1251b, #7a0e0a)", deliveryMethod: "email-code" },
+  { id: "cn-didi-25",        countryCode: "CN", supplierRegion: "Hong Kong", brand: "DiDi",         name: "滴滴出行 25元",               description: "DiDi ride credit 25 CNY",                      category: "Transport", pointsCost: 10,   faceValue: 25,       faceCurrency: "CNY", emoji: "🚗", gradient: "linear-gradient(135deg, #ff6900, #663000)", deliveryMethod: "in-app-voucher" },
+  { id: "cn-iqiyi",          countryCode: "CN", supplierRegion: "Hong Kong", brand: "iQiyi",        name: "爱奇艺 VIP 1个月",            description: "iQiyi VIP membership 1 month",                 category: "Streaming", pointsCost: 10,   faceValue: 40,       faceCurrency: "CNY", emoji: "📺", gradient: "linear-gradient(135deg, #00be06, #004d02)", deliveryMethod: "email-code" },
 
   /* ═════════ VN — Vietnam ═════════ */
-  { id: "vn-grab-food-100k", countryCode: "VN", supplierRegion: "Vietnam",   brand: "Grab",         name: "GrabFood voucher 100k VND",  description: "100,000 VND off on GrabFood orders",           category: "Food",      pointsCost: 5,    faceValue: 100000,   faceCurrency: "VND", emoji: "🍲", gradient: "linear-gradient(135deg, #00b14f, #003c1b)", deliveryMethod: "in-app-voucher", isBestSeller: true, monthlyRedemptions: 512 },
-  { id: "vn-grab-bike-50k",  countryCode: "VN", supplierRegion: "Vietnam",   brand: "Grab",         name: "GrabBike 50k VND",          description: "50,000 VND off a GrabBike ride",              category: "Transport", pointsCost: 3,    faceValue: 50000,    faceCurrency: "VND", emoji: "🏍️", gradient: "linear-gradient(135deg, #00b14f, #003c1b)", deliveryMethod: "in-app-voucher" },
-  { id: "vn-shopee-200k",    countryCode: "VN", supplierRegion: "Vietnam",   brand: "Shopee VN",    name: "Shopee voucher 200k VND",    description: "Shopee VN 200k VND shopping voucher",          category: "Shopping",  pointsCost: 10,   faceValue: 200000,   faceCurrency: "VND", emoji: "🛒", gradient: "linear-gradient(135deg, #ee4d2d, #6e1c10)", deliveryMethod: "email-code", minTier: "Silver" },
-  { id: "vn-momo-150k",      countryCode: "VN", supplierRegion: "Vietnam",   brand: "Momo",         name: "Momo 150k VND 충전",         description: "Momo wallet top-up 150,000 VND",               category: "MobilePay", pointsCost: 7,    faceValue: 150000,   faceCurrency: "VND", emoji: "💜", gradient: "linear-gradient(135deg, #a50064, #4a002c)", deliveryMethod: "in-app-voucher" },
-  { id: "vn-highlands",      countryCode: "VN", supplierRegion: "Vietnam",   brand: "Highlands Coffee", name: "Highlands 60k VND",      description: "Highlands Coffee 60,000 VND voucher",          category: "Coffee",    pointsCost: 3,    faceValue: 60000,    faceCurrency: "VND", emoji: "☕", gradient: "linear-gradient(135deg, #8b2d00, #3d1400)", deliveryMethod: "email-code" },
+  { id: "vn-grab-food-100k", countryCode: "VN", supplierRegion: "Vietnam",   brand: "Grab",         name: "GrabFood voucher 100k VND",  description: "100,000 VND off on GrabFood orders",           category: "Food",      pointsCost: 10,   faceValue: 100000,   faceCurrency: "VND", emoji: "🍲", gradient: "linear-gradient(135deg, #00b14f, #003c1b)", deliveryMethod: "in-app-voucher", isBestSeller: true, monthlyRedemptions: 512 },
+  { id: "vn-grab-bike-50k",  countryCode: "VN", supplierRegion: "Vietnam",   brand: "Grab",         name: "GrabBike 50k VND",          description: "50,000 VND off a GrabBike ride",              category: "Transport", pointsCost: 10,   faceValue: 50000,    faceCurrency: "VND", emoji: "🏍️", gradient: "linear-gradient(135deg, #00b14f, #003c1b)", deliveryMethod: "in-app-voucher" },
+  { id: "vn-shopee-200k",    countryCode: "VN", supplierRegion: "Vietnam",   brand: "Shopee VN",    name: "Shopee voucher 200k VND",    description: "Shopee VN 200k VND shopping voucher",          category: "Shopping",  pointsCost: 20,   faceValue: 200000,   faceCurrency: "VND", emoji: "🛒", gradient: "linear-gradient(135deg, #ee4d2d, #6e1c10)", deliveryMethod: "email-code" },
+  { id: "vn-momo-150k",      countryCode: "VN", supplierRegion: "Vietnam",   brand: "Momo",         name: "Momo 150k VND 충전",         description: "Momo wallet top-up 150,000 VND",               category: "MobilePay", pointsCost: 14,   faceValue: 150000,   faceCurrency: "VND", emoji: "💜", gradient: "linear-gradient(135deg, #a50064, #4a002c)", deliveryMethod: "in-app-voucher" },
+  { id: "vn-highlands",      countryCode: "VN", supplierRegion: "Vietnam",   brand: "Highlands Coffee", name: "Highlands 60k VND",      description: "Highlands Coffee 60,000 VND voucher",          category: "Coffee",    pointsCost: 10,   faceValue: 60000,    faceCurrency: "VND", emoji: "☕", gradient: "linear-gradient(135deg, #8b2d00, #3d1400)", deliveryMethod: "email-code" },
 
   /* ═════════ SG — Singapore ═════════ */
-  { id: "sg-grab-5",         countryCode: "SG", supplierRegion: "Singapore", brand: "Grab",         name: "Grab S$5 voucher",           description: "Use on GrabFood, GrabCar, or GrabMart",        category: "Transport", pointsCost: 3,    faceValue: 5,        faceCurrency: "SGD", emoji: "🚕", gradient: "linear-gradient(135deg, #00b14f, #003c1b)", deliveryMethod: "in-app-voucher" },
-  { id: "sg-foodpanda-10",   countryCode: "SG", supplierRegion: "Singapore", brand: "Foodpanda",    name: "Foodpanda S$10",             description: "S$10 off any Foodpanda order",                 category: "Food",      pointsCost: 7,    faceValue: 10,       faceCurrency: "SGD", emoji: "🐼", gradient: "linear-gradient(135deg, #d70f64, #5a0329)", deliveryMethod: "in-app-voucher" },
-  { id: "sg-ntuc-20",        countryCode: "SG", supplierRegion: "Singapore", brand: "NTUC FairPrice", name: "FairPrice S$20",           description: "FairPrice supermarket e-voucher",              category: "Shopping",  pointsCost: 14,   faceValue: 20,       faceCurrency: "SGD", emoji: "🛒", gradient: "linear-gradient(135deg, #e30613, #6b0309)", deliveryMethod: "email-code" },
-  { id: "sg-starbucks-sg",   countryCode: "SG", supplierRegion: "Singapore", brand: "Starbucks SG", name: "Starbucks S$6",              description: "Any drink Tall size",                          category: "Coffee",    pointsCost: 4,    faceValue: 6,        faceCurrency: "SGD", emoji: "☕", gradient: "linear-gradient(135deg, #006241, #1e3932)", deliveryMethod: "email-code" },
+  { id: "sg-grab-5",         countryCode: "SG", supplierRegion: "Singapore", brand: "Grab",         name: "Grab S$5 voucher",           description: "Use on GrabFood, GrabCar, or GrabMart",        category: "Transport", pointsCost: 10,   faceValue: 5,        faceCurrency: "SGD", emoji: "🚕", gradient: "linear-gradient(135deg, #00b14f, #003c1b)", deliveryMethod: "in-app-voucher" },
+  { id: "sg-foodpanda-10",   countryCode: "SG", supplierRegion: "Singapore", brand: "Foodpanda",    name: "Foodpanda S$10",             description: "S$10 off any Foodpanda order",                 category: "Food",      pointsCost: 14,   faceValue: 10,       faceCurrency: "SGD", emoji: "🐼", gradient: "linear-gradient(135deg, #d70f64, #5a0329)", deliveryMethod: "in-app-voucher" },
+  { id: "sg-ntuc-20",        countryCode: "SG", supplierRegion: "Singapore", brand: "NTUC FairPrice", name: "FairPrice S$20",           description: "FairPrice supermarket e-voucher",              category: "Shopping",  pointsCost: 28,   faceValue: 20,       faceCurrency: "SGD", emoji: "🛒", gradient: "linear-gradient(135deg, #e30613, #6b0309)", deliveryMethod: "email-code" },
+  { id: "sg-starbucks-sg",   countryCode: "SG", supplierRegion: "Singapore", brand: "Starbucks SG", name: "Starbucks S$6",              description: "Any drink Tall size",                          category: "Coffee",    pointsCost: 10,   faceValue: 6,        faceCurrency: "SGD", emoji: "☕", gradient: "linear-gradient(135deg, #006241, #1e3932)", deliveryMethod: "email-code" },
 
   /* ═════════ US (International USD-contract fallback) ═════════ */
-  { id: "us-starbucks-10",   countryCode: "US", supplierRegion: "USA",       brand: "Starbucks",    name: "Starbucks US$10",            description: "Starbucks eGift, redeemable at US stores",     category: "Coffee",    pointsCost: 7,    faceValue: 10,       faceCurrency: "USD", emoji: "☕", gradient: "linear-gradient(135deg, #006241, #1e3932)", deliveryMethod: "email-code" },
-  { id: "us-amazon-25",      countryCode: "US", supplierRegion: "USA",       brand: "Amazon",       name: "Amazon US$25",               description: "Amazon.com eGift card",                        category: "Shopping",  pointsCost: 17,   faceValue: 25,       faceCurrency: "USD", emoji: "📦", gradient: "linear-gradient(135deg, #ff9900, #232f3e)", deliveryMethod: "email-code", minTier: "Silver" },
+  { id: "us-starbucks-10",   countryCode: "US", supplierRegion: "USA",       brand: "Starbucks",    name: "Starbucks US$10",            description: "Starbucks eGift, redeemable at US stores",     category: "Coffee",    pointsCost: 14,   faceValue: 10,       faceCurrency: "USD", emoji: "☕", gradient: "linear-gradient(135deg, #006241, #1e3932)", deliveryMethod: "email-code" },
+  { id: "us-amazon-25",      countryCode: "US", supplierRegion: "USA",       brand: "Amazon",       name: "Amazon US$25",               description: "Amazon.com eGift card",                        category: "Shopping",  pointsCost: 34,   faceValue: 25,       faceCurrency: "USD", emoji: "📦", gradient: "linear-gradient(135deg, #ff9900, #232f3e)", deliveryMethod: "email-code" },
 
-  /* ═════════ Platinum 전용 — 럭셔리 라인 (예시 골격, 수치/SKU 추후 결정) ═════════ */
-  { id: "kr-shilla-50k",     countryCode: "KR", supplierRegion: "Korea",     brand: "신라호텔",       name: "신라호텔 케이크 50,000원",   description: "신라호텔 패스트리 부티크 케이크 상품권",       category: "Shopping",  pointsCost: 35,   faceValue: 50000,    faceCurrency: "KRW", emoji: "🍰", gradient: "linear-gradient(135deg, #c9a96e, #5d4a2a)", deliveryMethod: "email-code", minTier: "Platinum" },
-  { id: "vn-spa-luxury",     countryCode: "VN", supplierRegion: "Vietnam",   brand: "Park Hyatt Spa", name: "Park Hyatt Spa Day Pass",    description: "Park Hyatt Saigon Spa 데이패스 (실제 SKU 추후)",  category: "Beauty",    pointsCost: 40,   faceValue: 1500000,  faceCurrency: "VND", emoji: "💆", gradient: "linear-gradient(135deg, #d4af37, #5c4a1f)", deliveryMethod: "email-code", minTier: "Platinum" },
-
-  /* ═════════ Diamond 전용 — Apex 라인 (예시 골격) ═════════ */
-  { id: "kr-michelin",       countryCode: "KR", supplierRegion: "Korea",     brand: "Michelin Star",  name: "미쉐린 1스타 디너 1인",       description: "선정 식당 디너 코스 1인 (실제 파트너십 추후)", category: "Food",      pointsCost: 80,   faceValue: 200000,   faceCurrency: "KRW", emoji: "🍽️", gradient: "linear-gradient(135deg, #1e3a8a, #0a1535)", deliveryMethod: "email-code", minTier: "Diamond" },
+  /* ═════════ 프리미엄 라인 — 모든 사용자 redeem 가능 (Tier 잠금 없음, 2026-05-06 결정 #6) ═════════ */
+  { id: "kr-shilla-50k",     countryCode: "KR", supplierRegion: "Korea",     brand: "신라호텔",       name: "신라호텔 케이크 50,000원",   description: "신라호텔 패스트리 부티크 케이크 상품권",       category: "Shopping",  pointsCost: 70,   faceValue: 50000,    faceCurrency: "KRW", emoji: "🍰", gradient: "linear-gradient(135deg, #c9a96e, #5d4a2a)", deliveryMethod: "email-code" },
+  { id: "vn-spa-luxury",     countryCode: "VN", supplierRegion: "Vietnam",   brand: "Park Hyatt Spa", name: "Park Hyatt Spa Day Pass",    description: "Park Hyatt Saigon Spa 데이패스 (실제 SKU 추후)",  category: "Beauty",    pointsCost: 80,   faceValue: 1500000,  faceCurrency: "VND", emoji: "💆", gradient: "linear-gradient(135deg, #d4af37, #5c4a1f)", deliveryMethod: "email-code" },
+  { id: "kr-michelin",       countryCode: "KR", supplierRegion: "Korea",     brand: "Michelin Star",  name: "미쉐린 1스타 디너 1인",       description: "선정 식당 디너 코스 1인 (실제 파트너십 추후)", category: "Food",      pointsCost: 160,  faceValue: 200000,   faceCurrency: "KRW", emoji: "🍽️", gradient: "linear-gradient(135deg, #1e3a8a, #0a1535)", deliveryMethod: "email-code" },
 ];
 
 /* ── Milestones ──
@@ -152,8 +150,13 @@ export type Tier = "Bronze" | "Silver" | "Gold" | "Platinum" | "Diamond";
 
 export interface TierDef {
   name: Tier;
+  /* ── 단순 매출 기반 임계값 (2026-05-06 결정) ──
+   * 누적 매출(USD) 기준. booking count는 부가 정보로만 사용. */
+  minRevenueUsd: number;
+  maxRevenueUsd: number;     /* exclusive upper bound (Diamond = Infinity) */
+  /* Legacy: minBookings / maxBookings — 기존 코드 호환용 (deprecated) */
   minBookings: number;
-  maxBookings: number;       /* exclusive upper bound (Diamond = Infinity) */
+  maxBookings: number;
   multiplier: number;
   /* Refined palette — sophisticated rather than gamer-garish */
   color: string;             /* primary accent */
@@ -172,7 +175,8 @@ export interface TierDef {
 export const TIERS: TierDef[] = [
   {
     name: "Bronze",
-    minBookings: 0, maxBookings: 50,
+    minRevenueUsd: 0, maxRevenueUsd: 10_000,
+    minBookings: 0, maxBookings: 50,    /* legacy */
     multiplier: 1.0,
     color: "#a16b3f", colorSoft: "#a16b3f18",
     gradient: "linear-gradient(135deg, #d4a373, #a16b3f, #6d4424)",
@@ -184,7 +188,8 @@ export const TIERS: TierDef[] = [
   },
   {
     name: "Silver",
-    minBookings: 50, maxBookings: 200,
+    minRevenueUsd: 10_000, maxRevenueUsd: 50_000,
+    minBookings: 50, maxBookings: 200,    /* legacy */
     multiplier: 1.1,
     color: "#64748b", colorSoft: "#64748b18",
     gradient: "linear-gradient(135deg, #e2e8f0, #cbd5e1, #64748b)",
@@ -196,7 +201,8 @@ export const TIERS: TierDef[] = [
   },
   {
     name: "Gold",
-    minBookings: 200, maxBookings: 500,
+    minRevenueUsd: 50_000, maxRevenueUsd: 200_000,
+    minBookings: 200, maxBookings: 500,    /* legacy */
     multiplier: 1.2,
     color: "#b8861b", colorSoft: "#eab30820",
     gradient: "linear-gradient(135deg, #fef3c7, #fbbf24, #b8861b)",
@@ -208,7 +214,8 @@ export const TIERS: TierDef[] = [
   },
   {
     name: "Platinum",
-    minBookings: 500, maxBookings: 1500,
+    minRevenueUsd: 200_000, maxRevenueUsd: 1_000_000,
+    minBookings: 500, maxBookings: 1500,    /* legacy */
     multiplier: 1.3,
     color: "#7c7aa7", colorSoft: "#8b9dc320",
     gradient: "linear-gradient(135deg, #e0e7ff, #a5b4fc, #6366f1)",
@@ -220,7 +227,8 @@ export const TIERS: TierDef[] = [
   },
   {
     name: "Diamond",
-    minBookings: 1500, maxBookings: Number.POSITIVE_INFINITY,
+    minRevenueUsd: 1_000_000, maxRevenueUsd: Number.POSITIVE_INFINITY,
+    minBookings: 1500, maxBookings: Number.POSITIVE_INFINITY,    /* legacy */
     multiplier: 1.5,
     color: "#0891b2", colorSoft: "#06b6d420",
     gradient: "linear-gradient(135deg, #ecfeff, #67e8f9, #0891b2)",
@@ -231,6 +239,63 @@ export const TIERS: TierDef[] = [
     perks: ["1.5× ELS earn rate", "Dedicated concierge", "Invite-only events", "Bespoke room requests"],
   },
 ];
+
+/* ──────────────────────────────────────────────────────────────────
+ * Tier 단순 매출 기반 룩업 (2026-05-06 결정)
+ *
+ * 임계값 (누적 매출 USD):
+ *   Bronze    $0 ~ $9,999
+ *   Silver    $10,000 ~ $49,999
+ *   Gold      $50,000 ~ $199,999
+ *   Platinum  $200,000 ~ $999,999
+ *   Diamond   $1,000,000+
+ * ────────────────────────────────────────────────────────────────── */
+export function tierForRevenue(revenueUsd: number): TierDef {
+  for (let i = TIERS.length - 1; i >= 0; i--) {
+    if (revenueUsd >= TIERS[i].minRevenueUsd) return TIERS[i];
+  }
+  return TIERS[0];
+}
+
+/* ──────────────────────────────────────────────────────────────────
+ * Tier별 차등 강등 조건 (2026-05-06 결정)
+ *
+ * 3개월 단위 점검. 분기 매출이 아래 임계값 미만이면 한 단계 강등.
+ * Bronze는 이미 최저이므로 강등 없음.
+ *
+ * "갈수록 어려워지도록" — 위 tier일수록 유지에 더 큰 매출 필요.
+ * 임계값은 진입 매출의 25%로 설정 (분기 = 연 1/4).
+ * ────────────────────────────────────────────────────────────────── */
+export const TIER_QUARTERLY_RETENTION_USD: Record<Tier, number> = {
+  Bronze: 0,           /* 강등 없음 */
+  Silver: 2_500,       /* $10K × 25% */
+  Gold: 12_500,        /* $50K × 25% */
+  Platinum: 50_000,    /* $200K × 25% */
+  Diamond: 250_000,    /* $1M × 25% */
+};
+
+/** 강등 grace 기간 — 1단계 강등 시 30일 회복 기회 */
+export const TIER_DEMOTION_GRACE_DAYS = 30;
+
+/* ──────────────────────────────────────────────────────────────────
+ * 로얄티 스탬프 활동 기준 (2026-05-06 결정)
+ *
+ * 1-Year Anniversary 같은 로얄티 스탬프는 단순 가입기간이 아니라
+ * 최근 3개월 활동(매출)이 tier 강등 임계값 이상일 때만 부여.
+ *
+ * 강등조건과 동일 — 갈수록 어려워지도록.
+ * ────────────────────────────────────────────────────────────────── */
+export const STAMP_ACTIVITY_REQUIREMENT_USD: Record<Tier, number> = {
+  ...TIER_QUARTERLY_RETENTION_USD,    /* 강등조건과 동일 값 */
+};
+
+/** 로얄티 스탬프 활동 기준 충족 여부 — 부여/유지 검사에 사용 */
+export function isLoyaltyStampEligible(
+  currentTier: Tier,
+  last3moRevenueUsd: number,
+): boolean {
+  return last3moRevenueUsd >= STAMP_ACTIVITY_REQUIREMENT_USD[currentTier];
+}
 
 /* ── 레거시: bookingCount 단일축 (호환용) ──
  * 신규 코드는 tierForComposite() / tierForRolling() 사용 권장. */
@@ -431,23 +496,16 @@ export function tierAtLeast(a: Tier, b: Tier): boolean {
   return TIER_ORDER.indexOf(a) >= TIER_ORDER.indexOf(b);
 }
 
-/** 사용자 tier로 상품 리딤 가능 여부 */
-export function canRedeemProduct(userTier: Tier, product: RewardProduct): boolean {
-  if (!product.minTier) return true;
-  return tierAtLeast(userTier, product.minTier);
+/** ── DEPRECATED (2026-05-06 결정 #6 — Shop tier 잠금 기능 삭제) ──
+ * 모든 사용자가 모든 상품 redeem 가능. 잠금 X.
+ * 호출 호환을 위해 함수 시그니처는 유지하되 항상 true 반환. */
+export function canRedeemProduct(_userTier: Tier, _product: RewardProduct): boolean {
+  return true;
 }
 
-/** 잠긴 상품을 Tier별로 그룹핑 — Shop UI에서 "Coming at Silver" 섹션 등에 사용 */
-export function lockedProductsByTier(userTier: Tier, products: RewardProduct[]): Record<Tier, RewardProduct[]> {
-  const result: Record<Tier, RewardProduct[]> = {
-    Bronze: [], Silver: [], Gold: [], Platinum: [], Diamond: [],
-  };
-  for (const p of products) {
-    if (p.minTier && !canRedeemProduct(userTier, p)) {
-      result[p.minTier].push(p);
-    }
-  }
-  return result;
+/** @deprecated — Tier 잠금 기능 삭제됨. 빈 결과 반환. */
+export function lockedProductsByTier(_userTier: Tier, _products: RewardProduct[]): Record<Tier, RewardProduct[]> {
+  return { Bronze: [], Silver: [], Gold: [], Platinum: [], Diamond: [] };
 }
 
 /* ══════════════════════════════════════════════════════════════════════
@@ -556,6 +614,9 @@ export interface UserPointsState {
   totalRevenueUsd: number;       /* 평생 누적 매출 (USD 환산) */
   last12moBookings: number;      /* 직전 12개월 booking 수 */
   last12moRevenueUsd: number;    /* 직전 12개월 매출 (USD) */
+  /* ── 분기 활동 (2026-05-06 결정 — Tier별 차등 강등 + 스탬프 활동 기준) ── */
+  last3moBookings: number;       /* 직전 3개월 booking 수 */
+  last3moRevenueUsd: number;     /* 직전 3개월 매출 (USD) — 강등 점검용 */
   /** Status retention — Tier 강등 시 1년 grace 부여한 OP는 retention된 tier가 표시됨.
    * null이면 grace 없음. */
   retainedTier?: Tier | null;
@@ -572,23 +633,23 @@ export interface UserPointsState {
  */
 export const userPointsState: Record<string, UserPointsState> = {
   /* TravelCo (Korea) */
-  "master@dotbiz.com":       { userEmail: "master@dotbiz.com",       customerCompanyId: "comp-001", countryCode: "KR", balance: 185,  totalEarned: 242,  totalUsed: 57,  bookingCount: 84,  milestonesReached: ["welcome", "m10", "m50"], joinedAt: "2024-03-15", totalRevenueUsd: 21000, last12moBookings: 64, last12moRevenueUsd: 16800 },
-  "op@dotbiz.com":           { userEmail: "op@dotbiz.com",           customerCompanyId: "comp-001", countryCode: "KR", balance: 96,   totalEarned: 132,  totalUsed: 36,  bookingCount: 47,  milestonesReached: ["welcome", "m10"],         joinedAt: "2024-04-02", totalRevenueUsd: 8460,  last12moBookings: 38, last12moRevenueUsd: 7100 },
-  "kevin@travelco.com":      { userEmail: "kevin@travelco.com",      customerCompanyId: "comp-001", countryCode: "KR", balance: 42,   totalEarned: 55,   totalUsed: 13,  bookingCount: 18,  milestonesReached: ["welcome", "m10"],         joinedAt: "2025-06-10", totalRevenueUsd: 11160, last12moBookings: 18, last12moRevenueUsd: 11160 },
-  "emma@travelco.com":       { userEmail: "emma@travelco.com",       customerCompanyId: "comp-001", countryCode: "KR", balance: 28,   totalEarned: 31,   totalUsed: 3,   bookingCount: 11,  milestonesReached: ["welcome", "m10"],         joinedAt: "2025-09-08", totalRevenueUsd: 2200,  last12moBookings: 11, last12moRevenueUsd: 2200 },
-  "daniel@travelco.com":     { userEmail: "daniel@travelco.com",     customerCompanyId: "comp-001", countryCode: "KR", balance: 8,    totalEarned: 8,    totalUsed: 0,   bookingCount: 2,   milestonesReached: ["welcome"],                 joinedAt: "2025-11-20", totalRevenueUsd: 360,   last12moBookings: 2,  last12moRevenueUsd: 360 },
+  "master@dotbiz.com":       { userEmail: "master@dotbiz.com",       customerCompanyId: "comp-001", countryCode: "KR", balance: 185,  totalEarned: 242,  totalUsed: 57,  bookingCount: 84,  milestonesReached: ["welcome", "m10", "m50"], joinedAt: "2024-03-15", totalRevenueUsd: 21000, last12moBookings: 64, last12moRevenueUsd: 16800, last3moBookings: 18, last3moRevenueUsd: 4200 },
+  "op@dotbiz.com":           { userEmail: "op@dotbiz.com",           customerCompanyId: "comp-001", countryCode: "KR", balance: 96,   totalEarned: 132,  totalUsed: 36,  bookingCount: 47,  milestonesReached: ["welcome", "m10"],         joinedAt: "2024-04-02", totalRevenueUsd: 8460,  last12moBookings: 38, last12moRevenueUsd: 7100,  last3moBookings: 11, last3moRevenueUsd: 1900 },
+  "kevin@travelco.com":      { userEmail: "kevin@travelco.com",      customerCompanyId: "comp-001", countryCode: "KR", balance: 42,   totalEarned: 55,   totalUsed: 13,  bookingCount: 18,  milestonesReached: ["welcome", "m10"],         joinedAt: "2025-06-10", totalRevenueUsd: 11160, last12moBookings: 18, last12moRevenueUsd: 11160, last3moBookings: 5,  last3moRevenueUsd: 3100 },
+  "emma@travelco.com":       { userEmail: "emma@travelco.com",       customerCompanyId: "comp-001", countryCode: "KR", balance: 28,   totalEarned: 31,   totalUsed: 3,   bookingCount: 11,  milestonesReached: ["welcome", "m10"],         joinedAt: "2025-09-08", totalRevenueUsd: 2200,  last12moBookings: 11, last12moRevenueUsd: 2200,  last3moBookings: 4,  last3moRevenueUsd: 800 },
+  "daniel@travelco.com":     { userEmail: "daniel@travelco.com",     customerCompanyId: "comp-001", countryCode: "KR", balance: 8,    totalEarned: 8,    totalUsed: 0,   bookingCount: 2,   milestonesReached: ["welcome"],                 joinedAt: "2025-11-20", totalRevenueUsd: 360,   last12moBookings: 2,  last12moRevenueUsd: 360,   last3moBookings: 1,  last3moRevenueUsd: 180 },
   /* Asia Tours (Korea, PREPAY) */
-  "prepay@dotbiz.com":       { userEmail: "prepay@dotbiz.com",       customerCompanyId: "comp-002", countryCode: "KR", balance: 64,   totalEarned: 89,   totalUsed: 25,  bookingCount: 32,  milestonesReached: ["welcome", "m10"],         joinedAt: "2024-06-01", totalRevenueUsd: 7680,  last12moBookings: 24, last12moRevenueUsd: 5800 },
-  "hiroshi@asiatours.com":   { userEmail: "hiroshi@asiatours.com",   customerCompanyId: "comp-002", countryCode: "KR", balance: 18,   totalEarned: 22,   totalUsed: 4,   bookingCount: 9,   milestonesReached: ["welcome"],                 joinedAt: "2024-08-12", totalRevenueUsd: 1620,  last12moBookings: 6,  last12moRevenueUsd: 1100 },
+  "prepay@dotbiz.com":       { userEmail: "prepay@dotbiz.com",       customerCompanyId: "comp-002", countryCode: "KR", balance: 64,   totalEarned: 89,   totalUsed: 25,  bookingCount: 32,  milestonesReached: ["welcome", "m10"],         joinedAt: "2024-06-01", totalRevenueUsd: 7680,  last12moBookings: 24, last12moRevenueUsd: 5800,  last3moBookings: 7,  last3moRevenueUsd: 1700 },
+  "hiroshi@asiatours.com":   { userEmail: "hiroshi@asiatours.com",   customerCompanyId: "comp-002", countryCode: "KR", balance: 18,   totalEarned: 22,   totalUsed: 4,   bookingCount: 9,   milestonesReached: ["welcome"],                 joinedAt: "2024-08-12", totalRevenueUsd: 1620,  last12moBookings: 6,  last12moRevenueUsd: 1100,  last3moBookings: 1,  last3moRevenueUsd: 200 },
   /* GOTADI (Vietnam) */
-  "gotadi@dotbiz.com":       { userEmail: "gotadi@dotbiz.com",       customerCompanyId: "comp-010", countryCode: "VN", balance: 112,  totalEarned: 165,  totalUsed: 53,  bookingCount: 62,  milestonesReached: ["welcome", "m10", "m50"], joinedAt: "2024-09-15", totalRevenueUsd: 8060,  last12moBookings: 48, last12moRevenueUsd: 6400 },
-  "mai@gotadi.com":          { userEmail: "mai@gotadi.com",          customerCompanyId: "comp-010", countryCode: "VN", balance: 56,   totalEarned: 73,   totalUsed: 17,  bookingCount: 29,  milestonesReached: ["welcome", "m10"],         joinedAt: "2024-10-01", totalRevenueUsd: 3770,  last12moBookings: 22, last12moRevenueUsd: 2900 },
-  "phong@gotadi.com":        { userEmail: "phong@gotadi.com",        customerCompanyId: "comp-010", countryCode: "VN", balance: 38,   totalEarned: 48,   totalUsed: 10,  bookingCount: 21,  milestonesReached: ["welcome", "m10"],         joinedAt: "2024-10-01", totalRevenueUsd: 2730,  last12moBookings: 18, last12moRevenueUsd: 2400 },
-  "linh@gotadi.com":         { userEmail: "linh@gotadi.com",         customerCompanyId: "comp-010", countryCode: "VN", balance: 22,   totalEarned: 22,   totalUsed: 0,   bookingCount: 8,   milestonesReached: ["welcome"],                 joinedAt: "2025-02-14", totalRevenueUsd: 1040,  last12moBookings: 8,  last12moRevenueUsd: 1040 },
+  "gotadi@dotbiz.com":       { userEmail: "gotadi@dotbiz.com",       customerCompanyId: "comp-010", countryCode: "VN", balance: 112,  totalEarned: 165,  totalUsed: 53,  bookingCount: 62,  milestonesReached: ["welcome", "m10", "m50"], joinedAt: "2024-09-15", totalRevenueUsd: 8060,  last12moBookings: 48, last12moRevenueUsd: 6400,  last3moBookings: 14, last3moRevenueUsd: 1900 },
+  "mai@gotadi.com":          { userEmail: "mai@gotadi.com",          customerCompanyId: "comp-010", countryCode: "VN", balance: 56,   totalEarned: 73,   totalUsed: 17,  bookingCount: 29,  milestonesReached: ["welcome", "m10"],         joinedAt: "2024-10-01", totalRevenueUsd: 3770,  last12moBookings: 22, last12moRevenueUsd: 2900,  last3moBookings: 6,  last3moRevenueUsd: 800 },
+  "phong@gotadi.com":        { userEmail: "phong@gotadi.com",        customerCompanyId: "comp-010", countryCode: "VN", balance: 38,   totalEarned: 48,   totalUsed: 10,  bookingCount: 21,  milestonesReached: ["welcome", "m10"],         joinedAt: "2024-10-01", totalRevenueUsd: 2730,  last12moBookings: 18, last12moRevenueUsd: 2400,  last3moBookings: 5,  last3moRevenueUsd: 700 },
+  "linh@gotadi.com":         { userEmail: "linh@gotadi.com",         customerCompanyId: "comp-010", countryCode: "VN", balance: 22,   totalEarned: 22,   totalUsed: 0,   bookingCount: 8,   milestonesReached: ["welcome"],                 joinedAt: "2025-02-14", totalRevenueUsd: 1040,  last12moBookings: 8,  last12moRevenueUsd: 1040,  last3moBookings: 2,  last3moRevenueUsd: 260 },
   /* VVC (Vietnam, PREPAY) */
-  "vvc@dotbiz.com":          { userEmail: "vvc@dotbiz.com",          customerCompanyId: "comp-011", countryCode: "VN", balance: 48,   totalEarned: 62,   totalUsed: 14,  bookingCount: 25,  milestonesReached: ["welcome", "m10"],         joinedAt: "2025-01-20", totalRevenueUsd: 3250,  last12moBookings: 25, last12moRevenueUsd: 3250 },
+  "vvc@dotbiz.com":          { userEmail: "vvc@dotbiz.com",          customerCompanyId: "comp-011", countryCode: "VN", balance: 48,   totalEarned: 62,   totalUsed: 14,  bookingCount: 25,  milestonesReached: ["welcome", "m10"],         joinedAt: "2025-01-20", totalRevenueUsd: 3250,  last12moBookings: 25, last12moRevenueUsd: 3250,  last3moBookings: 6,  last3moRevenueUsd: 800 },
   /* Accounting (demo) */
-  "accounting@dotbiz.com":   { userEmail: "accounting@dotbiz.com",   customerCompanyId: "comp-001", countryCode: "KR", balance: 0,    totalEarned: 0,    totalUsed: 0,   bookingCount: 0,   milestonesReached: [],                          joinedAt: "2025-11-20", totalRevenueUsd: 0,     last12moBookings: 0,  last12moRevenueUsd: 0 },
+  "accounting@dotbiz.com":   { userEmail: "accounting@dotbiz.com",   customerCompanyId: "comp-001", countryCode: "KR", balance: 0,    totalEarned: 0,    totalUsed: 0,   bookingCount: 0,   milestonesReached: [],                          joinedAt: "2025-11-20", totalRevenueUsd: 0,     last12moBookings: 0,  last12moRevenueUsd: 0,     last3moBookings: 0,  last3moRevenueUsd: 0 },
 };
 
 /* ── ELS (Ellis Coin) constants ──
@@ -982,9 +1043,14 @@ export function demoStampForBooking(counter: number): EarnedStamp | null {
  * ══════════════════════════════════════════════════════════════════════ */
 
 /** ELS earned per $1 of booking value at Bronze/no-promo baseline.
- * Applied as `floor(usd * ELS_BOOKING_EARN_RATE)`.
- * 0.01 = 1 ELS per $100. Tunable. */
-export const ELS_BOOKING_EARN_RATE = 0.01;
+ * 0.005 = 0.5 ELS per $100. (2026-05-06 결정 — 1%에서 0.5%로 단순화).
+ *
+ * 변경 이력은 POLICY_CHANGELOG 참조. */
+export const ELS_BOOKING_EARN_RATE = 0.005;
+
+/** 최소 사용 가능 ELS 임계값 (2026-05-06 신규).
+ * 잔액이 이 값 미만이면 redeem 불가. UI에서 disabled 처리. */
+export const MIN_REDEEM_ELS = 10;
 
 export interface HotelPointsBoost {
   hotelId: string;
@@ -1014,17 +1080,20 @@ export function hotelPointsBoost(hotelId: string): HotelPointsBoost | null {
 }
 
 /* Compute expected ELS for a booking: base × tier × hotel boost.
- * Base earn rate is cost-calibrated to 1 ELS per $100 (0.01/$). */
+ * Base earn rate: 0.5 ELS per $100 (0.005/$ — 2026-05-06 결정).
+ * 정수화 X — 소수점 허용 (예: $100 → 0.5 ELS).
+ * floor 0 허용 — $20 미만 예약은 0 ELS도 가능. */
 export function estimatedElsForBooking(params: {
   usdValue: number;
   bookingCount: number;       /* for tier */
   hotelId?: string;
 }): { base: number; tierMultiplier: number; hotelBoost: number; total: number; breakdown: string } {
-  const base = Math.max(1, Math.round(params.usdValue * ELS_BOOKING_EARN_RATE));
+  const base = params.usdValue * ELS_BOOKING_EARN_RATE;       /* 소수점 유지 */
   const tier = tierFor(params.bookingCount);
   const boost = params.hotelId ? hotelPointsBoost(params.hotelId) : null;
   const hotelBoost = boost?.multiplier ?? 1;
-  const total = Math.max(1, Math.round(base * tier.multiplier * hotelBoost));
+  /* 0.1 단위로 반올림 (소수점 1자리) */
+  const total = Math.round(base * tier.multiplier * hotelBoost * 10) / 10;
   const parts = [`${base} base (1 ELS / $100)`];
   if (tier.multiplier > 1) parts.push(`${tier.multiplier}× ${tier.name}`);
   if (hotelBoost > 1) parts.push(`${boost!.label} hotel promo`);
@@ -1256,3 +1325,125 @@ export const ELS_REDEEM_AT_BOOKING_POLICY: ElsRedeemAtBookingPolicy = {
   elsToUsdRate: 1.0,
   enabled: true,
 };
+
+/* ════════════════════════════════════════════════════════════════════
+ * ELS 영구 보존 정책 (2026-05-06 결정 #4)
+ * ════════════════════════════════════════════════════════════════════
+ * 한 번 적립된 ELS는 어떤 경우에도 회수 불가 (전체 시스템 동일 적용):
+ *   • 리뷰가 takedown / 삭제돼도 → 받은 ELS 유지
+ *   • 분쟁 인정으로 invoice 조정돼도 → 적립된 ELS 유지
+ *   • OP 퇴사 / 계정 비활성화 → balance 그대로 보존 (단, 신규 적립 X)
+ *   • 부정 적립 적발 시에만 → ELLIS Admin 수동 클로백 (예외)
+ *
+ * 만료 정책(ELS_EXPIRY_MONTHS=24)은 별개 — 적립 후 N개월 미사용 시 소멸.
+ * 만료는 시간 흐름이며, 상기 "회수"는 액션 기반 환수와 구분.
+ */
+export const ELS_PERMANENT_RETENTION = true;
+
+/** ELS 클로백이 가능한 유일한 사유 — ELLIS Admin 결정 + 부정 적발 시. */
+export type ElsClawbackReason =
+  | "FraudDetected"          /* 부정 적립 적발 */
+  | "DuplicateAccount"       /* 동일 디바이스 다중 계정 */
+  | "SystemError";           /* 시스템 오작동으로 잘못 적립 */
+
+/* ════════════════════════════════════════════════════════════════════
+ * POLICY CHANGELOG (정책 변경 이력)
+ * ════════════════════════════════════════════════════════════════════
+ * 정책 변경 시 변경 전/후를 영구 보존. AdminEconomicsPage의 "변경 이력" 탭에
+ * 표시되어 추후 변경 이력 추적 가능.
+ *
+ * 사용자 결정 (2026-05-06): "추후 변경하면 변경 전 내용도 보일 수 있도록"
+ */
+export interface PolicyChange {
+  changedAt: string;       /* ISO date */
+  changedBy: string;       /* ELLIS staff email */
+  category: "ELS Earning" | "Tier System" | "Stamp" | "Shop" | "Membership Demotion" | "Other";
+  field: string;           /* 변경된 정책 이름 */
+  before: string;          /* 변경 전 값 */
+  after: string;           /* 변경 후 값 */
+  reason: string;          /* 변경 사유 */
+}
+
+export const POLICY_CHANGELOG: PolicyChange[] = [
+  {
+    changedAt: "2026-05-06",
+    changedBy: "ellis@ohmyhotel.com",
+    category: "ELS Earning",
+    field: "ELS_BOOKING_EARN_RATE",
+    before: "0.01 (1%)",
+    after: "0.005 (0.5%)",
+    reason: "단순화 + 마진 보호. $100 호텔 예약 시 0.5 ELS 적립.",
+  },
+  {
+    changedAt: "2026-05-06",
+    changedBy: "ellis@ohmyhotel.com",
+    category: "ELS Earning",
+    field: "MIN_REDEEM_ELS",
+    before: "(제한 없음)",
+    after: "10 ELS",
+    reason: "최소 사용 임계값 도입. 잔액 10 ELS 미만은 redeem 불가.",
+  },
+  {
+    changedAt: "2026-05-06",
+    changedBy: "ellis@ohmyhotel.com",
+    category: "Tier System",
+    field: "Tier 임계값",
+    before: "복합 score (booking 70% + revenue 30%, USD/booking-eq $200)",
+    after: "단순 매출 기반 (Bronze $0 / Silver $10K / Gold $50K / Platinum $200K / Diamond $1M)",
+    reason: "단순화. 매출 = 비즈니스 임팩트 직결.",
+  },
+  {
+    changedAt: "2026-05-06",
+    changedBy: "ellis@ohmyhotel.com",
+    category: "Membership Demotion",
+    field: "강등 점검 주기",
+    before: "Rolling 12개월 + 12개월 grace",
+    after: "분기(3개월) 점검 + 30일 grace",
+    reason: "되도록 빠른 정리 — 비활성 OP에 대한 매출 손실 차단.",
+  },
+  {
+    changedAt: "2026-05-06",
+    changedBy: "ellis@ohmyhotel.com",
+    category: "Membership Demotion",
+    field: "강등 임계값",
+    before: "일률 적용 (모든 tier 동일)",
+    after: "Tier별 차등: Silver $2.5K / Gold $12.5K / Platinum $50K / Diamond $250K (분기 매출)",
+    reason: "위 tier일수록 유지에 더 큰 매출 필요 — 갈수록 어려워지도록.",
+  },
+  {
+    changedAt: "2026-05-06",
+    changedBy: "ellis@ohmyhotel.com",
+    category: "Stamp",
+    field: "로얄티 스탬프 활동 기준",
+    before: "단순 가입 기간 (1-Year Anniversary 등)",
+    after: "최근 3개월 매출 ≥ tier 강등 임계값 (활동 기반)",
+    reason: "비활성 OP에게 단순 시간 기반 스탬프 부여 차단. 강등조건과 동일 기준.",
+  },
+  {
+    changedAt: "2026-05-06",
+    changedBy: "ellis@ohmyhotel.com",
+    category: "Shop",
+    field: "Tier 잠금 상품",
+    before: "minTier별 점진적 해제 (Bronze→Diamond)",
+    after: "삭제 (모든 tier 모든 상품 사용 가능)",
+    reason: "기능 단순화. Tier 보상은 multiplier로 충분.",
+  },
+  {
+    changedAt: "2026-05-06",
+    changedBy: "ellis@ohmyhotel.com",
+    category: "Shop",
+    field: "Redeem 흐름",
+    before: "쿠폰 코드 자동 발급 (시스템)",
+    after: "OP 어드민에서 수동 발급 (RedeemRequest 큐)",
+    reason: "시스템 복잡도 감소. 모바일 전송 가능 상품 위주로 진열.",
+  },
+  {
+    changedAt: "2026-05-06",
+    changedBy: "ellis@ohmyhotel.com",
+    category: "Other",
+    field: "ELS 회수 정책",
+    before: "리뷰 takedown / 분쟁 / 클로백 등 다중 회수 경로",
+    after: "영구 보존 (전체 시스템) — 부정 적발 시에만 ELLIS Admin 수동 클로백",
+    reason: "단순화 + OP 신뢰 보장.",
+  },
+];

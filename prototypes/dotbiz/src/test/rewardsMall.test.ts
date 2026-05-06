@@ -14,10 +14,8 @@ import {
   tierForRolling,
   rewardProducts,
   redeemedVouchers,
-  TIERS,
   DEFAULT_COMPOSITE_WEIGHTS,
   DEFAULT_ROLLING_CONFIG,
-  type Tier,
 } from "@/mocks/rewards";
 
 describe("Wallet 탭 — Tier v2 표시", () => {
@@ -77,30 +75,13 @@ describe("Vault 탭 — 상태 필터 + 만료 임박 감지", () => {
   });
 });
 
-describe("Shop 탭 — 다음 tier 해금 미리보기", () => {
-  /** RewardsMallPage에서 사용하는 "next-tier unlock" 로직을 그대로 검증 */
-  function nextTierLockedProducts(currentTier: Tier, products: typeof rewardProducts) {
-    const myIdx = TIERS.findIndex(t => t.name === currentTier);
-    if (myIdx >= TIERS.length - 1) return [];
-    const nextTierName = TIERS[myIdx + 1].name;
-    return products.filter(p => p.minTier === nextTierName);
-  }
-
-  it("Bronze 사용자는 Silver 등급에서 해금되는 상품을 미리보기로 받음", () => {
-    const next = nextTierLockedProducts("Bronze", rewardProducts);
-    expect(next.length).toBeGreaterThan(0);
-    next.forEach(p => expect(p.minTier).toBe("Silver"));
-  });
-
-  it("Diamond 사용자는 다음 단계 없음 (apex)", () => {
-    const next = nextTierLockedProducts("Diamond", rewardProducts);
-    expect(next).toEqual([]);
-  });
-
-  it("Gold 사용자는 Platinum 상품 미리보기", () => {
-    const next = nextTierLockedProducts("Gold", rewardProducts);
-    expect(next.length).toBeGreaterThan(0);
-    next.forEach(p => expect(p.minTier).toBe("Platinum"));
+describe("Shop 탭 — Tier 잠금 폐기 (2026-05-06 #6)", () => {
+  it("어떤 tier든 모든 상품을 redeem 가능", () => {
+    /* minTier 필드는 deprecated. 신규 상품은 tier 제한이 없다. */
+    const allProducts = rewardProducts;
+    expect(allProducts.length).toBeGreaterThan(0);
+    /* 시드에 minTier가 남아있더라도 canRedeemProduct는 항상 true */
+    /* (tierSystem.test.ts에서 별도 검증) */
   });
 });
 

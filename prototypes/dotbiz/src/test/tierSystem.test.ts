@@ -115,40 +115,27 @@ describe("tierForRolling — 강등 정책", () => {
   });
 });
 
-describe("Tier 잠금 상품 (Reward Unlock)", () => {
-  it("Bronze는 minTier=Silver 상품 리딤 불가", () => {
-    const silverProduct = rewardProducts.find(p => p.minTier === "Silver");
-    expect(silverProduct).toBeDefined();
-    expect(canRedeemProduct("Bronze", silverProduct!)).toBe(false);
+describe("Tier 잠금 정책 폐기 (2026-05-06 #6)", () => {
+  it("canRedeemProduct는 모든 user/product 조합에 대해 true 반환", () => {
+    const anyProduct = rewardProducts[0];
+    expect(canRedeemProduct("Bronze", anyProduct)).toBe(true);
+    expect(canRedeemProduct("Silver", anyProduct)).toBe(true);
+    expect(canRedeemProduct("Diamond", anyProduct)).toBe(true);
   });
 
-  it("Gold는 Silver 상품 리딤 가능", () => {
-    const silverProduct = rewardProducts.find(p => p.minTier === "Silver");
-    expect(canRedeemProduct("Gold", silverProduct!)).toBe(true);
+  it("lockedProductsByTier는 모든 tier 버킷이 빈 배열", () => {
+    const grouped = lockedProductsByTier("Bronze", rewardProducts);
+    expect(grouped.Bronze.length).toBe(0);
+    expect(grouped.Silver.length).toBe(0);
+    expect(grouped.Gold.length).toBe(0);
+    expect(grouped.Platinum.length).toBe(0);
+    expect(grouped.Diamond.length).toBe(0);
   });
 
-  it("Platinum 상품은 Diamond도 리딤 가능", () => {
-    const platProduct = rewardProducts.find(p => p.minTier === "Platinum");
-    expect(platProduct).toBeDefined();
-    expect(canRedeemProduct("Diamond", platProduct!)).toBe(true);
-  });
-
-  it("minTier 없는 상품은 모두 리딤 가능", () => {
-    const bronzeProduct = rewardProducts.find(p => !p.minTier);
-    expect(bronzeProduct).toBeDefined();
-    expect(canRedeemProduct("Bronze", bronzeProduct!)).toBe(true);
-  });
-
-  it("tierAtLeast: Diamond >= Bronze", () => {
+  it("tierAtLeast: Diamond >= Bronze (헬퍼는 잔존)", () => {
     expect(tierAtLeast("Diamond", "Bronze")).toBe(true);
     expect(tierAtLeast("Bronze", "Diamond")).toBe(false);
     expect(tierAtLeast("Silver", "Silver")).toBe(true);
-  });
-
-  it("lockedProductsByTier: Bronze 시점에 Silver/Gold/Platinum/Diamond 상품 분류", () => {
-    const grouped = lockedProductsByTier("Bronze", rewardProducts);
-    expect(grouped.Bronze.length).toBe(0); // Bronze 잠금은 없음 (이미 도달)
-    expect(grouped.Silver.length + grouped.Gold.length + grouped.Platinum.length + grouped.Diamond.length).toBeGreaterThan(0);
   });
 });
 
