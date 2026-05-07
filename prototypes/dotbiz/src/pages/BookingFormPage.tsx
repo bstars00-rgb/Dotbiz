@@ -377,9 +377,8 @@ export default function BookingFormPage() {
                 <div>
                   <p className="text-[10px] uppercase tracking-wider text-muted-foreground">You'll earn</p>
                   <p className="text-xl font-bold" style={{ color: "#FF6000" }}>
-                    +{est.total} ELS <span className="text-xs text-muted-foreground font-normal">≈ US${est.total}.00</span>
+                    +{est.total.toFixed(1)} ELS
                   </p>
-                  <p className="text-[10px] text-muted-foreground">{est.breakdown}</p>
                 </div>
               </div>
               {boost && (
