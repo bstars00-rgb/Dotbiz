@@ -284,7 +284,6 @@ export default function BookingFormPage() {
               <TableHead className="w-20">Gender</TableHead>
               <TableHead>Name (Local Language)</TableHead>
               <TableHead>Last Name / First Name (EN)</TableHead>
-              <TableHead className="w-36">Nationality</TableHead>
               <TableHead className="w-28">Child Birthday</TableHead>
             </TableRow>
           </TableHeader>
@@ -305,16 +304,6 @@ export default function BookingFormPage() {
                     <span className="text-muted-foreground">/</span>
                     <Input placeholder="Please enter only uppercase letters." value={t.firstName} onChange={e => { updateTraveler(i, "firstName", e.target.value.toUpperCase()); setTravelerErrors(false); }} className={`text-xs flex-1 ${travelerErrors && !t.firstName ? "border-[#FF6000] ring-2 ring-[#FF6000]/30" : ""}`} />
                   </div>
-                </TableCell>
-                <TableCell>
-                  {/* 자유 입력 — select 대신 text input. 빈 칸으로 시작, OP가 직접 타이핑.
-                   * 일부 호텔에서 비표준 표기를 요구할 수 있어 enum 강제하지 않음. */}
-                  <Input
-                    placeholder=""
-                    value={t.nationality || ""}
-                    onChange={e => updateTraveler(i, "nationality", e.target.value)}
-                    className="text-xs"
-                  />
                 </TableCell>
                 <TableCell>
                   {parseInt(searchParams.get("children") || "0") > 0 ? (

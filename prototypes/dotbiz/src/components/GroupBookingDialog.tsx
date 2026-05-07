@@ -177,7 +177,6 @@ export default function GroupBookingDialog({ open, onOpenChange }: GroupBookingD
                   <TableHead>Last Name</TableHead>
                   <TableHead>First Name</TableHead>
                   <TableHead>Gender</TableHead>
-                  <TableHead>Nationality</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -187,9 +186,6 @@ export default function GroupBookingDialog({ open, onOpenChange }: GroupBookingD
                     <TableCell className="font-medium">{g.lastName}</TableCell>
                     <TableCell>{g.firstName}</TableCell>
                     <TableCell>{g.gender}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className="text-xs">{g.nationality}</Badge>
-                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
