@@ -106,7 +106,6 @@ export default function FindHotelPage() {
   const [rooms, setRooms] = useState("1");
   const [adults, setAdults] = useState("2");
   const [children, setChildren] = useState("0");
-  /* nationality: 현재 UI 제거. 분석용 필드로만 유지 (future use). */
   const [searchError, setSearchError] = useState<string | null>(null);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [destTab, setDestTab] = useState("Top Cities");
@@ -394,9 +393,6 @@ export default function FindHotelPage() {
                   </div>
                 )}
               </div>
-
-              {/* Nationality dropdown 제거 — 국가별 요금 차등은 현재 트렌드 아님.
-               * 마케팅 목적 국가 수집이 필요하면 예약 단계에서 optional로 수집. */}
 
               {/* Search Button */}
               <div className="px-2 py-3">
