@@ -575,7 +575,7 @@ function EconomicsTab({
           </Button>
         </div>
 
-        <div className="grid grid-cols-5 gap-2 mt-4">
+        <div className="grid grid-cols-6 gap-2 mt-4">
           {TIERS.map((t, i) => (
             <div key={t.name} className="text-center p-3 rounded-md" style={{ background: `${t.color}10` }}>
               <div className="text-2xl mb-1">{t.icon}</div>

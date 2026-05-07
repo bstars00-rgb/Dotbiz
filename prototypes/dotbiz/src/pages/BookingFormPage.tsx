@@ -545,19 +545,25 @@ function ElsRedeemAtBookingPanel({ totalPrice }: { totalPrice: number }) {
   const personalBalance = userState?.balance || 0;
 
   /* ── Decision #2: Tier별 차등 차감 비율 ──
-   * Bronze 5% / Silver 7% / Gold 10% / Platinum 12% / Diamond 15% (잠정)
-   * 어드민에서 튜닝 가능 — 현재는 클라이언트 계산. */
+   * Bronze 5% / Silver 7% / Gold 10% / Platinum 12% / Emerald 13% / Diamond 15% (잠정)
+   * 어드민에서 튜닝 가능 — 현재는 클라이언트 계산.
+   *
+   * ⚠️ 신규 tier 추가 시 반드시 여기에도 추가 (없으면 undefined → NaN 전파). */
   const tierBasedRatio: Record<string, number> = {
     Bronze:   0.05,
     Silver:   0.07,
     Gold:     0.10,
     Platinum: 0.12,
+    Emerald:  0.13,
     Diamond:  0.15,
   };
   const userTier = userState
     ? tierForComposite({ bookingCount: userState.bookingCount, totalRevenueUsd: userState.totalRevenueUsd }, DEFAULT_COMPOSITE_WEIGHTS)
     : null;
-  const effectiveRatio = userTier ? tierBasedRatio[userTier.name] : ELS_REDEEM_AT_BOOKING_POLICY.maxRedeemRatio;
+  /* fallback: 신규 tier가 추가됐는데 위 매핑 누락 시 안전망 */
+  const effectiveRatio = userTier
+    ? (tierBasedRatio[userTier.name] ?? ELS_REDEEM_AT_BOOKING_POLICY.maxRedeemRatio)
+    : ELS_REDEEM_AT_BOOKING_POLICY.maxRedeemRatio;
 
   /* 사용 가능 최대 금액 (Tier 차등 적용) */
   const maxByRatio = Math.floor(totalPrice * effectiveRatio);

@@ -503,7 +503,9 @@ export const TIER_REACH_REWARD_POLICY = {
  *   • 실제 SKU·매핑은 마케팅팀 협의 후 확정.
  * ══════════════════════════════════════════════════════════════════════ */
 
-const TIER_ORDER: Tier[] = ["Bronze", "Silver", "Gold", "Platinum", "Diamond"];
+/** Tier 정렬 순서 — TIERS 배열 자체를 단일 진실 소스로 사용.
+ * 신규 tier 추가 시 TIERS만 갱신하면 자동으로 반영됨 (별도 동기화 불필요). */
+const TIER_ORDER: Tier[] = TIERS.map(t => t.name);
 
 /** Tier rank 비교: a >= b 이면 true */
 export function tierAtLeast(a: Tier, b: Tier): boolean {
