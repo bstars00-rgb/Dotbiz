@@ -257,7 +257,6 @@ export default function HotelDetailPage() {
   const [searchRooms, setSearchRooms] = useState("1");
   const [searchAdults, setSearchAdults] = useState("2");
   const [searchChildren, setSearchChildren] = useState("0");
-  const [searchNationality, setSearchNationality] = useState("Korean");
 
   /* Applied dates — only updated when Search is clicked */
   const [appliedCheckIn, setAppliedCheckIn] = useState(initCheckIn);
@@ -295,7 +294,7 @@ export default function HotelDetailPage() {
 
   /* ── Copy rate plan ── */
   const copyRatePlan = (room: typeof allRooms[0]) => {
-    const text = `Hotel Name: ${hotel.name}\nAddress: ${hotel.area}\nCheck-In/Out: ${appliedCheckIn} ~ ${appliedCheckOut}\nRoom Type: ${room.name}\nRooms: 1 Rooms\nBed Type: ${room.bedCount}\nMeal Type: ${room.mealDetail}\nGuest Amount: 2 Adults 0 Children\nNationality: Korean\nBilling Gross: USD ${room.billingGross.toFixed(2)}\nBilling Discount: USD ${room.billingDiscount.toFixed(2)}\nBilling Sum: USD ${room.billingSum.toFixed(2)}`;
+    const text = `Hotel Name: ${hotel.name}\nAddress: ${hotel.area}\nCheck-In/Out: ${appliedCheckIn} ~ ${appliedCheckOut}\nRoom Type: ${room.name}\nRooms: 1 Rooms\nBed Type: ${room.bedCount}\nMeal Type: ${room.mealDetail}\nGuest Amount: 2 Adults 0 Children\nBilling Gross: USD ${room.billingGross.toFixed(2)}\nBilling Discount: USD ${room.billingDiscount.toFixed(2)}\nBilling Sum: USD ${room.billingSum.toFixed(2)}`;
     navigator.clipboard.writeText(text).then(() => {
       toast.success("Rate plan copied!", { description: "Paste it anywhere to share with your client." });
     });
@@ -417,16 +416,7 @@ export default function HotelDetailPage() {
               <ChevronDown className="h-3.5 w-3.5 text-muted-foreground ml-1" />
             </div>
           </div>
-          {/* Nationality */}
-          <div className="px-4 py-3 hover:bg-muted/40 transition-colors">
-            <p className="text-xs font-semibold text-muted-foreground mb-1">Nationality</p>
-            <div className="flex items-center gap-1 text-sm font-medium">
-              <select value={searchNationality} onChange={e => setSearchNationality(e.target.value)} className="font-medium text-sm bg-transparent border-none outline-none cursor-pointer appearance-none pr-1">
-                {["Korean", "Japanese", "Chinese", "Thai", "Vietnamese", "American", "British", "Australian", "Singaporean", "Indonesian"].map(n => <option key={n}>{n}</option>)}
-              </select>
-              <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
-            </div>
-          </div>
+          {/* Nationality 제거 (2026-05-06) — 검색/예약 단계에서 국가 선택 불필요. */}
           {/* Search Button */}
           <div className="flex items-center px-4">
             <Button className="h-11 w-11 rounded-full shrink-0 shadow-md" size="icon" style={{ background: "#FF6000" }} onClick={handleReSearch}>
