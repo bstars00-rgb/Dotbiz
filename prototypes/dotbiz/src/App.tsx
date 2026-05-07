@@ -43,8 +43,8 @@ const HotelMapViewPage      = lazy(() => import("@/pages/HotelMapViewPage"));
 const MarkupSharingPage     = lazy(() => import("@/pages/MarkupSharingPage"));
 const FavoritesPage         = lazy(() => import("@/pages/FavoritesPage"));
 const MonthlyRatePage       = lazy(() => import("@/pages/MonthlyRatePage"));
-const AdminEconomicsPage    = lazy(() => import("@/pages/AdminEconomicsPage"));
-const AdminReviewsPage      = lazy(() => import("@/pages/AdminReviewsPage"));
+/* AdminEconomicsPage / AdminReviewsPage 제거 (2026-05-07)
+ * → ELLIS 백오피스 또는 별도 CMS 앱에서 운영. DOTBIZ 안에 두지 않음. */
 
 /* 라우트 진입 중 짧은 로딩 시 보여줄 fallback */
 function PageLoader() {
@@ -99,8 +99,7 @@ function App() {
               <Route path="markup-sharing" element={<MarkupSharingPage />} />
               <Route path="favorites" element={<FavoritesPage />} />
               <Route path="monthly-rates" element={<MonthlyRatePage />} />
-              <Route path="admin/els-economics" element={<AdminEconomicsPage />} />
-              <Route path="admin/review-moderation" element={<AdminReviewsPage />} />
+              {/* admin/els-economics, admin/review-moderation 제거 — ELLIS/CMS로 이전 */}
             </Route>
             {/* Standalone screens */}
             <Route path="/login" element={<LoginPage />} />

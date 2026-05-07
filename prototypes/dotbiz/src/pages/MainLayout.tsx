@@ -73,20 +73,10 @@ const navSections: NavSection[] = [
       { i18nKey: "nav.myAccount",     label: "My Account",     icon: User,  path: "/app/my-account" },
     ],
   },
-  {
-    /* ── CMS (Content Management System) ──
-     * OhMyHotel 내부 스태프 전용. CTO 방침: ELLIS에 모든 걸 담기엔 무거우니
-     * 경제 정책 · 리뷰 · 블로그 등은 향후 별도 경량 CMS 앱으로 분리 예정.
-     * 현 프로토타입에는 경제 + 리뷰 2개 기능만 DOTBIZ에 임시 탑재.
-     * (블로그 관리 페이지는 CMS 착수 후 추가 예정) */
-    id: "cms",
-    i18nKey: "nav.section.cms",
-    label: "CMS",
-    items: [
-      { i18nKey: "nav.elsEconomics", label: "ELS 경제",       icon: Shield,      path: "/app/admin/els-economics",      roles: ["EllisAdmin"] },
-      { i18nKey: "nav.reviewMod",    label: "리뷰 모더레이션", icon: ShieldCheck, path: "/app/admin/review-moderation", roles: ["EllisAdmin"] },
-    ],
-  },
+  /* ── CMS 섹션 폐기 (2026-05-07) ──
+   * ELS 경제 / 리뷰 모더레이션 → DOTBIZ 안에 두지 않음.
+   * ELLIS 백오피스 또는 별도 CMS 앱에서 운영하기로 결정.
+   * docs/specs/dotbiz/Admin_Out_Of_Scope.md 참고. */
   {
     id: "resources",
     i18nKey: "nav.section.resources",
