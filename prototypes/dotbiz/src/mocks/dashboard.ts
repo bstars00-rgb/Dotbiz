@@ -390,19 +390,20 @@ export const bestsellingHotels = (() => {
 /* Per-country lookup for filtered view */
 export const bestsellingByCountry = _hotelsByCountry;
 
+/* 월-연도 표기 (예: Apr-25) — 연도 경계 가시성 + 동일월명 혼동 방지 */
 export const ttvTrend = [
-  { month: "Apr", amount: 3200 },
-  { month: "May", amount: 3800 },
-  { month: "Jun", amount: 4100 },
-  { month: "Jul", amount: 5200 },
-  { month: "Aug", amount: 4800 },
-  { month: "Sep", amount: 3900 },
-  { month: "Oct", amount: 4300 },
-  { month: "Nov", amount: 3600 },
-  { month: "Dec", amount: 4700 },
-  { month: "Jan", amount: 3100 },
-  { month: "Feb", amount: 3500 },
-  { month: "Mar", amount: 4550 },
+  { month: "Apr-25", amount: 3200 },
+  { month: "May-25", amount: 3800 },
+  { month: "Jun-25", amount: 4100 },
+  { month: "Jul-25", amount: 5200 },
+  { month: "Aug-25", amount: 4800 },
+  { month: "Sep-25", amount: 3900 },
+  { month: "Oct-25", amount: 4300 },
+  { month: "Nov-25", amount: 3600 },
+  { month: "Dec-25", amount: 4700 },
+  { month: "Jan-26", amount: 3100 },
+  { month: "Feb-26", amount: 3500 },
+  { month: "Mar-26", amount: 4550 },
 ];
 
 /* Destination Booking Percentage — by country & city, with monthly data */
