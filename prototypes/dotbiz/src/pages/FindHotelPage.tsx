@@ -441,7 +441,7 @@ export default function FindHotelPage() {
                       /* 호텔 코드 검색 — 숫자만 입력된 경우 우선 매칭 */
                       const isNumericQuery = /^\d+$/.test(trimmed);
                       const codeResults = isNumericQuery
-                        ? hotels.filter(h => h.hotelCode.includes(trimmed))
+                        ? hotels.filter(h => h.hotelCode?.includes(trimmed) ?? false)
                         : [];
                       const regionResults = [
                         { name: "Seoul", region: "South Korea", hotels: 2450 },
@@ -464,7 +464,7 @@ export default function FindHotelPage() {
                       const hotelResults = hotels.filter(h =>
                         h.name.toLowerCase().includes(q) ||
                         h.area.toLowerCase().includes(q) ||
-                        h.hotelCode.includes(trimmed)
+                        (h.hotelCode?.includes(trimmed) ?? false)
                       ).filter(h => !codeResults.includes(h)); /* code 매칭 중복 제거 */
                       const poiResults = [
                         { name: "Sukhumvit", city: "Bangkok", hotels: 1200 },
@@ -494,7 +494,7 @@ export default function FindHotelPage() {
                                   onMouseDown={() => { setDestination(h.name); setShowSuggestions(false); navigate(`/app/hotel/${h.id}`); }}
                                 >
                                   <span className="text-sm flex items-center gap-2">
-                                    <span className="font-mono text-[#FF6000] font-semibold">{h.hotelCode}</span>
+                                    <span className="font-mono text-[#FF6000] font-semibold">{h.hotelCode ?? "—"}</span>
                                     <span className="text-muted-foreground">·</span>
                                     <span className="font-medium">{h.name}</span>
                                   </span>

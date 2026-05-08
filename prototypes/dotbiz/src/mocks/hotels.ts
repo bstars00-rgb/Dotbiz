@@ -1,8 +1,9 @@
 export interface Hotel {
   id: string;
   /** 호텔 코드 — 일부 고객사가 코드 기반 검색에 사용 (6~7자리 숫자).
-   * DOTBIZ 내부 id(htl-001)와 별도로 운영. 외부 ID 매핑 시 활용. */
-  hotelCode: string;
+   * DOTBIZ 내부 id(htl-001)와 별도로 운영. 외부 ID 매핑 시 활용.
+   * Optional — 신규 호텔이 아직 코드 미부여 상태일 수 있어 ? 선언. */
+  hotelCode?: string;
   name: string;
   area: string;
   starRating: number;
