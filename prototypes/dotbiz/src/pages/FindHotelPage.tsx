@@ -302,7 +302,7 @@ export default function FindHotelPage() {
                   <MapPin className="absolute left-0 top-0.5 h-4 w-4 text-[#FF6000]" />
                   <input
                     className="w-full pl-6 text-sm font-medium bg-transparent outline-none placeholder:text-muted-foreground"
-                    placeholder="City/Landmark/District/Hotel"
+                    placeholder="City / Landmark / District / Hotel / Code"
                     value={destination}
                     onChange={e => { setDestination(e.target.value); setShowSuggestions(true); }}
                     onFocus={() => { setShowSuggestions(true); setShowDatePicker(false); setShowRoomPicker(false); }}
@@ -434,9 +434,15 @@ export default function FindHotelPage() {
                   </>
                 ) : (
                   <>
-                    {/* Search results: Region / Hotel / POI categories */}
+                    {/* Search results: Hotel Code / Region / Hotel / POI categories */}
                     {(() => {
                       const q = destination.toLowerCase();
+                      const trimmed = destination.trim();
+                      /* 호텔 코드 검색 — 숫자만 입력된 경우 우선 매칭 */
+                      const isNumericQuery = /^\d+$/.test(trimmed);
+                      const codeResults = isNumericQuery
+                        ? hotels.filter(h => h.hotelCode.includes(trimmed))
+                        : [];
                       const regionResults = [
                         { name: "Seoul", region: "South Korea", hotels: 2450 },
                         { name: "Singapore", region: "Singapore", hotels: 980 },
@@ -455,7 +461,11 @@ export default function FindHotelPage() {
                         { name: "Phuket", region: "Thailand", hotels: 1800 },
                         { name: "Da Nang", region: "Vietnam", hotels: 920 },
                       ].filter(r => r.name.toLowerCase().includes(q) || r.region.toLowerCase().includes(q));
-                      const hotelResults = hotels.filter(h => h.name.toLowerCase().includes(q) || h.area.toLowerCase().includes(q));
+                      const hotelResults = hotels.filter(h =>
+                        h.name.toLowerCase().includes(q) ||
+                        h.area.toLowerCase().includes(q) ||
+                        h.hotelCode.includes(trimmed)
+                      ).filter(h => !codeResults.includes(h)); /* code 매칭 중복 제거 */
                       const poiResults = [
                         { name: "Sukhumvit", city: "Bangkok", hotels: 1200 },
                         { name: "Shinjuku", city: "Tokyo", hotels: 450 },
@@ -469,6 +479,30 @@ export default function FindHotelPage() {
 
                       return (
                         <div className="max-h-[360px] overflow-auto">
+                          {/* Hotel Code — 숫자 검색 시 최상단 표시 */}
+                          {codeResults.length > 0 && (
+                            <div>
+                              <div className="flex items-center gap-2 px-5 py-2">
+                                <span className="text-base">#</span>
+                                <span className="text-xs font-bold text-muted-foreground uppercase">Hotel Code</span>
+                                <span className="text-[10px] text-muted-foreground">({codeResults.length} matches)</span>
+                              </div>
+                              {codeResults.slice(0, 5).map(h => (
+                                <button
+                                  key={h.id}
+                                  className="w-full flex items-center justify-between px-5 py-2 hover:bg-[#FF6000]/5 transition-colors"
+                                  onMouseDown={() => { setDestination(h.name); setShowSuggestions(false); navigate(`/app/hotel/${h.id}`); }}
+                                >
+                                  <span className="text-sm flex items-center gap-2">
+                                    <span className="font-mono text-[#FF6000] font-semibold">{h.hotelCode}</span>
+                                    <span className="text-muted-foreground">·</span>
+                                    <span className="font-medium">{h.name}</span>
+                                  </span>
+                                  <span className="text-xs text-muted-foreground">{h.area}</span>
+                                </button>
+                              ))}
+                            </div>
+                          )}
                           {/* Region */}
                           {regionResults.length > 0 && (
                             <div>
@@ -528,7 +562,7 @@ export default function FindHotelPage() {
                               ))}
                             </div>
                           )}
-                          {regionResults.length === 0 && hotelResults.length === 0 && poiResults.length === 0 && (
+                          {codeResults.length === 0 && regionResults.length === 0 && hotelResults.length === 0 && poiResults.length === 0 && (
                             <p className="px-5 py-4 text-sm text-muted-foreground text-center">No results found for "{destination}"</p>
                           )}
                         </div>
