@@ -15,9 +15,7 @@ const {
 } = require('docx');
 
 const FILES = [
-  'Settlement_CEO_Report_2026-05-04.md',
-  'Settlement_FullSpec_2026-05-04.md',
-  'Settlement_Specification_2026-05-04.md',
+  'Settlement_CEO_Inspection_2026-05-07.md',
 ];
 
 /* ── 마크다운 인라인 파싱 (bold, code, italic) ── */
