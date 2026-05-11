@@ -1717,4 +1717,13 @@ export const POLICY_CHANGELOG: PolicyChange[] = [
     after: "별도 트랙 신설: 3rd-party 침투 테스트 / PCI-DSS / RBAC 강화 / Audit Log / 2FA / 결제 토큰화",
     reason: "현재 보안 취약. 마진 영향 받지 않는 별도 예산 책정.",
   },
+  {
+    changedAt: "2026-05-08",
+    changedBy: "CEO Market Research",
+    category: "Settlement",
+    field: "PG 모델 — 경쟁사 벤치마크",
+    before: "단일 모델 (DOTBIZ 흡수 + 가격 반영) 가정",
+    after: "하이브리드 모델 검증: TBO 방식(고객 부담) + Ratehawk 방식(가격 포함)을 거래 유형/고객 규모별로 분기. Non-refundable·소형 고객은 Ratehawk, POSTPAY 카드 협의·대형 고객은 TBO 적용 검토.",
+    reason: "TBO는 결제수수료를 고객사에 별도 청구, Ratehawk는 호텔 가격에 포함. 두 거대 공급사의 시장 검증된 패턴. DOTBIZ는 거래 유형별로 두 모델 분기로 마진 안전 + 가격 경쟁력 모두 확보.",
+  },
 ];
