@@ -1726,4 +1726,13 @@ export const POLICY_CHANGELOG: PolicyChange[] = [
     after: "하이브리드 모델 검증: TBO 방식(고객 부담) + Ratehawk 방식(가격 포함)을 거래 유형/고객 규모별로 분기. Non-refundable·소형 고객은 Ratehawk, POSTPAY 카드 협의·대형 고객은 TBO 적용 검토.",
     reason: "TBO는 결제수수료를 고객사에 별도 청구, Ratehawk는 호텔 가격에 포함. 두 거대 공급사의 시장 검증된 패턴. DOTBIZ는 거래 유형별로 두 모델 분기로 마진 안전 + 가격 경쟁력 모두 확보.",
   },
+  {
+    changedAt: "2026-05-08",
+    changedBy: "CEO Market Research",
+    category: "Settlement",
+    field: "비-PG 결제 방식 도입 검토",
+    before: "PG 카드 결제 단일 가정",
+    after: "5개 카테고리 15종 결제 방식 리서치: 송금/가상계좌/SWIFT (Bank) + Open Account/BNPL/Factoring/Insurance (Credit) + Bank Guarantee/LC/Escrow (Collateral) + Pre-funded Wallet/Top-up (Pre-funded) + Alipay/WeChat/PayNow (Alternative). 한국·일본 가상계좌, 중국 Alipay/WeChat 우선 도입 권장.",
+    reason: "PG 단일 의존 시 마진 압박. 한국 가상계좌 0.5~1%, 중국 Alipay 1~2%, Pre-funded Wallet 0% 등 PG 대체 옵션으로 평균 결제 수수료 2% 이하 달성 가능. 마진 4% 기준 안전 영역 확보.",
+  },
 ];

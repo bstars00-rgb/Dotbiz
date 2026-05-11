@@ -323,6 +323,198 @@
 
 ---
 
+## 💳 비-PG 결제 방식 리서치 (Non-PG Payment Methods)
+
+PG 사(카드 결제)는 수수료 3.5~4%로 마진 압박. **PG 외 결제 방식**도 리서치 대상.
+
+### 카테고리별 결제 수단 (15종)
+
+#### 1. 송금 / 은행 기반 (Bank-based)
+
+| 결제 방식 | 수수료 | 정산 속도 | 특징 |
+|----------|--------|----------|------|
+| **국내 송금 (계좌이체)** | ~$1 (정액) | 즉시 | 한국 표준, 비용 거의 0 |
+| **가상계좌 (Virtual Account)** | 0.5~1% | 즉시 | 한국·일본 B2B 표준, 자동 매칭 |
+| **SWIFT Wire Transfer** | $25~50 + 0.1% | 1~3 영업일 | 국제 송금, 큰 금액 적합 |
+| **SEPA (유럽 자동이체)** | $0~5 | 1 영업일 | 유럽 거점 시 활용 |
+| **Direct Debit / ACH** | 0.5~1% | 1~3일 | 미국 표준 자동이체 |
+
+**DOTBIZ 적용성**: ⭐⭐⭐⭐⭐ — 한국·일본 시장 가상계좌 표준 채택 권장
+
+#### 2. 신용 / 후불 (Credit-based)
+
+| 결제 방식 | 수수료 | 리스크 | 특징 |
+|----------|--------|--------|------|
+| **Open Account (Net-30)** | 0% | 회수 리스크 | DOTBIZ POSTPAY 표준 |
+| **Trade Credit Insurance** | 0.2~0.5% | 부도 보장 | 보험사 (Atradius, Coface 등) |
+| **B2B BNPL** | 1~3% | 공급사 보장 | Hokodo, Resolve, Tabby (B2B) |
+| **Factoring (매출채권 매입)** | 1~3% | 즉시 현금화 | 미수금을 팩토링사가 매입 |
+| **Invoice Financing** | 0.5~2% | 운영자금 | 미수금 담보 대출 |
+
+**DOTBIZ 적용성**: ⭐⭐⭐⭐ — Trade Credit Insurance + Factoring으로 AR 리스크 분산 가능
+
+#### 3. 담보 / 보증 (Collateral-based)
+
+| 결제 방식 | 수수료 | 효과 | 특징 |
+|----------|--------|------|------|
+| **Bank Guarantee (은행 보증서)** | 1~2%/년 | 부도 차단 | Hotelbeds 표준 |
+| **Letter of Credit (LC, 신용장)** | 0.5~1% | 무역 결제 | 대형 글로벌 거래 |
+| **Escrow (에스크로)** | 0.5~2% | 신뢰 보장 | 양사 합의 시 |
+| **Performance Bond** | 1~2%/년 | 이행 보증 | 대규모 그룹 예약 |
+
+**DOTBIZ 적용성**: ⭐⭐⭐⭐ — 디포짓 6종에 이미 포함, **No Deposit 대안**으로 강화 가능
+
+#### 4. 예치 / 충전 (Pre-funded)
+
+| 결제 방식 | 수수료 | 효과 | 특징 |
+|----------|--------|------|------|
+| **Pre-funded Wallet (충전식)** | 0% | 결제 즉시 | DOTBIZ Floating Deposit과 동일 패턴 |
+| **Top-up Credit (선충전)** | 0~1% | 할인 인센티브 가능 | "$1만 충전 시 5% 보너스" 식 |
+| **Virtual Card (가상카드)** | 1~2% | 일회용 카드 발급 | DOTBIZ→공급사 카드 분리 |
+
+**DOTBIZ 적용성**: ⭐⭐⭐⭐⭐ — **Top-up Credit 인센티브 모델** 추가 검토 가치 큼
+
+#### 5. 신규/대안 결제 (Alternative)
+
+| 결제 방식 | 수수료 | 채택 시장 | 특징 |
+|----------|--------|----------|------|
+| **Alipay / WeChat Pay** | 1~2% | 중국 표준 | Trip.com Trade 활용 |
+| **PayNow (싱가포르)** | 0% | 싱가포르 | QR 즉시 송금 |
+| **UPI (인도)** | 0% | 인도 | TBO 활용 가능 |
+| **Cryptocurrency (USDT/USDC)** | 0.1~1% | 신흥/투기 | Travala 등 일부 OTA 채택 |
+| **B2B Marketplace 결제** | 0~2% | 자체 결제망 | Alibaba B2B, JD Worldwide |
+
+**DOTBIZ 적용성**:
+- ⭐⭐⭐⭐⭐ Alipay/WeChat (중국) — 필수
+- ⭐⭐⭐ PayNow/UPI (현지) — 시장 진출 시
+- ⭐ Crypto — 현 단계 부적합 (규제 리스크)
+
+---
+
+### 📊 결제 방식 종합 비교 (DOTBIZ 관점)
+
+| 방식 | 수수료 | DOTBIZ 마진 영향 | 도입 우선순위 |
+|------|--------|----------------|-------------|
+| **국내 송금** | ~0% | 0 | 🟢 이미 운영 |
+| **가상계좌 (KR/JP)** | 0.5~1% | 미미 | 🟢 **즉시 도입** |
+| **SWIFT Wire** | 0.1% + 정액 | 0 | 🟢 운영 중 |
+| **Alipay/WeChat** | 1~2% | 적음 | 🟢 **중국 진출 필수** |
+| **Pre-funded Wallet** | 0% | 0 | 🟢 **인센티브 모델 도입** |
+| **B2B BNPL** | 1~3% | 보통 | 🟡 중장기 |
+| **Trade Credit Insurance** | 0.2~0.5% | 적음 | 🟡 No Deposit 대안 |
+| **Factoring** | 1~3% | 보통 | 🟡 운영자금 필요 시 |
+| **Bank Guarantee** | 1~2%/년 | 적음 | 🟢 이미 6종에 포함 |
+| **국제 카드 (Global PG)** | 3.5~4% | **큰 압박** | 🔴 최후 수단 |
+| **Local PG (한국 Toss 등)** | 1.5~2.5% | 적음 | 🟢 **국가별 도입** |
+| **Cryptocurrency** | 0.1~1% | 적음 | 🔴 규제 리스크 |
+
+---
+
+### 🎯 DOTBIZ 결제 방식 우선순위 (권장)
+
+#### Phase 1: 즉시 (1개월)
+1. ✅ **국내 송금** (이미 운영) — POSTPAY 표준
+2. ✅ **SWIFT Wire** (이미 운영) — 국제 송금
+3. 🆕 **가상계좌 (KR/JP)** — 한국·일본 OP 대상, 0.5~1%
+4. 🆕 **Pre-funded Wallet 인센티브** — "충전 시 보너스 ELS" 모델
+
+#### Phase 2: 단기 (3개월)
+5. 🆕 **Alipay/WeChat Pay** — 중국 OP 진출 시 필수
+6. 🆕 **Local PG (한국 Toss/KCP)** — 카드 결제 1.5~2%로 절감
+7. 🆕 **Trade Credit Insurance** — No Deposit 대안
+
+#### Phase 3: 중기 (6개월~)
+8. 🆕 **B2B BNPL (Hokodo 등)** — 신용 한도 보완
+9. 🆕 **Factoring** — 운영자금 필요 시
+10. 🆕 **국가별 Local PG 확대** — 일본·중국·베트남·싱가포르
+
+#### Phase 4: 장기 검토
+11. ❓ **Cryptocurrency (USDT)** — 규제 안정화 후
+12. ❓ **PayNow/UPI** — 시장 진출 시
+
+---
+
+### 💡 핵심 인사이트 (PG 외 결제)
+
+#### 1. 한국·일본 = **가상계좌 표준 채택 시 PG 의존도 대폭 감소**
+- 가상계좌 수수료 0.5~1% vs 글로벌 PG 3.5~4%
+- 모든 한국 B2B 거래는 가상계좌 표준
+- DOTBIZ 한국 OP는 가상계좌 우선 → 카드는 옵션
+
+#### 2. 중국 = **Alipay/WeChat이 PG 대체**
+- Trip.com Trade 사례 (1~2% 달성)
+- 중국 시장 진출 시 카드 결제 거의 안 씀
+- DOTBIZ 중국 OP는 Alipay/WeChat 필수
+
+#### 3. Pre-funded Wallet = **DOTBIZ Floating Deposit 발전형**
+- "$1만 충전 시 보너스 5% ELS" 인센티브
+- 사용자 자금 선확보 = 운영자금 + AR 리스크 0
+- 항공사 마일리지 충전과 유사한 UX
+
+#### 4. Trade Credit Insurance = **No Deposit 게임체인저**
+- Atradius/Coface 등 보험사가 부도 보장
+- 보험료 0.2~0.5% (PG 3.5%보다 훨씬 저렴)
+- 대형 고객사 No Deposit 거래의 대안 담보
+
+#### 5. B2B BNPL = **신용 한도 외부화**
+- Hokodo (영국), Resolve (미국) 등
+- DOTBIZ가 직접 신용 한도 운영 부담 X
+- BNPL 사가 부도 책임 (수수료 1~3%)
+
+---
+
+### 📋 추가 리서치 안건
+
+자체 리서치로 추가 확보 필요한 정보:
+
+| 안건 | 방법 | 기간 |
+|------|------|------|
+| 가상계좌 발급 비교 (KR Toss/KB/하나/우리) | 영업팀 컨택 | 1주 |
+| Alipay/WeChat B2B 결제 도입 절차 | 현지 파트너 컨택 | 2주 |
+| Trade Credit Insurance 사례 (호텔업) | Atradius/Coface 상담 | 2주 |
+| B2B BNPL 호텔업 적용 가능성 | Hokodo 영업 컨택 | 1주 |
+| 경쟁사 결제 수단 채택 현황 | OP 인터뷰 5명 | 2주 |
+
+---
+
+### 🎯 종합 권장 모델 v2 (PG + 비-PG 통합)
+
+```
+                    DOTBIZ 결제 옵션 매트릭스 (v2)
+
+           ┌────────────────────────────────────────┐
+           │  거래 유형 × 국가 × 고객 규모 분기      │
+           └────────────────────────────────────────┘
+
+POSTPAY ── 송금 (PG 0%) ── 한국: 가상계좌 / 일본: 가상계좌 / 기타: SWIFT
+            │
+            └─ Pre-funded Wallet 인센티브 (선충전 보너스)
+
+PREPAY  ── Free Cancel: 송금 우선 / 카드 옵션 (Ratehawk 방식)
+            │
+            ├─ Non-refundable: 카드 강제 (호텔 마진 활용 흡수)
+            │
+            └─ 대형 고객: TBO 방식 (별도 청구)
+
+국가별  ── 한국 → Local PG (Toss/KCP) 1.5~2%
+            │
+            ├─ 중국 → Alipay/WeChat 1~2%
+            │
+            ├─ 일본 → 가상계좌 (PG 보조)
+            │
+            ├─ 베트남 → VNPay 2~3%
+            │
+            └─ 싱가포르 → PayNow / Stripe
+
+신용    ── No Deposit 대안: Trade Credit Insurance (0.2~0.5%)
+            │
+            └─ 신용 한도 외부화: B2B BNPL (Hokodo) 1~3%
+```
+
+→ **결과**: 모든 시나리오에서 평균 결제 수수료 **2% 이하** 가능. 마진 4% 기준 안전 영역 확보.
+
+---
+
 ## 📂 관련 문서
 
 - `Settlement_CEO_Critical_Update_2026-05-08.md` (마진 재검토)
