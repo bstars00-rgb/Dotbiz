@@ -1735,4 +1735,13 @@ export const POLICY_CHANGELOG: PolicyChange[] = [
     after: "5개 카테고리 15종 결제 방식 리서치: 송금/가상계좌/SWIFT (Bank) + Open Account/BNPL/Factoring/Insurance (Credit) + Bank Guarantee/LC/Escrow (Collateral) + Pre-funded Wallet/Top-up (Pre-funded) + Alipay/WeChat/PayNow (Alternative). 한국·일본 가상계좌, 중국 Alipay/WeChat 우선 도입 권장.",
     reason: "PG 단일 의존 시 마진 압박. 한국 가상계좌 0.5~1%, 중국 Alipay 1~2%, Pre-funded Wallet 0% 등 PG 대체 옵션으로 평균 결제 수수료 2% 이하 달성 가능. 마진 4% 기준 안전 영역 확보.",
   },
+  {
+    changedAt: "2026-05-08",
+    changedBy: "CEO Web Research",
+    category: "Settlement",
+    field: "결제 수수료 실측 데이터",
+    before: "추정치 기반 분석",
+    after: "웹 리서치 실측 확보: 한국 가상계좌 건당 250원(0.025%) / 한국 PG 카드 2.1~3.3% / Stripe 일본 3.6%+국제1.5% / Stripe 싱가포르 3.4%+S$0.50 / Eximbay 0.2~5% / Alipay 국제카드 3% / Trade Credit Insurance 0.1~0.5% / WebBeds Net-21 + Floating Deposit/Bank Guarantee 강제 / Ratehawk Net rate + Pay By Link",
+    reason: "추정에서 실측으로. 한국 가상계좌 PG 대비 ~150배 저렴 확인. Stripe 일본 3.6%로 마진 4% 잠식 확정. Trade Credit Insurance 0.5% 이하로 No Deposit 대체 합리성 확인. Hokodo 폐업(2025-11) → Billie/Mondu/Resolve 대안 검토 필요.",
+  },
 ];
