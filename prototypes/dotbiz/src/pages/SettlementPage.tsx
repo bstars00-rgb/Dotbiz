@@ -1243,13 +1243,7 @@ export default function SettlementPage() {
             )}
             <span className="text-sm text-muted-foreground">{filteredInvoices.length} invoices</span>
           </div>
-          <Alert className="border-blue-200 bg-blue-50 dark:bg-blue-900/10">
-            <AlertDescription className="text-xs">
-              <strong>Contract Currency</strong> is fixed at contract signing.
-              Customer receives invoice in contract currency and wires <strong>exactly that amount</strong> (FX conversion is handled on customer side).
-              <br />POSTPAY = one aggregate invoice per settlement cycle · PREPAY = one invoice per booking
-            </AlertDescription>
-          </Alert>
+          {/* 'Contract Currency / POSTPAY/PREPAY 인보이스' 안내 Alert 폐기 (2026-05-08): 내부 운영 정책으로 UI 표시 불필요. */}
           <Table>
             <TableHeader>
               <TableRow>
