@@ -9,7 +9,7 @@ const sheet1 = [
   ["DOTBIZ 대표이사 결재 — 옵션 선택 (✓ 표시)", "", "", "", "", "", "", ""],
   ["3건. 각 항목별 옵션 중 하나에 ✓ 표시 후 회신. (KPI 대시보드: Sales CRM + Dashboard 통합으로 확정 — Sheet 2 이동)", "", "", "", "", "", "", ""],
   ["", "", "", "", "", "", "", ""],
-  ["#", "항목", "옵션 A", "옵션 B", "옵션 C", "Sage 추천", "CEO 결정 (✓)", "비고"],
+  ["#", "항목", "옵션 A", "옵션 B", "옵션 C", "권장", "CEO 결정 (✓)", "비고"],
 
   /* 1 — 홍콩 지사 (출자 + Alipay/WeChat 결제 도입 통합) */
   ["1", "홍콩 지사 오픈 (싱가포르 출자) + Alipay/WeChat 결제 도입",
@@ -21,7 +21,7 @@ const sheet1 = [
     "중국 시장은 Alipay/WeChat 결제가 표준. 홍콩 지사(싱가포르 출자)가 협상·운영 주체. 대중화권 진출 핵심"
   ],
 
-  /* 2 — PCI-DSS (was 3) */
+  /* 2 — PCI-DSS */
   ["2", "PCI-DSS 인증 일정",
     "2026 Q4 완료 ($30~50K)",
     "2027 H1 완료 (분산 투자)",
@@ -31,7 +31,7 @@ const sheet1 = [
     "로컬 PG 미도입 + Eximbay 지속 사용 정책상 자체 카드 보유 불필요. 단, Alipay/WeChat 도입 시 재검토"
   ],
 
-  /* 3 — Hotel Boost (was 4) */
+  /* 3 — Hotel Boost */
   ["3", "Hotel Boost 자부담 정책",
     "호텔 100% 자부담 강제",
     "DOTBIZ 50% 흡수 허용",
@@ -43,7 +43,7 @@ const sheet1 = [
 
 
   ["", "", "", "", "", "", "", ""],
-  ["💡 모든 항목 Sage 추천 옵션 채택 시 → '전체 A' 또는 추천대로 회신만 해도 결재 완료.", "", "", "", "", "", "", ""],
+  ["💡 모든 항목 권장 옵션 채택 시 → '전체 A' 또는 권장대로 회신만 해도 결재 완료.", "", "", "", "", "", "", ""],
   ["⚠️ 옵션 외 의견 있으시면 CEO 결정 컬럼에 직접 작성 가능.", "", "", "", "", "", "", ""],
 ];
 
@@ -54,7 +54,7 @@ ws1['!cols'] = [
   { wch: 28 },  // 옵션 A
   { wch: 28 },  // 옵션 B
   { wch: 28 },  // 옵션 C
-  { wch: 16 },  // Sage 추천
+  { wch: 16 },  // 권장
   { wch: 14 },  // CEO 결정
   { wch: 40 },  // 비고
 ];
@@ -134,6 +134,6 @@ ws2['!cols'] = [
 ];
 xlsx.utils.book_append_sheet(wb, ws2, '이미 결정됨');
 
-const outPath = 'C:/Users/LENOVO/Desktop/Dotbiz/docs/Settlement_CEO_DecisionList_Simple_2026-05-08_v7.xlsx';
+const outPath = 'C:/Users/LENOVO/Desktop/Dotbiz/docs/Settlement_CEO_DecisionList_2026-05-08_FINAL.xlsx';
 xlsx.writeFile(wb, outPath);
 console.log('Generated:', outPath);
