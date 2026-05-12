@@ -430,8 +430,37 @@ export default function BookingFormPage() {
         </div>
       </Card>
 
-      {/* ── Payment Method (2026-05-08 신규: PG 수수료 100% 고객 부담, Option C Hybrid) ── */}
-      <PaymentMethodSelector totalPrice={totalPrice} />
+      {/* ── Payment Method (2026-05-08 신규: PG 수수료 100% 고객 부담, Option C Hybrid) ──
+       *
+       * 표시 조건 분기 (비즈니스 룰):
+       *   POSTPAY 고객 → 결제수단 선택 SKIP (디포짓 기반 정산)
+       *   PREPAY + Free Cancel → 모든 수단 가능 (TL까지 결제)
+       *   PREPAY + Non-refundable → 카드/QR 등 즉시 결제 수단만 (가상계좌·송금 차단)
+       *   PREPAY + TL 경과 → Non-refundable과 동일
+       */}
+      {billingType === "POSTPAY" ? (
+        <Card className="p-5 border-l-4 border-l-blue-500 bg-blue-50/40 dark:bg-blue-950/10">
+          <div className="flex items-start gap-3">
+            <CreditCard className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
+            <div className="text-sm space-y-1">
+              <p className="font-bold text-blue-900 dark:text-blue-200">POSTPAY · 정산 주기 일괄 결제</p>
+              <p className="text-xs text-blue-800/90 dark:text-blue-300/90">
+                후불 정산 고객으로 등록되어 있어 예약 시 별도 결제가 필요하지 않습니다.
+                이 예약은 다음 정산 주기({currentCompany.settlementCycle || "Bi-weekly"} · Net-{currentCompany.paymentDueDays ?? 5})에
+                다른 예약과 함께 일괄 청구됩니다.
+              </p>
+              <p className="text-[11px] text-blue-700/80 dark:text-blue-400/80 mt-1 italic">
+                💡 디포짓 기반 신용 거래 · 결제 수단 선택 불필요
+              </p>
+            </div>
+          </div>
+        </Card>
+      ) : (
+        <PaymentMethodSelector
+          totalPrice={totalPrice}
+          requireInstantPayment={!isFreeCancel}
+        />
+      )}
 
       {/* ── ELS 사용 옵션 (Spending 출구) ──
        * 골격만 표시 — 실제 차감 비율(예: 5% 이내)과 환산(1 ELS = $1)은 추후 결정.
@@ -679,12 +708,32 @@ function ElsRedeemAtBookingPanel({ totalPrice }: { totalPrice: number }) {
  *
  * 권역 자동 감지: currentCompany.country → PaymentRegion
  * ════════════════════════════════════════════════════════════════════ */
-function PaymentMethodSelector({ totalPrice }: { totalPrice: number }) {
+/** 즉시 결제 확정 가능한 카테고리.
+ *  Non-refundable / TL 경과 예약에서는 이 카테고리만 허용.
+ *  bank_transfer / swift_wire / virtual_account 는 입금 대기 시간 차이로 제외. */
+const INSTANT_PAYMENT_CATEGORIES = new Set([
+  "card_local", "card_global", "qr_payment",
+]);
+
+function PaymentMethodSelector({
+  totalPrice,
+  requireInstantPayment = false,
+}: {
+  totalPrice: number;
+  /** Non-refundable / TL 경과 예약 시 즉시 결제만 허용 */
+  requireInstantPayment?: boolean;
+}) {
   const region = regionFromCountry(currentCompany.country);
-  const methods = paymentMethodsForRegion(region);
+  const allMethods = paymentMethodsForRegion(region);
+  /* 즉시 결제 요구 시 delayed 수단 disabled (UI에는 표시하되 선택 불가) */
+  const methods = allMethods;
+  const isMethodDisabled = (m: PaymentMethodOption) =>
+    requireInstantPayment && !INSTANT_PAYMENT_CATEGORIES.has(m.category);
+
   const [selectedId, setSelectedId] = useState<string>(() => {
-    const recommended = methods.find(m => m.isRecommended);
-    return recommended?.id || methods[0]?.id || "";
+    const enabled = methods.filter(m => !isMethodDisabled(m));
+    const recommended = enabled.find(m => m.isRecommended);
+    return recommended?.id || enabled[0]?.id || methods[0]?.id || "";
   });
   const selected = methods.find(m => m.id === selectedId) || methods[0];
   const feeCalc = selected ? calcPaymentFee(selected, totalPrice) : null;
@@ -714,6 +763,20 @@ function PaymentMethodSelector({ totalPrice }: { totalPrice: number }) {
         </div>
       </div>
 
+      {/* 즉시 결제 요구 안내 (Non-refundable / TL 경과 시) */}
+      {requireInstantPayment && (
+        <div className="mb-3 p-3 rounded-md border border-red-300/60 bg-red-50 dark:bg-red-950/20 text-xs">
+          <p className="font-bold text-red-700 dark:text-red-300 flex items-center gap-1.5">
+            <AlertTriangle className="h-3.5 w-3.5" />
+            즉시 결제 필요 — 가상계좌 / 송금 사용 불가
+          </p>
+          <p className="text-red-700/90 dark:text-red-300/90 mt-1">
+            환불 불가 예약은 결제가 즉시 확정되어야 호텔 객실이 보장됩니다.
+            <strong>카드 / Alipay / WeChat / PayNow / FPS 등 실시간 결제수단</strong>만 선택 가능합니다.
+          </p>
+        </div>
+      )}
+
       {/* 권역별 결제수단 그리드 (지역 추천 우선) */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-4">
         {methods.filter(m => m.region === region).map(m => (
@@ -723,6 +786,7 @@ function PaymentMethodSelector({ totalPrice }: { totalPrice: number }) {
             baseAmountUsd={totalPrice}
             selected={selectedId === m.id}
             onSelect={() => setSelectedId(m.id)}
+            disabled={isMethodDisabled(m)}
           />
         ))}
       </div>
@@ -740,6 +804,7 @@ function PaymentMethodSelector({ totalPrice }: { totalPrice: number }) {
               baseAmountUsd={totalPrice}
               selected={selectedId === m.id}
               onSelect={() => setSelectedId(m.id)}
+              disabled={isMethodDisabled(m)}
             />
           ))}
         </div>
@@ -776,20 +841,27 @@ function PaymentMethodSelector({ totalPrice }: { totalPrice: number }) {
 }
 
 function PaymentMethodCard({
-  method, baseAmountUsd, selected, onSelect,
+  method, baseAmountUsd, selected, onSelect, disabled = false,
 }: {
   method: PaymentMethodOption;
   baseAmountUsd: number;
   selected: boolean;
   onSelect: () => void;
+  /** 즉시 결제 요구 환경에서 delayed 수단은 disabled */
+  disabled?: boolean;
 }) {
   const fee = calcPaymentFee(method, baseAmountUsd);
+  const disabledReason = disabled ? "환불 불가 예약은 즉시 결제만 가능" : null;
   return (
     <button
       type="button"
-      onClick={onSelect}
-      className={`text-left p-3 rounded-md border transition-all ${
-        selected
+      onClick={disabled ? undefined : onSelect}
+      disabled={disabled}
+      title={disabledReason || undefined}
+      className={`text-left p-3 rounded-md border transition-all relative ${
+        disabled
+          ? "border-border bg-muted/30 opacity-50 cursor-not-allowed"
+          : selected
           ? "border-[#FF6000] bg-[#FF6000]/5 ring-1 ring-[#FF6000]"
           : "border-border hover:border-[#FF6000]/40 hover:bg-muted/30"
       }`}
@@ -810,12 +882,17 @@ function PaymentMethodCard({
               +{fee.feeUsd.toFixed(2)}
             </p>
           )}
-          {method.isRecommended && (
+          {method.isRecommended && !disabled && (
             <Badge variant="outline" className="text-[9px] mt-0.5">추천</Badge>
+          )}
+          {disabled && (
+            <Badge variant="outline" className="text-[9px] mt-0.5 text-red-500 border-red-300">차단</Badge>
           )}
         </div>
       </div>
-      <p className="text-[10px] text-muted-foreground mt-1.5 line-clamp-1">{method.description}</p>
+      <p className="text-[10px] text-muted-foreground mt-1.5 line-clamp-1">
+        {disabled ? "환불 불가 예약 시 사용 불가 (입금 지연)" : method.description}
+      </p>
     </button>
   );
 }

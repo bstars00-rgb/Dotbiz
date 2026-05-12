@@ -1772,4 +1772,22 @@ export const POLICY_CHANGELOG: PolicyChange[] = [
     after: "위 3건 모두 무효. PG 수수료는 100% 고객 부담 + Option C Hybrid 표시. POLICY_CHANGELOG 영구 기록으로 변경 이력 보존.",
     reason: "마진 가정 7% → 3.5~4% 실측 반영 후 정책 재설계. 흡수 모델은 어떤 변형이든 마진 잠식 불가피. 시장 벤치마크(TBO·Booking·Expedia 모두 고객 부담) 부합.",
   },
+  {
+    changedAt: "2026-05-08",
+    changedBy: "CEO Business Logic",
+    category: "Settlement",
+    field: "결제 수단 × 정산 모델 × 예약 정책 매트릭스",
+    before: "Payment Method UI를 모든 케이스에 균일 노출",
+    after: "POSTPAY 고객: 결제수단 UI 전체 숨김 (신용 기반 정산) / PREPAY + Free Cancel: 모든 결제수단 가능 (TL까지) / PREPAY + Non-refundable: 카드·QR 등 즉시 결제만 (가상계좌·송금 disabled) / PREPAY + TL 경과: 동일",
+    reason: "환불 불가 예약은 결제가 즉시 확정되어야 호텔 allotment 보장. 가상계좌·송금·SWIFT는 입금 지연으로 Non-refundable 부적합. POSTPAY는 디포짓 기반이므로 매 예약 결제 불필요.",
+  },
+  {
+    changedAt: "2026-05-08",
+    changedBy: "CEO Strategy",
+    category: "Settlement",
+    field: "PREPAY → POSTPAY 전환 전략 (BM 핵심)",
+    before: "PREPAY와 POSTPAY를 독립 모델로 운영",
+    after: "단계별 전환 경로 명시: Stage 0 PREPAY (진입) → Stage 1 POSTPAY + Floating Deposit (3~6개월, TTV 1억+) → Stage 2 Bank Guarantee (24개월, TTV 10억+) → Stage 3 No Deposit (대표이사 승인). 자동 전환 제안 트리거 정의.",
+    reason: "PREPAY는 매 예약 결제로 거래량 한계 + 매출 부담. POSTPAY 전환 시 신용 기반으로 거래량 증가 + 운영 효율 ↑. 고객 신뢰 형성 단계별 디포짓 → 보증서 → 무담보 진화 경로로 자연스러운 매출 확대 유도.",
+  },
 ];
