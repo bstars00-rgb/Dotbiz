@@ -327,11 +327,11 @@ export default function SettlementPage() {
         <AlertDescription className="text-xs space-y-0.5">
           <p>
             <strong>읽기 전용:</strong> 고객사(Master/Accounting)는 billing/invoice를 임의로 수정할 수 없습니다.
-            이상이 있다면 <strong>Disputes 탭에서 이의제기</strong>해주세요.
+            이상이 있다면 DOTBIZ 영업 담당자에게 문의해주세요. (Invoice 분쟁 제기 기능은 운영 X)
           </p>
           <p>
             <strong>Adjustment(조정 라인):</strong> DOTBIZ가 검토 후 발행합니다.
-            분쟁 인정 / 호텔 클레임 / 계약 변경 등 출처가 모든 라인에 명시됩니다.
+            호텔 클레임 / 계약 변경 등 출처가 모든 라인에 명시됩니다.
           </p>
         </AlertDescription>
       </Alert>
@@ -339,8 +339,8 @@ export default function SettlementPage() {
       {/* ── AR Aging Report (결정 #5) ──
        * 회계 인식: Cash basis (입금 시점). 그 전까지 모든 invoice는 미수금(AR).
        * 기간이 길수록 회수 가능성 ↓ → bucket 분류. 90+ 일은 악성 미수금.
-       * 분쟁 중인 건은 별도 분류 (티켓 해결 시 일반 bucket으로 환원). */}
-      <ARAgingCard companyId={activeCompany.id} onJumpInvoice={(no) => navigate(`/app/settlement/invoice/${no}`)} onJumpDisputes={() => setSettlementTab("disputes")} />
+       * Disputed bucket 폐기 (2026-05-08): Invoice 분쟁 기능 자체 삭제로 별도 분류 불필요. */}
+      <ARAgingCard companyId={activeCompany.id} onJumpInvoice={(no) => navigate(`/app/settlement/invoice/${no}`)} />
 
       {/* Header */}
       <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -1717,35 +1717,34 @@ function UploadReceiptDialog({
  * AR Aging Card — 결정 #5
  *
  * 회계 인식: Cash basis. 입금 전까지 모두 미수금.
- * 6 buckets: Current / 1-30 / 31-60 / 61-90 / 90+ / Disputed
+ * 5 buckets (Disputed 폐기, 2026-05-08): Current / 1-30 / 31-60 / 61-90 / 90+
  * 90+ days = 악성 미수금 (회계팀 손상 검토 대상)
- * Disputed = 티켓 미해결 분쟁 — aging과 별개 분류
  * ═════════════════════════════════════════════════ */
 function ARAgingCard({
-  companyId, onJumpInvoice, onJumpDisputes,
+  companyId, onJumpInvoice,
 }: {
   companyId: string;
   onJumpInvoice: (invoiceNo: string) => void;
-  onJumpDisputes: () => void;
 }) {
   const summary = arSummaryForCompany(companyId);
   const entries = arAgingForCompany(companyId);
   const [bucketFilter, setBucketFilter] = useState<ARAgingBucket | "All">("All");
 
-  const filtered = bucketFilter === "All"
+  /* Disputed bucket 행은 화면에서 숨김 (시드 데이터는 잔존 가능) */
+  const filtered = (bucketFilter === "All"
     ? entries
-    : entries.filter(e => e.bucket === bucketFilter);
+    : entries.filter(e => e.bucket === bucketFilter)
+  ).filter(e => e.bucket !== "Disputed");
 
   if (summary.total === 0) return null; /* 미수금 0이면 카드 자체 숨김 */
 
-  /* Bucket별 색상 */
-  const bucketStyle: Record<ARAgingBucket, { bg: string; text: string; border: string; label: string }> = {
+  /* Bucket별 색상 (Disputed 제거) */
+  const bucketStyle: Record<Exclude<ARAgingBucket, "Disputed">, { bg: string; text: string; border: string; label: string }> = {
     "Current":  { bg: "bg-emerald-50 dark:bg-emerald-950/20", text: "text-emerald-700 dark:text-emerald-300", border: "border-l-emerald-500", label: "미도래" },
     "1-30":     { bg: "bg-blue-50 dark:bg-blue-950/20",       text: "text-blue-700 dark:text-blue-300",       border: "border-l-blue-500",    label: "1-30일" },
     "31-60":    { bg: "bg-amber-50 dark:bg-amber-950/20",     text: "text-amber-700 dark:text-amber-300",     border: "border-l-amber-500",   label: "31-60일" },
     "61-90":    { bg: "bg-orange-50 dark:bg-orange-950/20",   text: "text-orange-700 dark:text-orange-300",   border: "border-l-orange-500",  label: "61-90일" },
     "90+":      { bg: "bg-red-50 dark:bg-red-950/20",         text: "text-red-700 dark:text-red-300",         border: "border-l-red-500",     label: "90+일 (악성)" },
-    "Disputed": { bg: "bg-purple-50 dark:bg-purple-950/20",   text: "text-purple-700 dark:text-purple-300",   border: "border-l-purple-500",  label: "분쟁 중" },
   };
 
   return (
@@ -1769,9 +1768,9 @@ function ARAgingCard({
         </div>
       </div>
 
-      {/* 6-bucket grid */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
-        {(["Current", "1-30", "31-60", "61-90", "90+", "Disputed"] as ARAgingBucket[]).map(b => {
+      {/* 5-bucket grid (Disputed 폐기) */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+        {(["Current", "1-30", "31-60", "61-90", "90+"] as const).map(b => {
           const cell = summary.byBucket[b];
           const style = bucketStyle[b];
           const active = bucketFilter === b;
@@ -1789,40 +1788,24 @@ function ARAgingCard({
         })}
       </div>
 
-      {/* 악성 미수금 + 분쟁 경고 */}
-      {(summary.badDebtAmount > 0 || summary.disputedAmount > 0) && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-          {summary.badDebtAmount > 0 && (
-            <Alert className="border-red-300 bg-red-50 dark:bg-red-950/20 py-2.5">
-              <AlertTriangle className="h-4 w-4 text-red-600" />
-              <AlertTitle className="text-xs text-red-900 dark:text-red-200">
-                악성 미수금 ${summary.badDebtAmount.toLocaleString()}
-              </AlertTitle>
-              <AlertDescription className="text-[11px] text-red-800 dark:text-red-300">
-                90+ 일 경과 — 회계팀 손상 검토 대상. ELLIS 측에서 회수 / 부채 인식 정책 적용.
-              </AlertDescription>
-            </Alert>
-          )}
-          {summary.disputedAmount > 0 && (
-            <Alert className="border-purple-300 bg-purple-50 dark:bg-purple-950/20 py-2.5">
-              <AlertTriangle className="h-4 w-4 text-purple-600" />
-              <AlertTitle className="text-xs text-purple-900 dark:text-purple-200 flex items-center justify-between gap-2">
-                <span>분쟁 중 ${summary.disputedAmount.toLocaleString()}</span>
-                <button onClick={onJumpDisputes} className="text-[10px] underline">Disputes 탭 →</button>
-              </AlertTitle>
-              <AlertDescription className="text-[11px] text-purple-800 dark:text-purple-300">
-                티켓 미해결 — aging bucket과 별도 분류. 인정/기각 후 일반 bucket으로 환원.
-              </AlertDescription>
-            </Alert>
-          )}
-        </div>
+      {/* 악성 미수금 경고만 표시 (분쟁 경고 폐기) */}
+      {summary.badDebtAmount > 0 && (
+        <Alert className="border-red-300 bg-red-50 dark:bg-red-950/20 py-2.5">
+          <AlertTriangle className="h-4 w-4 text-red-600" />
+          <AlertTitle className="text-xs text-red-900 dark:text-red-200">
+            악성 미수금 ${summary.badDebtAmount.toLocaleString()}
+          </AlertTitle>
+          <AlertDescription className="text-[11px] text-red-800 dark:text-red-300">
+            90+ 일 경과 — 회계팀 손상 검토 대상. ELLIS 측에서 회수 / 부채 인식 정책 적용.
+          </AlertDescription>
+        </Alert>
       )}
 
       {/* 필터 적용 시 상세 행 */}
-      {bucketFilter !== "All" && filtered.length > 0 && (
+      {bucketFilter !== "All" && bucketFilter !== "Disputed" && filtered.length > 0 && (
         <div className="border rounded">
           <div className="px-3 py-2 border-b bg-muted/30 text-xs font-medium flex items-center justify-between">
-            <span>{bucketStyle[bucketFilter].label} · {filtered.length}건</span>
+            <span>{bucketStyle[bucketFilter as Exclude<ARAgingBucket, "Disputed">].label} · {filtered.length}건</span>
             <button onClick={() => setBucketFilter("All")} className="text-[10px] text-muted-foreground hover:text-foreground">
               ✕ 필터 해제
             </button>
