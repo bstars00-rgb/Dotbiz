@@ -1921,11 +1921,6 @@ function ARAgingCard({
           <h2 className="text-base font-bold flex items-center gap-2">
             📊 AR Aging — 미수금 분석
           </h2>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            회계 인식: Cash basis · 입금 시점에 매출 인식. 그 전까지 모든 invoice는 미수금 상태.
-            <br />
-            환율: ELLIS 예약 시점 lock-in (정산 시점 환율 변동 무관).
-          </p>
         </div>
         <div className="text-right">
           <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Total Outstanding</p>
@@ -1955,16 +1950,13 @@ function ARAgingCard({
         })}
       </div>
 
-      {/* 악성 미수금 경고만 표시 (분쟁 경고 폐기) */}
+      {/* 악성 미수금 표시 (60일 초과) */}
       {summary.badDebtAmount > 0 && (
         <Alert className="border-red-300 bg-red-50 dark:bg-red-950/20 py-2.5">
           <AlertTriangle className="h-4 w-4 text-red-600" />
           <AlertTitle className="text-xs text-red-900 dark:text-red-200">
             악성 미수금 ${summary.badDebtAmount.toLocaleString()}
           </AlertTitle>
-          <AlertDescription className="text-[11px] text-red-800 dark:text-red-300">
-            60일 초과 — CEO 정책상 절대 금지 영역. 즉시 신용 완전 동결 + 법무 검토 + 대표이사 Write-off 결재 대상.
-          </AlertDescription>
         </Alert>
       )}
 
@@ -2023,11 +2015,6 @@ function ARAgingCard({
         </div>
       )}
 
-      {/* 추가 안내 */}
-      <div className="text-[10px] text-muted-foreground pt-2 border-t">
-        💡 <strong>회계 인식 정책:</strong> Cash basis — 실제 입금 + 회계 처리 시점에만 매출 인식.
-        부채 인식은 ELLIS 회계팀 검토 후 (90+ 일 손상 검토 / 분쟁 결과 반영).
-      </div>
     </Card>
   );
 }
