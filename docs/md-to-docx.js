@@ -15,7 +15,7 @@ const {
 } = require('docx');
 
 const FILES = [
-  'Payment_Business_Rules_2026-05-08.md',
+  'Settlement_CEO_Briefing_2026-05-08.md',
 ];
 
 /* ── 마크다운 인라인 파싱 (bold, code, italic) ── */
