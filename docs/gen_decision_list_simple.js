@@ -106,9 +106,10 @@ const sheet2 = [
   ["💳 결제 수단", "중국 예외", "Alipay/WeChat — 홍콩 지사 출자 후 (Sheet 1 #1 결재)"],
   ["💳 결제 수단", "권역별 카탈로그 (UI 표시)", "17종 (참고용 — 실제 활성은 SWIFT/송금/Eximbay/중국QR)"],
 
-  ["🤝 디포짓 / 신용", "디포짓 종류", "6종 (Credit / Floating / Guarantee / Insurance / Bank Guarantee / No Deposit)"],
+  ["🤝 디포짓 / 신용", "디포짓 종류 (명목)", "6종 (Credit / Floating / Guarantee / ~~Insurance~~ / Bank Guarantee / No Deposit)"],
+  ["🤝 디포짓 / 신용", "실사용 디포짓", "5종 (Insurance 제외) — Guarantee Insurance는 실사용 거의 0% 명목 유지만"],
+  ["🤝 디포짓 / 신용", "Trade Credit Insurance (별도 상품)", "도입 X — 호텔업 보험 기반 디포짓 실제 시장 거의 없음"],
   ["🤝 디포짓 / 신용", "No Deposit 조건", "정량 3 + 정성 2 + 대표이사 승인"],
-  ["🤝 디포짓 / 신용", "디포짓 6종 통합 검토", "장기적 4종 통합 (Insurance + Bank Guarantee)"],
   ["🤝 디포짓 / 신용", "PREPAY→POSTPAY 전환", "Master 신청 + 케이스별 검토 (자동 트리거 없음)"],
 
   ["⚖️ 분쟁", "자동 인정", "없음 (모든 분쟁 수동 검토)"],
@@ -139,6 +140,6 @@ ws2['!cols'] = [
 ];
 xlsx.utils.book_append_sheet(wb, ws2, '이미 결정됨');
 
-const outPath = 'C:/Users/LENOVO/Desktop/Dotbiz/docs/Settlement_CEO_DecisionList_Simple_2026-05-08_v5.xlsx';
+const outPath = 'C:/Users/LENOVO/Desktop/Dotbiz/docs/Settlement_CEO_DecisionList_Simple_2026-05-08_v6.xlsx';
 xlsx.writeFile(wb, outPath);
 console.log('Generated:', outPath);

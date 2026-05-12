@@ -1801,6 +1801,15 @@ export const POLICY_CHANGELOG: PolicyChange[] = [
   },
   {
     changedAt: "2026-05-08",
+    changedBy: "CEO Reality Check",
+    category: "Settlement",
+    field: "Guarantee Insurance 실사용 — 명목 유지, 실질 폐기",
+    before: "디포짓 6종 중 'Guarantee Insurance' 옵션 정상 운영 가정",
+    after: "Guarantee Insurance는 실사용 거의 0%. 명목상 옵션만 유지하고 사실상 고려하지 않음. 실제 운영 디포짓 5종 (Credit by Company / Floating Deposit / Guarantee Deposit / Bank Guarantee / No Deposit). Trade Credit Insurance 별도 상품 도입도 X.",
+    reason: "호텔업 B2B 시장에서 보험 기반 디포짓 (Guarantee Insurance 및 Trade Credit Insurance) 실제 사용 사례 거의 없음. 명목상 카탈로그 유지는 legacy 호환 + 잠재 도입 가능성 보존 목적. 실제 영업·결재 검토에서는 제외.",
+  },
+  {
+    changedAt: "2026-05-08",
     changedBy: "CEO PG Strategy",
     category: "Settlement",
     field: "PG 전략 — 로컬 PG 추가 도입 X (전면 정정)",
