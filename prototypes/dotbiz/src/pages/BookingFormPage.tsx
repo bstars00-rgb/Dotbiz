@@ -23,7 +23,7 @@ import { getRoomsByHotel } from "@/mocks/rooms";
 import PaymentDialog from "@/components/PaymentDialog";
 import { toast } from "sonner";
 import {
-  paymentMethodsForRegion, calcPaymentFee,
+  paymentMethodsForRegion, calcPaymentFee, PAYMENT_METHODS,
   type PaymentRegion, type PaymentMethodOption,
 } from "@/mocks/settlement";
 
@@ -466,6 +466,7 @@ export default function BookingFormPage() {
             totalPrice={totalPrice}
             requireInstantPayment={!isFreeCancel}
             companyCountry={userCompany.country}
+            showAllRegions={user?.role === "Master"}
           />
         );
       })()}
@@ -727,24 +728,29 @@ function PaymentMethodSelector({
   totalPrice,
   requireInstantPayment = false,
   companyCountry,
+  showAllRegions = false,
 }: {
   totalPrice: number;
   /** Non-refundable / TL 경과 예약 시 즉시 결제만 허용 */
   requireInstantPayment?: boolean;
   /** 로그인 사용자 회사의 country (없으면 currentCompany fallback) */
   companyCountry?: string;
+  /** Master 권한: 전 권역 결제수단 모두 표시 (다권역 사업 운영용) */
+  showAllRegions?: boolean;
 }) {
   const region = regionFromCountry(companyCountry ?? currentCompany.country);
-  const allMethods = paymentMethodsForRegion(region);
+  /* Master는 전 권역 표시, 그 외는 회사 권역 + 글로벌만 표시 */
+  const methods = showAllRegions ? PAYMENT_METHODS : paymentMethodsForRegion(region);
   /* 즉시 결제 요구 시 delayed 수단 disabled (UI에는 표시하되 선택 불가) */
-  const methods = allMethods;
   const isMethodDisabled = (m: PaymentMethodOption) =>
     requireInstantPayment && !INSTANT_PAYMENT_CATEGORIES.has(m.category);
 
   const [selectedId, setSelectedId] = useState<string>(() => {
-    const enabled = methods.filter(m => !isMethodDisabled(m));
+    /* Master 기본 선택: 자기 회사 권역의 추천 수단 */
+    const ownRegionMethods = methods.filter(m => m.region === region);
+    const enabled = ownRegionMethods.filter(m => !isMethodDisabled(m));
     const recommended = enabled.find(m => m.isRecommended);
-    return recommended?.id || enabled[0]?.id || methods[0]?.id || "";
+    return recommended?.id || enabled[0]?.id || methods.find(m => !isMethodDisabled(m))?.id || methods[0]?.id || "";
   });
   const selected = methods.find(m => m.id === selectedId) || methods[0];
   const feeCalc = selected ? calcPaymentFee(selected, totalPrice) : null;
@@ -767,9 +773,14 @@ function PaymentMethodSelector({
           <h2 className="font-bold flex items-center gap-2">
             <CreditCard className="h-4 w-4" style={{ color: "#FF6000" }} />
             Payment Method
+            {showAllRegions && (
+              <Badge variant="outline" className="text-[9px] ml-1">All Regions (Master)</Badge>
+            )}
           </h2>
           <p className="text-xs text-muted-foreground mt-0.5">
-            {regionLabel[region]} · 결제 수수료는 고객 부담 (선택한 수단에 따라 표시)
+            {showAllRegions
+              ? `자사 권역: ${regionLabel[region]} · Master는 전 권역 결제수단 조회 가능 · 수수료 고객 부담`
+              : `${regionLabel[region]} · 결제 수수료는 고객 부담 (선택한 수단에 따라 표시)`}
           </p>
         </div>
       </div>
@@ -788,38 +799,79 @@ function PaymentMethodSelector({
         </div>
       )}
 
-      {/* 권역별 결제수단 그리드 (지역 추천 우선) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-4">
-        {methods.filter(m => m.region === region).map(m => (
-          <PaymentMethodCard
-            key={m.id}
-            method={m}
-            baseAmountUsd={totalPrice}
-            selected={selectedId === m.id}
-            onSelect={() => setSelectedId(m.id)}
-            disabled={isMethodDisabled(m)}
-          />
-        ))}
-      </div>
-
-      {/* 글로벌 옵션 (접힘) */}
-      <details className="text-xs">
-        <summary className="cursor-pointer text-muted-foreground hover:text-foreground mb-2">
-          🌐 글로벌 결제수단 (Cross-border 대형 거래용) — 펼치기
-        </summary>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2">
-          {methods.filter(m => m.region === "GLOBAL").map(m => (
-            <PaymentMethodCard
-              key={m.id}
-              method={m}
-              baseAmountUsd={totalPrice}
-              selected={selectedId === m.id}
-              onSelect={() => setSelectedId(m.id)}
-              disabled={isMethodDisabled(m)}
-            />
-          ))}
+      {showAllRegions ? (
+        /* Master: 권역별 그룹핑 렌더 (자사 권역 우선, 글로벌 마지막) */
+        <div className="space-y-4">
+          {(() => {
+            const order: PaymentRegion[] = [region, "KR", "GREATER_CHINA", "SEA", "SG_MY", "JP", "GLOBAL"];
+            /* 중복 제거 + 자사 권역 우선 */
+            const ordered = Array.from(new Set(order));
+            return ordered.map(r => {
+              const groupMethods = methods.filter(m => m.region === r);
+              if (groupMethods.length === 0) return null;
+              const isOwn = r === region;
+              return (
+                <div key={r}>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                      {regionLabel[r]}
+                    </span>
+                    {isOwn && (
+                      <Badge className="text-[9px] bg-[#FF6000] text-white">자사 권역</Badge>
+                    )}
+                    <span className="text-[10px] text-muted-foreground">({groupMethods.length}개)</span>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    {groupMethods.map(m => (
+                      <PaymentMethodCard
+                        key={m.id}
+                        method={m}
+                        baseAmountUsd={totalPrice}
+                        selected={selectedId === m.id}
+                        onSelect={() => setSelectedId(m.id)}
+                        disabled={isMethodDisabled(m)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              );
+            });
+          })()}
         </div>
-      </details>
+      ) : (
+        /* OP/Accounting: 자사 권역만 표시 + 글로벌은 접힘 */
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-4">
+            {methods.filter(m => m.region === region).map(m => (
+              <PaymentMethodCard
+                key={m.id}
+                method={m}
+                baseAmountUsd={totalPrice}
+                selected={selectedId === m.id}
+                onSelect={() => setSelectedId(m.id)}
+                disabled={isMethodDisabled(m)}
+              />
+            ))}
+          </div>
+          <details className="text-xs">
+            <summary className="cursor-pointer text-muted-foreground hover:text-foreground mb-2">
+              🌐 글로벌 결제수단 (Cross-border 대형 거래용) — 펼치기
+            </summary>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2">
+              {methods.filter(m => m.region === "GLOBAL").map(m => (
+                <PaymentMethodCard
+                  key={m.id}
+                  method={m}
+                  baseAmountUsd={totalPrice}
+                  selected={selectedId === m.id}
+                  onSelect={() => setSelectedId(m.id)}
+                  disabled={isMethodDisabled(m)}
+                />
+              ))}
+            </div>
+          </details>
+        </>
+      )}
 
       {/* 결제 요약 */}
       {selected && feeCalc && (
