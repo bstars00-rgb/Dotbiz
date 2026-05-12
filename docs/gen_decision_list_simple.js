@@ -42,23 +42,23 @@ const sheet1 = [
   ],
 
   /* 4 */
-  ["4", "Trade Credit Insurance 도입",
-    "Atradius (50개국, 95% retention)",
-    "Coface (100개국)",
-    "도입 보류",
-    "A (Atradius)",
+  ["4", "Trade Credit Insurance 도입 여부",
+    "도입 (영업팀 견적 착수)",
+    "PoC 1개사 (대형 No Deposit 대상)",
+    "도입 보류 (현재 6종 디포짓 유지)",
+    "B (PoC 후 확대)",
     "",
-    "보험료 0.1~0.5% < PG 3.5%. No Deposit 대안"
+    "마켓 리서치 결과: 0.1~0.5% (Atradius/Coface). 호텔업 사례 직접 확인 미진행"
   ],
 
   /* 5 */
-  ["5", "Pre-funded Wallet 보너스 비율",
-    "일률 3%",
-    "Tier별 3~8% 차등",
-    "도입 보류",
-    "B (Tier 차등)",
+  ["5", "Pre-funded Wallet 도입 여부",
+    "도입 (Phase 1 인센티브 모델)",
+    "PoC 1~2개 고객사 시범",
+    "도입 보류 (Floating Deposit 유지)",
+    "B (PoC 후 결정)",
     "",
-    "충전 시 보너스 ELS. 운영자금 확보 + AR 리스크 0%"
+    "마일리지 충전 유사 모델. 시장 검증 없음 → 시범 운영 후 비율 결정"
   ],
 
   /* 6 */
@@ -177,6 +177,6 @@ ws2['!cols'] = [
 ];
 xlsx.utils.book_append_sheet(wb, ws2, '이미 결정됨');
 
-const outPath = 'C:/Users/LENOVO/Desktop/Dotbiz/docs/Settlement_CEO_DecisionList_Simple_2026-05-08.xlsx';
+const outPath = 'C:/Users/LENOVO/Desktop/Dotbiz/docs/Settlement_CEO_DecisionList_Simple_2026-05-08_v2.xlsx';
 xlsx.writeFile(wb, outPath);
 console.log('Generated:', outPath);
