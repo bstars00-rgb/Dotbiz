@@ -1799,4 +1799,13 @@ export const POLICY_CHANGELOG: PolicyChange[] = [
     after: "둘 다 도입하지 않음. 결재 자료에서 완전 제거. No Deposit은 현재 6종 디포짓 + 대표이사 승인 체계 유지. 운영자금 확보는 기존 Floating Deposit으로 충분.",
     reason: "사업 확장 범위 제어. 너무 많은 신규 기능 도입 시 수익 구조에 무리. 핵심 BM (PREPAY → POSTPAY 전환 + 디포짓 6종)에 집중. 시장 검증 없는 신규 모델보다 검증된 모델 운영 효율 극대화 우선.",
   },
+  {
+    changedAt: "2026-05-08",
+    changedBy: "CEO PG Strategy",
+    category: "Settlement",
+    field: "PG 전략 — 로컬 PG 추가 도입 X (전면 정정)",
+    before: "이전 검토: 한국 Toss/KG이니시스/KCP, 일본 Stripe, 베트남 VNPay 등 권역별 로컬 PG 다각화 권장",
+    after: "로컬 PG 추가 도입 X. 기본 전략은 예약량 ↑ → 해외 송금 유도. 선결제 PG는 기존 Eximbay 유지 (계약/입금 주체 = 싱가포르 본사). 카드수수료는 판매가와 별도로 고객 청구. 예외: 중국 Alipay/WeChat (홍콩 지사 싱가포르 출자 후, 대표이사 승인 사항).",
+    reason: "1) 계약/입금 주체는 항상 싱가포르 — 로컬 PG 다각화 시 지사별 수금/내부 정산 복잡도 증가. 2) Eximbay 다통화 정산 기능으로 충분. 3) 사업 확장 범위 제어 — 로컬 PG 협상·통합 비용 > 절감 이익. 4) 중국 시장만 예외 (Alipay/WeChat 표준 + 홍콩 지사 출자 + 대표이사 결재 사항).",
+  },
 ];

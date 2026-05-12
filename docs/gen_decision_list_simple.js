@@ -7,32 +7,22 @@ const wb = xlsx.utils.book_new();
  * ═════════════════════════════════════════════════════════════ */
 const sheet1 = [
   ["DOTBIZ 대표이사 결재 — 옵션 선택 (✓ 표시)", "", "", "", "", "", "", ""],
-  ["6건. 각 항목별 옵션 중 하나에 ✓ 표시 후 회신. (2026-05-08: Trade Credit Insurance + Pre-funded Wallet 도입 X 결정으로 #4·#5 제거)", "", "", "", "", "", "", ""],
+  ["5건. 각 항목별 옵션 중 하나에 ✓ 표시 후 회신. (PG 전략 확정: 로컬 PG 추가 도입 X · 기존 Eximbay 유지 · 카드수수료 고객 부담 별도 청구)", "", "", "", "", "", "", ""],
   ["", "", "", "", "", "", "", ""],
   ["#", "항목", "옵션 A", "옵션 B", "옵션 C", "Sage 추천", "CEO 결정 (✓)", "비고"],
 
-  /* 1 */
-  ["1", "한국 Local PG 도입 1순위",
-    "Toss Payments",
-    "KG이니시스",
-    "KCP",
-    "A (Toss)",
+  /* 1 — 홍콩 지사 (출자 + Alipay/WeChat 결제 도입 통합) */
+  ["1", "홍콩 지사 오픈 (싱가포르 출자) + Alipay/WeChat 결제 도입",
+    "2026 Q3 즉시 (출자 + 결제 동시)",
+    "2026 Q4 (출자 먼저, 결제 단계 도입)",
+    "2027 Q1 연기 (시장 검증 후)",
+    "A (Q3 동시 진행)",
     "",
-    "가상계좌 모두 250원/건 동일. 협상 조건 차이"
+    "중국 시장은 Alipay/WeChat 결제가 표준. 홍콩 지사(싱가포르 출자)가 협상·운영 주체. 대중화권 진출 핵심"
   ],
 
-  /* 2 */
-  ["2", "홍콩 지사 오픈 시점",
-    "2026 Q3 (즉시)",
-    "2026 Q4",
-    "2027 Q1 (연기)",
-    "A (Q3)",
-    "",
-    "대중화권 진출 핵심. 늦을수록 매출 손실"
-  ],
-
-  /* 3 */
-  ["3", "PREPAY→POSTPAY 전환 트리거",
+  /* 2 — PREPAY→POSTPAY 전환 트리거 */
+  ["2", "PREPAY→POSTPAY 전환 트리거",
     "단순 (TTV 1억+만)",
     "AND 4조건 (기간+건수+TTV+신용)",
     "Master 신청 시 검토만",
@@ -41,18 +31,18 @@ const sheet1 = [
     "B: 6개월+ AND 5건/월+ AND TTV 1억+ AND Free Cancel 90%+"
   ],
 
-  /* 4 (was 6) — PCI-DSS */
-  ["4", "PCI-DSS 인증 일정",
+  /* 3 — PCI-DSS */
+  ["3", "PCI-DSS 인증 일정",
     "2026 Q4 완료 ($30~50K)",
     "2027 H1 완료 (분산 투자)",
     "외부 PG 의존 유지 (인증 X)",
-    "A (Q4 완료)",
+    "C (Eximbay 의존 유지)",
     "",
-    "C 선택 시 카드 정보 직접 보유 불가, PG 의존도 ↑"
+    "로컬 PG 미도입 + Eximbay 지속 사용 정책상 자체 카드 보유 불필요. 단, Alipay/WeChat 도입 시 재검토"
   ],
 
-  /* 5 (was 7) — Hotel Boost */
-  ["5", "Hotel Boost 자부담 정책",
+  /* 4 — Hotel Boost */
+  ["4", "Hotel Boost 자부담 정책",
     "호텔 100% 자부담 강제",
     "DOTBIZ 50% 흡수 허용",
     "DOTBIZ 100% 흡수 허용",
@@ -61,8 +51,8 @@ const sheet1 = [
     "마진 4% 환경에서 DOTBIZ 흡수는 역마진 위험"
   ],
 
-  /* 6 (was 8) — KPI */
-  ["6", "마진 모니터링 KPI 대시보드",
+  /* 5 — KPI */
+  ["5", "마진 모니터링 KPI 대시보드",
     "5종 통합 (Net Margin / 결제수단 / 통화 / AR / 분쟁)",
     "3종 핵심 (Net Margin / 통화 / AR)",
     "현재 보고서 유지",
@@ -120,10 +110,11 @@ const sheet2 = [
   ["🏛 회사 구조", "수금 모델", "Model C Hybrid — 현지 지사 수금 → SG 본사 정산"],
   ["🏛 회사 구조", "4개 세일즈 권역", "한국 / 대중화권 / 동남아 / SG+MY"],
 
-  ["💳 결제 수단", "권역별 카탈로그", "17종 (한국 가상계좌 250원 ~ Global PG 3.5%)"],
-  ["💳 결제 수단", "한국 표준", "가상계좌 (건당 250원)"],
-  ["💳 결제 수단", "중국 표준", "Alipay/WeChat (홍콩 지사 오픈 후)"],
-  ["💳 결제 수단", "SG+MY 표준", "PayNow / DuitNow (수수료 0%)"],
+  ["💳 결제 수단", "PG 전략 (확정)", "로컬 PG 추가 도입 X · Eximbay 유지 · 카드수수료 고객 별도 부담"],
+  ["💳 결제 수단", "기본 전략", "예약량 ↑ → 해외 송금 유도 (SWIFT)"],
+  ["💳 결제 수단", "선결제 PG", "Eximbay (기존) — 카드수수료 별도 청구"],
+  ["💳 결제 수단", "중국 예외", "Alipay/WeChat — 홍콩 지사 출자 후 (Sheet 1 #1 결재)"],
+  ["💳 결제 수단", "권역별 카탈로그 (UI 표시)", "17종 (참고용 — 실제 활성은 SWIFT/송금/Eximbay/중국QR)"],
 
   ["🤝 디포짓 / 신용", "디포짓 종류", "6종 (Credit / Floating / Guarantee / Insurance / Bank Guarantee / No Deposit)"],
   ["🤝 디포짓 / 신용", "No Deposit 조건", "정량 3 + 정성 2 + 대표이사 승인"],
@@ -157,6 +148,6 @@ ws2['!cols'] = [
 ];
 xlsx.utils.book_append_sheet(wb, ws2, '이미 결정됨');
 
-const outPath = 'C:/Users/LENOVO/Desktop/Dotbiz/docs/Settlement_CEO_DecisionList_Simple_2026-05-08_v3.xlsx';
+const outPath = 'C:/Users/LENOVO/Desktop/Dotbiz/docs/Settlement_CEO_DecisionList_Simple_2026-05-08_v4.xlsx';
 xlsx.writeFile(wb, outPath);
 console.log('Generated:', outPath);

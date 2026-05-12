@@ -782,6 +782,9 @@ function PaymentMethodSelector({
               ? `자사 권역: ${regionLabel[region]} · Master는 전 권역 결제수단 조회 가능 · 수수료 고객 부담`
               : `${regionLabel[region]} · 결제 수수료는 고객 부담 (선택한 수단에 따라 표시)`}
           </p>
+          <p className="text-[10px] text-amber-700/80 dark:text-amber-400/80 mt-1 italic">
+            ⚠️ 정책 안내: DOTBIZ는 로컬 PG 추가 도입 X. 현재 활성 결제: SWIFT 송금 · Eximbay · 중국 Alipay/WeChat (홍콩 지사 오픈 후). 나머지는 참고용 표시.
+          </p>
         </div>
       </div>
 
