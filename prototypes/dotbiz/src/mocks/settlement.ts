@@ -1027,7 +1027,10 @@ export const DISPUTE_REASON_LABEL: Record<InvoiceDisputeReason, string> = {
  * 분쟁 건은 aging과 별개로 분리. 분쟁 인정/기각 후 다시 일반 bucket으로 환원.
  */
 
-export type ARAgingBucket = "Current" | "1-30" | "31-60" | "61-90" | "90+" | "Disputed";
+/* 2026-05-08 정책 변경: CEO "60일 절대 초과 금지" 반영.
+ * 이전: Current / 1-30 / 31-60 / 61-90 / 90+ / Disputed (6 buckets)
+ * 현재: Current / 1-30 / 31-60 / 60+ (4 buckets, Disputed 폐기) */
+export type ARAgingBucket = "Current" | "1-30" | "31-60" | "60+" | "Disputed";
 
 export interface ARAgingEntry {
   invoiceNo: string;
@@ -1040,16 +1043,15 @@ export interface ARAgingEntry {
   bucket: ARAgingBucket;
   hasDispute: boolean;
   disputedAmount: number;
-  isBadDebt: boolean;            /* 90+ days = 악성 미수금 */
+  isBadDebt: boolean;            /* 60+ days = 악성 미수금 (대표이사 결재 Write-off 대상) */
 }
 
 export function bucketFor(daysOverdue: number, hasOpenDispute: boolean): ARAgingBucket {
-  if (hasOpenDispute) return "Disputed";
+  if (hasOpenDispute) return "Disputed";  /* legacy 호환 (UI 숨김) */
   if (daysOverdue < 0) return "Current";
   if (daysOverdue <= 30) return "1-30";
   if (daysOverdue <= 60) return "31-60";
-  if (daysOverdue <= 90) return "61-90";
-  return "90+";
+  return "60+";
 }
 
 /** 회사의 모든 invoice를 aging bucket별로 분류. asOfDate 기준 daysOverdue 계산. */
@@ -1087,7 +1089,7 @@ export function arAgingForCompany(
       bucket,
       hasDispute: hasOpenDispute,
       disputedAmount,
-      isBadDebt: daysOverdue > 90 && !hasOpenDispute,
+      isBadDebt: daysOverdue > 60 && !hasOpenDispute,
     };
   });
 }
@@ -1109,8 +1111,7 @@ export function arSummaryForCompany(
     "Current": { amount: 0, count: 0 },
     "1-30":    { amount: 0, count: 0 },
     "31-60":   { amount: 0, count: 0 },
-    "61-90":   { amount: 0, count: 0 },
-    "90+":     { amount: 0, count: 0 },
+    "60+":     { amount: 0, count: 0 },
     "Disputed":{ amount: 0, count: 0 },
   };
   let badDebt = 0, disputed = 0, oldest = 0, total = 0;

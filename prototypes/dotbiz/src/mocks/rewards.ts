@@ -1855,6 +1855,15 @@ export const POLICY_CHANGELOG: PolicyChange[] = [
   },
   {
     changedAt: "2026-05-08",
+    changedBy: "CEO AR Policy",
+    category: "Settlement",
+    field: "AR Aging 4 buckets (90일 폐기) — CEO 60일 절대 금지 정책 반영",
+    before: "5 buckets: Current / 1-30 / 31-60 / 61-90 / 90+ (Disputed 별도)",
+    after: "4 buckets: Current / 1-30 / 31-60 / 60+. 60+ days = 악성 미수금 (즉시 신용 동결 + Write-off 대상). 61-90, 90+ bucket 폐기.",
+    reason: "CEO 정책: '60일 절대 초과 금지'. 90일까지 추적은 너무 늦음. 60일 경과 시 즉시 악성 미수금 분류 → 신용 완전 동결 + 법무 검토 + 대표이사 Write-off 결재 워크플로우 진입.",
+  },
+  {
+    changedAt: "2026-05-08",
     changedBy: "CEO PG Strategy",
     category: "Settlement",
     field: "PG 전략 — 로컬 PG 추가 도입 X (전면 정정)",

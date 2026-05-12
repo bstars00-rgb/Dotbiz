@@ -1901,8 +1901,9 @@ function UploadReceiptDialog({
  * AR Aging Card — 결정 #5
  *
  * 회계 인식: Cash basis. 입금 전까지 모두 미수금.
- * 5 buckets (Disputed 폐기, 2026-05-08): Current / 1-30 / 31-60 / 61-90 / 90+
- * 90+ days = 악성 미수금 (회계팀 손상 검토 대상)
+ * 4 buckets (2026-05-08 정책 변경): Current / 1-30 / 31-60 / 60+
+ * CEO "60일 절대 초과 금지" 정책 반영. 60+ days = 악성 미수금 (Write-off 대상).
+ * Disputed는 폐기 (Invoice 분쟁 기능 삭제).
  * ═════════════════════════════════════════════════ */
 function ARAgingCard({
   companyId, onJumpInvoice,
@@ -1922,13 +1923,12 @@ function ARAgingCard({
 
   if (summary.total === 0) return null; /* 미수금 0이면 카드 자체 숨김 */
 
-  /* Bucket별 색상 (Disputed 제거) */
+  /* Bucket별 색상 (Disputed 제거, 90일 이상 단축) */
   const bucketStyle: Record<Exclude<ARAgingBucket, "Disputed">, { bg: string; text: string; border: string; label: string }> = {
     "Current":  { bg: "bg-emerald-50 dark:bg-emerald-950/20", text: "text-emerald-700 dark:text-emerald-300", border: "border-l-emerald-500", label: "미도래" },
     "1-30":     { bg: "bg-blue-50 dark:bg-blue-950/20",       text: "text-blue-700 dark:text-blue-300",       border: "border-l-blue-500",    label: "1-30일" },
     "31-60":    { bg: "bg-amber-50 dark:bg-amber-950/20",     text: "text-amber-700 dark:text-amber-300",     border: "border-l-amber-500",   label: "31-60일" },
-    "61-90":    { bg: "bg-orange-50 dark:bg-orange-950/20",   text: "text-orange-700 dark:text-orange-300",   border: "border-l-orange-500",  label: "61-90일" },
-    "90+":      { bg: "bg-red-50 dark:bg-red-950/20",         text: "text-red-700 dark:text-red-300",         border: "border-l-red-500",     label: "90+일 (악성)" },
+    "60+":      { bg: "bg-red-50 dark:bg-red-950/20",         text: "text-red-700 dark:text-red-300",         border: "border-l-red-500",     label: "60일 초과 (악성)" },
   };
 
   return (
@@ -1952,9 +1952,9 @@ function ARAgingCard({
         </div>
       </div>
 
-      {/* 5-bucket grid (Disputed 폐기) */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
-        {(["Current", "1-30", "31-60", "61-90", "90+"] as const).map(b => {
+      {/* 4-bucket grid (60일 절대 초과 금지 정책) */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+        {(["Current", "1-30", "31-60", "60+"] as const).map(b => {
           const cell = summary.byBucket[b];
           const style = bucketStyle[b];
           const active = bucketFilter === b;
@@ -1980,7 +1980,7 @@ function ARAgingCard({
             악성 미수금 ${summary.badDebtAmount.toLocaleString()}
           </AlertTitle>
           <AlertDescription className="text-[11px] text-red-800 dark:text-red-300">
-            90+ 일 경과 — 회계팀 손상 검토 대상. ELLIS 측에서 회수 / 부채 인식 정책 적용.
+            60일 초과 — CEO 정책상 절대 금지 영역. 즉시 신용 완전 동결 + 법무 검토 + 대표이사 Write-off 결재 대상.
           </AlertDescription>
         </Alert>
       )}
