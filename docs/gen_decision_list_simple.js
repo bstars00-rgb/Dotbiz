@@ -7,7 +7,7 @@ const wb = xlsx.utils.book_new();
  * ═════════════════════════════════════════════════════════════ */
 const sheet1 = [
   ["DOTBIZ 대표이사 결재 — 옵션 선택 (✓ 표시)", "", "", "", "", "", "", ""],
-  ["4건. 각 항목별 옵션 중 하나에 ✓ 표시 후 회신. (PREPAY→POSTPAY 자동 트리거 폐기: Master 신청 + 케이스별 검토로 운영)", "", "", "", "", "", "", ""],
+  ["3건. 각 항목별 옵션 중 하나에 ✓ 표시 후 회신. (KPI 대시보드: Sales CRM + Dashboard 통합으로 확정 — Sheet 2 이동)", "", "", "", "", "", "", ""],
   ["", "", "", "", "", "", "", ""],
   ["#", "항목", "옵션 A", "옵션 B", "옵션 C", "Sage 추천", "CEO 결정 (✓)", "비고"],
 
@@ -41,15 +41,6 @@ const sheet1 = [
     "마진 4% 환경에서 DOTBIZ 흡수는 역마진 위험"
   ],
 
-  /* 4 — KPI (was 5) */
-  ["4", "마진 모니터링 KPI 대시보드",
-    "5종 통합 (Net Margin / 결제수단 / 통화 / AR / 분쟁)",
-    "3종 핵심 (Net Margin / 통화 / AR)",
-    "현재 보고서 유지",
-    "A (5종 통합)",
-    "",
-    "CFO 운영. 실시간 추적 → 마진 압박 조기 발견"
-  ],
 
   ["", "", "", "", "", "", "", ""],
   ["💡 모든 항목 Sage 추천 옵션 채택 시 → '전체 A' 또는 추천대로 회신만 해도 결재 완료.", "", "", "", "", "", "", ""],
@@ -128,6 +119,9 @@ const sheet2 = [
 
   ["🛡 보안", "강화 트랙", "별도 예산 신설 (PCI-DSS / 침투 테스트 / 2FA)"],
 
+  ["📊 모니터링", "마진 KPI 대시보드", "도입 확정 — Sales CRM + Dashboard 통합 (마진 4% 환경 핵심 기능)"],
+  ["📊 모니터링", "Sales CRM 신설", "KPI 대시보드 통합 위치 (Phase 2 개발 대상)"],
+
   ["", "", ""],
   ["💡 모든 결정 사항은 POLICY_CHANGELOG에 영구 보존 (mocks/rewards.ts). 변경 이력 추적 가능.", "", ""],
 ];
@@ -140,6 +134,6 @@ ws2['!cols'] = [
 ];
 xlsx.utils.book_append_sheet(wb, ws2, '이미 결정됨');
 
-const outPath = 'C:/Users/LENOVO/Desktop/Dotbiz/docs/Settlement_CEO_DecisionList_Simple_2026-05-08_v6.xlsx';
+const outPath = 'C:/Users/LENOVO/Desktop/Dotbiz/docs/Settlement_CEO_DecisionList_Simple_2026-05-08_v7.xlsx';
 xlsx.writeFile(wb, outPath);
 console.log('Generated:', outPath);

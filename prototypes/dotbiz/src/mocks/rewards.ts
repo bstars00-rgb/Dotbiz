@@ -1810,6 +1810,15 @@ export const POLICY_CHANGELOG: PolicyChange[] = [
   },
   {
     changedAt: "2026-05-08",
+    changedBy: "CEO Confirmation",
+    category: "Settlement",
+    field: "마진 KPI 대시보드 — Sales CRM + Dashboard 통합 확정",
+    before: "별도 KPI 대시보드 신설 여부 결재 안건",
+    after: "도입 확정. 통합 위치: Sales CRM (Phase 2 신설) + 기존 Dashboard 페이지. 마진 4% 환경 핵심 기능. 결재 자료에서 제거 (이미 결정).",
+    reason: "마진 4% 환경에서 실시간 추적은 필수. 별도 페이지보다 Sales CRM + Dashboard 통합이 영업·운영 워크플로우에 자연스럽게 녹아듬. Sales CRM은 Phase 2 신규 개발 대상.",
+  },
+  {
+    changedAt: "2026-05-08",
     changedBy: "CEO PG Strategy",
     category: "Settlement",
     field: "PG 전략 — 로컬 PG 추가 도입 X (전면 정정)",
