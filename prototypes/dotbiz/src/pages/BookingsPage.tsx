@@ -467,54 +467,8 @@ export default function BookingsPage() {
        * API 연동 업체는 자동으로 API 예약만 들어오므로 UI/API 구분 불필요.
        * bookingSource 필드는 데이터 모델로 유지하되 필터 chip은 제거. */}
 
-      {/* ── Quick stats: Free Cancellation / Upcoming Bookings ──
-       * 2026-04-30: FindHotelPage에서 이전. 일일 운영 페이지(Bookings)에 더 적합. */}
-      {(() => {
-        const now = new Date();
-        const in24h = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-        const in3d = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
-        const confirmed = localBookings.filter(b => b.bookingStatus === "Confirmed");
-        const fc24 = confirmed.filter(b => b.freeCancelDeadline && new Date(b.freeCancelDeadline) >= now && new Date(b.freeCancelDeadline) <= in24h).length;
-        const fc3d = confirmed.filter(b => b.freeCancelDeadline && new Date(b.freeCancelDeadline) >= now && new Date(b.freeCancelDeadline) <= in3d).length;
-        const up24 = confirmed.filter(b => new Date(b.checkIn) >= now && new Date(b.checkIn) <= in24h).length;
-        const up3d = confirmed.filter(b => new Date(b.checkIn) >= now && new Date(b.checkIn) <= in3d).length;
-        return (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Card className="p-5 border-l-4" style={{ borderLeftColor: "#009505" }}>
-              <h3 className="font-bold text-sm flex items-center gap-2">
-                <Shield className="h-4 w-4" style={{ color: "#009505" }} />
-                Free Cancellation
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
-                <button className="text-center hover:bg-green-50 dark:hover:bg-green-900/10 rounded-lg p-2 transition-colors" onClick={() => navigate("/app/bookings?filter=free_cancel_24h")}>
-                  <p className="text-3xl font-bold">{fc24}</p>
-                  <p className="text-xs text-muted-foreground mt-1">Within 24 hours</p>
-                </button>
-                <button className="text-center hover:bg-green-50 dark:hover:bg-green-900/10 rounded-lg p-2 transition-colors" onClick={() => navigate("/app/bookings?filter=free_cancel_3d")}>
-                  <p className="text-3xl font-bold">{fc3d}</p>
-                  <p className="text-xs text-muted-foreground mt-1">Within 3 days</p>
-                </button>
-              </div>
-            </Card>
-            <Card className="p-5 border-l-4" style={{ borderLeftColor: "#FF6000" }}>
-              <h3 className="font-bold text-sm flex items-center gap-2">
-                <Calendar className="h-4 w-4" style={{ color: "#FF6000" }} />
-                Upcoming Bookings
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
-                <button className="text-center hover:bg-orange-50 dark:hover:bg-orange-900/10 rounded-lg p-2 transition-colors" onClick={() => navigate("/app/bookings?filter=upcoming_24h")}>
-                  <p className="text-3xl font-bold">{up24}</p>
-                  <p className="text-xs text-muted-foreground mt-1">Within 24 hours</p>
-                </button>
-                <button className="text-center hover:bg-orange-50 dark:hover:bg-orange-900/10 rounded-lg p-2 transition-colors" onClick={() => navigate("/app/bookings?filter=upcoming_3d")}>
-                  <p className="text-3xl font-bold">{up3d}</p>
-                  <p className="text-xs text-muted-foreground mt-1">Within 3 days</p>
-                </button>
-              </div>
-            </Card>
-          </div>
-        );
-      })()}
+      {/* Quick Stats (Free Cancellation / Upcoming Bookings) 폐기 (2026-05-08):
+       * 고객이 직접 리스트에서 판단하도록 자동 카운터/추천 위젯 제거. */}
 
       <Tabs defaultValue="list">
         <TabsList>
