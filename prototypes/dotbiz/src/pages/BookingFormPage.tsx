@@ -17,7 +17,7 @@ import { useFormValidation } from "@/hooks/useFormValidation";
 import { StateToolbar } from "@/components/StateToolbar";
 import { useAuth } from "@/contexts/AuthContext";
 import { userPointsState, hotelPointsBoost, estimatedElsForBooking, ELS_REDEEM_AT_BOOKING_POLICY, compositeTierScore, tierForComposite, DEFAULT_COMPOSITE_WEIGHTS } from "@/mocks/rewards";
-import { currentCompany } from "@/mocks/companies";
+import { currentCompany, companies } from "@/mocks/companies";
 import { hotels } from "@/mocks/hotels";
 import { getRoomsByHotel } from "@/mocks/rooms";
 import PaymentDialog from "@/components/PaymentDialog";
@@ -438,29 +438,37 @@ export default function BookingFormPage() {
        *   PREPAY + Non-refundable → 카드/QR 등 즉시 결제 수단만 (가상계좌·송금 차단)
        *   PREPAY + TL 경과 → Non-refundable과 동일
        */}
-      {billingType === "POSTPAY" ? (
-        <Card className="p-5 border-l-4 border-l-blue-500 bg-blue-50/40 dark:bg-blue-950/10">
-          <div className="flex items-start gap-3">
-            <CreditCard className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
-            <div className="text-sm space-y-1">
-              <p className="font-bold text-blue-900 dark:text-blue-200">POSTPAY · 정산 주기 일괄 결제</p>
-              <p className="text-xs text-blue-800/90 dark:text-blue-300/90">
-                후불 정산 고객으로 등록되어 있어 예약 시 별도 결제가 필요하지 않습니다.
-                이 예약은 다음 정산 주기({currentCompany.settlementCycle || "Bi-weekly"} · Net-{currentCompany.paymentDueDays ?? 5})에
-                다른 예약과 함께 일괄 청구됩니다.
-              </p>
-              <p className="text-[11px] text-blue-700/80 dark:text-blue-400/80 mt-1 italic">
-                💡 디포짓 기반 신용 거래 · 결제 수단 선택 불필요
-              </p>
-            </div>
-          </div>
-        </Card>
-      ) : (
-        <PaymentMethodSelector
-          totalPrice={totalPrice}
-          requireInstantPayment={!isFreeCancel}
-        />
-      )}
+      {(() => {
+        /* 로그인 사용자 회사 → 권역 자동 매핑 (currentCompany 하드코딩 X) */
+        const userCompany = companies.find(c => c.name === user?.company) || currentCompany;
+        if (billingType === "POSTPAY") {
+          return (
+            <Card className="p-5 border-l-4 border-l-blue-500 bg-blue-50/40 dark:bg-blue-950/10">
+              <div className="flex items-start gap-3">
+                <CreditCard className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
+                <div className="text-sm space-y-1">
+                  <p className="font-bold text-blue-900 dark:text-blue-200">POSTPAY · 정산 주기 일괄 결제</p>
+                  <p className="text-xs text-blue-800/90 dark:text-blue-300/90">
+                    후불 정산 고객 ({userCompany.name})으로 등록되어 있어 예약 시 별도 결제가 필요하지 않습니다.
+                    이 예약은 다음 정산 주기({userCompany.settlementCycle || "Bi-weekly"} · Net-{userCompany.paymentDueDays ?? 5})에
+                    다른 예약과 함께 일괄 청구됩니다.
+                  </p>
+                  <p className="text-[11px] text-blue-700/80 dark:text-blue-400/80 mt-1 italic">
+                    💡 디포짓 기반 신용 거래 · 결제 수단 선택 불필요
+                  </p>
+                </div>
+              </div>
+            </Card>
+          );
+        }
+        return (
+          <PaymentMethodSelector
+            totalPrice={totalPrice}
+            requireInstantPayment={!isFreeCancel}
+            companyCountry={userCompany.country}
+          />
+        );
+      })()}
 
       {/* ── ELS 사용 옵션 (Spending 출구) ──
        * 골격만 표시 — 실제 차감 비율(예: 5% 이내)과 환산(1 ELS = $1)은 추후 결정.
@@ -718,12 +726,15 @@ const INSTANT_PAYMENT_CATEGORIES = new Set([
 function PaymentMethodSelector({
   totalPrice,
   requireInstantPayment = false,
+  companyCountry,
 }: {
   totalPrice: number;
   /** Non-refundable / TL 경과 예약 시 즉시 결제만 허용 */
   requireInstantPayment?: boolean;
+  /** 로그인 사용자 회사의 country (없으면 currentCompany fallback) */
+  companyCountry?: string;
 }) {
-  const region = regionFromCountry(currentCompany.country);
+  const region = regionFromCountry(companyCountry ?? currentCompany.country);
   const allMethods = paymentMethodsForRegion(region);
   /* 즉시 결제 요구 시 delayed 수단 disabled (UI에는 표시하되 선택 불가) */
   const methods = allMethods;

@@ -111,6 +111,33 @@ export const companies: Company[] = [
     contractCurrency: "SGD", country: "Singapore",
     integrationType: "Both", bookingBaselinePerDay: 10,
   },
+  /* ── 대중화권 (Greater China) demo companies — Alipay/WeChat/FPS 데모용 (2026-05-08) ── */
+  {
+    id: "comp-020", name: "上海明珠旅行社 (Shanghai Pearl Travel)", businessRegNo: "91310000MA9XYZ123",
+    businessType: "Prepaid", billingType: "PREPAY",
+    address: "999 South Pudong Road, Pudong, Shanghai", phone: "+86-21-8888-2020", email: "ops@shpearl.cn",
+    contractDate: "2025-09-01", ellisSyncDate: "2026-04-25",
+    contractCurrency: "CNY", country: "China",
+    integrationType: "UI", bookingBaselinePerDay: 8,
+  },
+  {
+    id: "comp-021", name: "TaipeiTrips 台北旅遊 Ltd", businessRegNo: "12345678",
+    businessType: "Postpaid", billingType: "POSTPAY",
+    address: "100 Xinyi Road Sec.5, Xinyi District, Taipei", phone: "+886-2-8101-2020", email: "biz@taipeitrips.tw",
+    contractDate: "2025-06-15", ellisSyncDate: "2026-04-25",
+    depositType: "Floating Deposit", depositAmount: 50000, settlementCycle: "Monthly", paymentDueDays: 10,
+    contractCurrency: "USD", country: "Taiwan",
+    integrationType: "Both", bookingBaselinePerDay: 14,
+  },
+  {
+    id: "comp-022", name: "HK Wing On Travel 香港永安", businessRegNo: "BR-0012345",
+    businessType: "Postpaid", billingType: "POSTPAY",
+    address: "Wing On Centre, Connaught Road Central, Hong Kong", phone: "+852-2832-2020", email: "corp@wingontravel.hk",
+    contractDate: "2024-12-01", ellisSyncDate: "2026-04-25",
+    depositType: "Bank Guarantee", depositAmount: 200000, settlementCycle: "Bi-weekly", paymentDueDays: 7,
+    contractCurrency: "USD", country: "Hong Kong",
+    integrationType: "API", bookingBaselinePerDay: 22,
+  },
 ];
 
 export const currentCompany = companies[0];

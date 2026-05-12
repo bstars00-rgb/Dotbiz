@@ -48,6 +48,14 @@ const MOCK_USERS: { email: string; password: string; user: User }[] = [
   /* Vietnam Vacation Co — PREPAY with both SG and VN contracts */
   { email: "vvc@dotbiz.com", password: "vvc123", user: { email: "vvc@dotbiz.com", name: "Vu Thi Hoa", role: "Master", company: "Vietnam Vacation Co", billingType: "PREPAY" } },
 
+  /* ── 대중화권 (Greater China) demo accounts — Alipay/WeChat/FPS 데모용 (2026-05-08) ── */
+  /* 중국 PREPAY — Alipay/WeChat 직접 결제 데모 */
+  { email: "china@dotbiz.com", password: "china123", user: { email: "china@dotbiz.com", name: "李伟 (Li Wei)", role: "Master", company: "上海明珠旅行社 (Shanghai Pearl Travel)", billingType: "PREPAY" } },
+  /* 대만 POSTPAY — 후불 정산 데모 (결제수단 UI 미노출 검증) */
+  { email: "taiwan@dotbiz.com", password: "taiwan123", user: { email: "taiwan@dotbiz.com", name: "陳志明 (Chen Chih-ming)", role: "Master", company: "TaipeiTrips 台北旅遊 Ltd", billingType: "POSTPAY" } },
+  /* 홍콩 POSTPAY — Bank Guarantee 대형사 데모 */
+  { email: "hk@dotbiz.com", password: "hk123", user: { email: "hk@dotbiz.com", name: "黃志強 (Wong Chi-keung)", role: "Master", company: "HK Wing On Travel 香港永安", billingType: "POSTPAY" } },
+
   /* ── INTERNAL OhMyHotel staff accounts (ELLIS admin console) ──
    * Only these users see ELS Economics + Review Moderation pages.
    * Customer-facing accounts (Master/OP/Accounting) have no visibility. */
