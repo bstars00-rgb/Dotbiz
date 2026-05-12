@@ -1819,6 +1819,15 @@ export const POLICY_CHANGELOG: PolicyChange[] = [
   },
   {
     changedAt: "2026-05-08",
+    changedBy: "CEO Confirmation",
+    category: "Security",
+    field: "PCI-DSS 인증 도입 X 확정 — PG사 위탁 처리",
+    before: "PCI-DSS 인증 일정·예산 결재 안건 (Q4 완료 또는 보류)",
+    after: "PCI-DSS 인증 도입 X 확정. DOTBIZ 자체 카드 정보 미보유, 외부 PG(Eximbay/Alipay/Stripe 등) 위탁 처리로 의무 대상 아님. 결재 자료에서 제거. 보안 강화는 다른 영역(2FA / RBAC / Audit Log / 침투 테스트)으로 별도 운영.",
+    reason: "PG사 사용의 본질이 PCI-DSS 부담의 위탁이다. DOTBIZ는 카드 정보를 직접 보유·처리하지 않으므로 PCI-DSS 인증 의무 없음. 인증 비용 $30~50K 1회 + 매년 $15K 절감. 향후 자체 카드 보유 또는 Pay By Link 도입 시 재검토.",
+  },
+  {
+    changedAt: "2026-05-08",
     changedBy: "CEO PG Strategy",
     category: "Settlement",
     field: "PG 전략 — 로컬 PG 추가 도입 X (전면 정정)",
