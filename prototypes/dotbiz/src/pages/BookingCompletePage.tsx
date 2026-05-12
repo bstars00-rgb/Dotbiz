@@ -158,11 +158,27 @@ export default function BookingCompletePage() {
           </div>
         ))}
         <Separator />
-        <div className="flex justify-between font-bold text-lg">
-          <span>Total</span>
-          <span style={{ color: "#FF6000" }}>USD {totalPrice.toFixed(2)}</span>
+        {/* Invoice line 1: Hotel Charge */}
+        <div className="flex justify-between text-sm">
+          <span className="text-muted-foreground">Hotel Charge</span>
+          <span>USD {totalPrice.toFixed(2)}</span>
         </div>
         <p className="text-xs text-muted-foreground text-right">USD {room?.price.toFixed(2)} x {nights} night{nights > 1 ? "s" : ""}</p>
+        {/* Invoice line 2: Payment Fee — Option C Hybrid (2026-05-08).
+         * 실제 결제수단별 수수료가 들어가지만 데모에서는 placeholder 표시.
+         * 추후 BookingForm에서 선택한 결제수단이 전달되도록 확장 가능. */}
+        <div className="flex justify-between text-sm">
+          <span className="text-muted-foreground">Payment Processing Fee</span>
+          <span className="text-green-600">Included separately on invoice</span>
+        </div>
+        <Separator />
+        <div className="flex justify-between font-bold text-lg">
+          <span>Total (Hotel)</span>
+          <span style={{ color: "#FF6000" }}>USD {totalPrice.toFixed(2)}</span>
+        </div>
+        <p className="text-[10px] text-muted-foreground text-right italic">
+          결제 수수료는 선택한 결제수단에 따라 별도 청구됩니다 (인보이스 라인 분리).
+        </p>
       </Card>
 
       {/* Actions */}

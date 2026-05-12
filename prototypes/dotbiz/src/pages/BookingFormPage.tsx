@@ -22,6 +22,22 @@ import { hotels } from "@/mocks/hotels";
 import { getRoomsByHotel } from "@/mocks/rooms";
 import PaymentDialog from "@/components/PaymentDialog";
 import { toast } from "sonner";
+import {
+  paymentMethodsForRegion, calcPaymentFee,
+  type PaymentRegion, type PaymentMethodOption,
+} from "@/mocks/settlement";
+
+/* 회사 country → PaymentRegion 매핑 (2026-05-08) */
+function regionFromCountry(country?: string): PaymentRegion {
+  if (!country) return "GLOBAL";
+  const c = country.toLowerCase();
+  if (c.includes("korea")) return "KR";
+  if (c.includes("china") || c.includes("taiwan") || c.includes("hong kong")) return "GREATER_CHINA";
+  if (c.includes("vietnam") || c.includes("thailand") || c.includes("indonesia") || c.includes("philippines")) return "SEA";
+  if (c.includes("singapore") || c.includes("malaysia")) return "SG_MY";
+  if (c.includes("japan")) return "JP";
+  return "GLOBAL";
+}
 
 const FORM_STORAGE_KEY = "dotbiz_booking_form_v2";
 const FORM_TTL_HOURS = 24;     /* 결정 #4: 24시간 후 자동 만료 */
@@ -407,11 +423,15 @@ export default function BookingFormPage() {
             )}
           </div>
           <div className="text-right">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Hotel Charge</p>
             <p className="text-xl font-bold" style={{ color: "#FF6000" }}>USD {totalPrice.toFixed(2)}</p>
             <p className="text-xs text-muted-foreground">USD {room?.price.toFixed(2)} x {nights} night{nights > 1 ? "s" : ""}</p>
           </div>
         </div>
       </Card>
+
+      {/* ── Payment Method (2026-05-08 신규: PG 수수료 100% 고객 부담, Option C Hybrid) ── */}
+      <PaymentMethodSelector totalPrice={totalPrice} />
 
       {/* ── ELS 사용 옵션 (Spending 출구) ──
        * 골격만 표시 — 실제 차감 비율(예: 5% 이내)과 환산(1 ELS = $1)은 추후 결정.
@@ -645,5 +665,157 @@ function ElsRedeemAtBookingPanel({ totalPrice }: { totalPrice: number }) {
         </p>
       )}
     </Card>
+  );
+}
+
+
+/* ════════════════════════════════════════════════════════════════════
+ * PaymentMethodSelector (2026-05-08 신규)
+ *
+ * 정책: PG 수수료 100% 고객 부담 (Option C Hybrid, Booking-style).
+ *   - 호텔 정가는 위에서 단일 표시
+ *   - 여기서 결제수단 선택 → 수수료 자동 표시 → 최종 금액 계산
+ *   - 인보이스는 별도 라인으로 분리됨 (Settlement Detail 페이지에서 표시)
+ *
+ * 권역 자동 감지: currentCompany.country → PaymentRegion
+ * ════════════════════════════════════════════════════════════════════ */
+function PaymentMethodSelector({ totalPrice }: { totalPrice: number }) {
+  const region = regionFromCountry(currentCompany.country);
+  const methods = paymentMethodsForRegion(region);
+  const [selectedId, setSelectedId] = useState<string>(() => {
+    const recommended = methods.find(m => m.isRecommended);
+    return recommended?.id || methods[0]?.id || "";
+  });
+  const selected = methods.find(m => m.id === selectedId) || methods[0];
+  const feeCalc = selected ? calcPaymentFee(selected, totalPrice) : null;
+  const finalTotal = totalPrice + (feeCalc?.feeUsd || 0);
+
+  /* 권역 이름 표시용 */
+  const regionLabel: Record<PaymentRegion, string> = {
+    KR: "한국 (Korea)",
+    GREATER_CHINA: "대중화권 (China·Taiwan·HK)",
+    SEA: "동남아 (Vietnam·Thailand·Indonesia·Philippines)",
+    SG_MY: "싱가포르·말레이시아",
+    JP: "일본 (Japan)",
+    GLOBAL: "Global",
+  };
+
+  return (
+    <Card className="p-5">
+      <div className="flex items-start justify-between mb-3">
+        <div>
+          <h2 className="font-bold flex items-center gap-2">
+            <CreditCard className="h-4 w-4" style={{ color: "#FF6000" }} />
+            Payment Method
+          </h2>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            {regionLabel[region]} · 결제 수수료는 고객 부담 (선택한 수단에 따라 표시)
+          </p>
+        </div>
+      </div>
+
+      {/* 권역별 결제수단 그리드 (지역 추천 우선) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-4">
+        {methods.filter(m => m.region === region).map(m => (
+          <PaymentMethodCard
+            key={m.id}
+            method={m}
+            baseAmountUsd={totalPrice}
+            selected={selectedId === m.id}
+            onSelect={() => setSelectedId(m.id)}
+          />
+        ))}
+      </div>
+
+      {/* 글로벌 옵션 (접힘) */}
+      <details className="text-xs">
+        <summary className="cursor-pointer text-muted-foreground hover:text-foreground mb-2">
+          🌐 글로벌 결제수단 (Cross-border 대형 거래용) — 펼치기
+        </summary>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2">
+          {methods.filter(m => m.region === "GLOBAL").map(m => (
+            <PaymentMethodCard
+              key={m.id}
+              method={m}
+              baseAmountUsd={totalPrice}
+              selected={selectedId === m.id}
+              onSelect={() => setSelectedId(m.id)}
+            />
+          ))}
+        </div>
+      </details>
+
+      {/* 결제 요약 */}
+      {selected && feeCalc && (
+        <div className="mt-4 p-3 rounded-md border bg-muted/30 space-y-1.5 text-sm">
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Hotel Charge</span>
+            <span className="font-medium">USD {totalPrice.toFixed(2)}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">
+              Payment Fee ({selected.icon} {selected.name})
+            </span>
+            <span className={selected.isFree ? "text-green-600 font-medium" : "text-foreground"}>
+              {selected.isFree ? "Free" : `USD ${feeCalc.feeUsd.toFixed(2)}`}
+            </span>
+          </div>
+          <div className="flex justify-between font-bold text-base pt-1.5 border-t">
+            <span>Total Payment</span>
+            <span style={{ color: "#FF6000" }}>USD {finalTotal.toFixed(2)}</span>
+          </div>
+          {!selected.isFree && (
+            <p className="text-[10px] text-muted-foreground italic pt-1">
+              {selected.description} · 결제 수수료는 인보이스에 별도 라인으로 표시됩니다.
+            </p>
+          )}
+        </div>
+      )}
+    </Card>
+  );
+}
+
+function PaymentMethodCard({
+  method, baseAmountUsd, selected, onSelect,
+}: {
+  method: PaymentMethodOption;
+  baseAmountUsd: number;
+  selected: boolean;
+  onSelect: () => void;
+}) {
+  const fee = calcPaymentFee(method, baseAmountUsd);
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      className={`text-left p-3 rounded-md border transition-all ${
+        selected
+          ? "border-[#FF6000] bg-[#FF6000]/5 ring-1 ring-[#FF6000]"
+          : "border-border hover:border-[#FF6000]/40 hover:bg-muted/30"
+      }`}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex items-start gap-2 min-w-0">
+          <span className="text-lg shrink-0">{method.icon}</span>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold truncate">{method.name}</p>
+            <p className="text-[10px] text-muted-foreground truncate">{method.provider}</p>
+          </div>
+        </div>
+        <div className="text-right shrink-0">
+          {method.isFree ? (
+            <Badge className="bg-green-600 text-white text-[9px]">Free</Badge>
+          ) : (
+            <p className="text-xs font-mono font-semibold" style={{ color: "#FF6000" }}>
+              +{fee.feeUsd.toFixed(2)}
+            </p>
+          )}
+          {method.isRecommended && (
+            <Badge variant="outline" className="text-[9px] mt-0.5">추천</Badge>
+          )}
+        </div>
+      </div>
+      <p className="text-[10px] text-muted-foreground mt-1.5 line-clamp-1">{method.description}</p>
+    </button>
   );
 }

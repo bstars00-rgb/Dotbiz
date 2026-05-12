@@ -151,6 +151,36 @@ export default function SettlementDetailPage() {
         </div>
       </Card>
 
+      {/* ─────────── Invoice Lines Breakdown (Option C Hybrid, 2026-05-08) ───────────
+        * 정책: PG 수수료 100% 고객 부담. 호텔 정가 + 결제 수수료 라인 분리.
+        * 데모 표시는 평균값 (실제로는 결제수단별 정확한 값). */}
+      <Card className="p-5">
+        <h2 className="text-base font-bold mb-3">Invoice Lines</h2>
+        <div className="space-y-2 text-sm">
+          <div className="flex justify-between py-1.5">
+            <div>
+              <span className="font-medium">Line 1: Hotel Charge</span>
+              <p className="text-[10px] text-muted-foreground">호텔 정가 ({invoice.bookingIds.length} bookings)</p>
+            </div>
+            <span className="font-mono">{fmt(Math.round(invoice.total * 0.97))}</span>
+          </div>
+          <div className="flex justify-between py-1.5 border-t pt-2">
+            <div>
+              <span className="font-medium">Line 2: Payment Processing Fee</span>
+              <p className="text-[10px] text-muted-foreground">고객 부담 · 결제수단별 분리 (2026-05-08 정책)</p>
+            </div>
+            <span className="font-mono">{fmt(Math.round(invoice.total * 0.03))}</span>
+          </div>
+          <div className="flex justify-between py-2 border-t font-bold">
+            <span>Invoice Total</span>
+            <span className="font-mono text-[#FF6000]">{fmt(invoice.total)}</span>
+          </div>
+        </div>
+        <p className="text-[10px] text-muted-foreground italic mt-3 pt-2 border-t">
+          💡 결제 수수료는 선택한 결제수단에 따라 다릅니다 (한국 가상계좌 0.025% / 카드 2~3% / 송금 0% 등). DOTBIZ는 결제 수수료를 흡수하지 않으며, 고객사가 직접 부담합니다.
+        </p>
+      </Card>
+
       {/* ─────────── Dispute Guidance (customer view) ─────────── */}
       {linkedBookings.length > 0 && (
         <Alert className="border-blue-200 bg-blue-50 dark:bg-blue-900/10">

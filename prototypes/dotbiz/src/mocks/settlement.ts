@@ -142,6 +142,130 @@ export const billingDetails: BillingLineItem[] = [
  */
 export type InvoiceMatchStatus = "Unpaid" | "Partial" | "Full" | "Reconciled";
 
+/* ════════════════════════════════════════════════════════════════════
+ * Payment Method 정책 (2026-05-08 확정)
+ *
+ * 정책: PG 수수료는 100% 고객 부담 (DOTBIZ 흡수 0%).
+ *       Option C Hybrid (Booking-style) — 검색·리스트는 단일가, 결제 단계에서 분리.
+ *
+ * 권역별 결제수단 매트릭스. 수수료는 실측 데이터 (웹 리서치 2026-05-08):
+ *   - 한국 가상계좌: 건당 250원 (≈ 0.025%)
+ *   - 한국 PG 카드 (Toss/KCP/이니시스): 2.1~3.3%
+ *   - 일본 Stripe: 3.6% domestic + 1.5% intl
+ *   - 싱가포르 PayNow: 0%
+ *   - 싱가포르 Stripe: 3.4% + S$0.50
+ *   - 홍콩 FPS: 0%
+ *   - 중국 Alipay/WeChat (B2B): 1~2% 추정
+ *   - 베트남 VNPay: 1.5~2.5%
+ *   - 동남아 Xendit: 3% + $0.30
+ *   - SWIFT (cross-border): 0.1% + 정액 $25~50
+ *   - 송금 (Bank transfer): 0%
+ * ════════════════════════════════════════════════════════════════════ */
+export type PaymentMethodCategory =
+  | "bank_transfer"     /* 송금 (0% 수수료) */
+  | "virtual_account"   /* 가상계좌 (한국 표준) */
+  | "card_local"        /* Local PG 카드 */
+  | "card_global"       /* Global PG 카드 (Stripe 등) */
+  | "qr_payment"        /* QR 결제 (PayNow/FPS/Alipay/WeChat/VNPay) */
+  | "swift_wire";       /* 국제 송금 */
+
+export type PaymentRegion =
+  | "KR"            /* 한국 */
+  | "GREATER_CHINA" /* 중국·대만·홍콩 */
+  | "SEA"           /* 베트남·태국·인도네시아·필리핀 */
+  | "SG_MY"         /* 싱가포르·말레이시아 */
+  | "JP"            /* 일본 */
+  | "GLOBAL";       /* 글로벌 (Cross-border) */
+
+export interface PaymentMethodOption {
+  id: string;
+  region: PaymentRegion;
+  category: PaymentMethodCategory;
+  name: string;            /* 사용자 표시명: "Toss Virtual Account" */
+  provider: string;        /* "KG이니시스" / "Stripe" / "Alipay" 등 */
+  /** 수수료 계산:
+   * - flatFee: 정액 (KRW, 한국 가상계좌 250원 등)
+   * - percent: 비율 (0.034 = 3.4%) */
+  flatFee?: number;
+  flatFeeCurrency?: string;
+  percentFee?: number;
+  /** Fixed surcharge in payment currency (e.g. $0.30 Xendit) */
+  fixedSurcharge?: number;
+  fixedSurchargeCurrency?: string;
+  description: string;     /* "건당 250원 (≈0.025%)" 같은 안내 */
+  icon: string;            /* emoji */
+  isFree: boolean;         /* 0% 수수료 여부 (UI 강조용) */
+  isRecommended?: boolean; /* 권역별 추천 */
+}
+
+/** 권역·결제수단 카탈로그 — Booking Form / PaymentDialog 표시 */
+export const PAYMENT_METHODS: PaymentMethodOption[] = [
+  /* ── 한국 ── */
+  { id: "kr-virtual", region: "KR", category: "virtual_account", name: "가상계좌 (Virtual Account)", provider: "KG이니시스/KCP/토스", flatFee: 250, flatFeeCurrency: "KRW", percentFee: 0, description: "건당 250원 (≈0.025%) · 한국 표준", icon: "🏦", isFree: false, isRecommended: true },
+  { id: "kr-transfer", region: "KR", category: "bank_transfer", name: "무통장 입금 (Bank Transfer)", provider: "직접 송금", percentFee: 0, description: "수수료 없음", icon: "💸", isFree: true },
+  { id: "kr-card-local", region: "KR", category: "card_local", name: "신용카드 (Local)", provider: "Toss/KCP/이니시스", percentFee: 0.028, description: "2.1~3.3% (평균 2.8%)", icon: "💳", isFree: false },
+  /* ── 대중화권 (중국·대만·홍콩) ── */
+  { id: "hk-fps", region: "GREATER_CHINA", category: "qr_payment", name: "FPS (Hong Kong)", provider: "HKMA", percentFee: 0, description: "수수료 없음 · 홍콩 표준", icon: "🇭🇰", isFree: true, isRecommended: true },
+  { id: "cn-alipay", region: "GREATER_CHINA", category: "qr_payment", name: "Alipay", provider: "Ant Group", percentFee: 0.015, description: "약 1~2% (B2B 머천트)", icon: "💙", isFree: false, isRecommended: true },
+  { id: "cn-wechat", region: "GREATER_CHINA", category: "qr_payment", name: "WeChat Pay", provider: "Tencent", percentFee: 0.015, description: "약 1~2% (B2B 머천트)", icon: "💚", isFree: false },
+  { id: "cn-unionpay", region: "GREATER_CHINA", category: "card_local", name: "UnionPay", provider: "UnionPay", percentFee: 0.02, description: "약 1.5~2.5%", icon: "💳", isFree: false },
+  /* ── 베트남·동남아 ── */
+  { id: "vn-vnpay", region: "SEA", category: "qr_payment", name: "VNPay QR", provider: "VNPay", percentFee: 0.02, description: "약 1.5~2.5% (베트남)", icon: "🇻🇳", isFree: false, isRecommended: true },
+  { id: "th-promptpay", region: "SEA", category: "qr_payment", name: "PromptPay", provider: "Bank of Thailand", percentFee: 0, description: "수수료 없음 · 태국 표준", icon: "🇹🇭", isFree: true },
+  { id: "sea-xendit", region: "SEA", category: "card_global", name: "Card (Xendit)", provider: "Xendit", percentFee: 0.03, fixedSurcharge: 0.30, fixedSurchargeCurrency: "USD", description: "3% + $0.30 · 인도네시아·필리핀", icon: "💳", isFree: false },
+  { id: "sea-2c2p", region: "SEA", category: "card_global", name: "2C2P Cross-border", provider: "2C2P (Ant Group)", percentFee: 0.025, description: "약 2~3% · 동남아 통합", icon: "🌏", isFree: false },
+  /* ── 싱가포르·말레이시아 ── */
+  { id: "sg-paynow", region: "SG_MY", category: "qr_payment", name: "PayNow", provider: "ABS Singapore", percentFee: 0, description: "수수료 없음 · 싱가포르 표준", icon: "🇸🇬", isFree: true, isRecommended: true },
+  { id: "my-duitnow", region: "SG_MY", category: "qr_payment", name: "DuitNow", provider: "PayNet Malaysia", percentFee: 0, description: "수수료 없음 · 말레이시아 표준", icon: "🇲🇾", isFree: true, isRecommended: true },
+  { id: "sg-stripe", region: "SG_MY", category: "card_global", name: "Credit Card", provider: "Stripe SG", percentFee: 0.034, fixedSurcharge: 0.50, fixedSurchargeCurrency: "SGD", description: "3.4% + S$0.50 (국제카드 +1% +FX 2%)", icon: "💳", isFree: false },
+  /* ── 일본 ── */
+  { id: "jp-virtual", region: "JP", category: "virtual_account", name: "Virtual Account (Japan)", provider: "GMO/Stripe", percentFee: 0.005, description: "약 0.5% · 일본 가상계좌", icon: "🇯🇵", isFree: false, isRecommended: true },
+  { id: "jp-stripe", region: "JP", category: "card_global", name: "Credit Card", provider: "Stripe Japan", percentFee: 0.036, description: "3.6% domestic + 1.5% intl", icon: "💳", isFree: false },
+  /* ── 글로벌 (Cross-border 대형 거래) ── */
+  { id: "global-swift", region: "GLOBAL", category: "swift_wire", name: "SWIFT Wire Transfer", provider: "은행 직송금", percentFee: 0.001, fixedSurcharge: 35, fixedSurchargeCurrency: "USD", description: "0.1% + $25~50 · 대형 송금 권장", icon: "🌐", isFree: false },
+  { id: "global-eximbay", region: "GLOBAL", category: "card_global", name: "Eximbay Cross-border", provider: "Eximbay (Korea)", percentFee: 0.035, description: "약 0.2~5% (방식별, 다통화 정산)", icon: "💱", isFree: false },
+];
+
+/** 결제수단 → 수수료 계산 헬퍼.
+ *
+ * 반환값:
+ *   - feeAmount: 결제수단 통화 기준 수수료액
+ *   - feeUsd: USD 환산 (FX 1.0 추정, 실제는 환율 적용)
+ *   - displayText: 사용자 표시용 ("USD 25.00 (2.5%)") */
+export function calcPaymentFee(method: PaymentMethodOption, baseAmountUsd: number): {
+  feeUsd: number;
+  feePercent: number;
+  displayText: string;
+} {
+  const percent = method.percentFee || 0;
+  const surcharge = method.fixedSurcharge || 0;
+  /* flatFee는 KRW 등 결제 통화 기준 → 별도 환산 필요 (간이) */
+  let flatUsd = 0;
+  if (method.flatFee && method.flatFeeCurrency === "KRW") {
+    flatUsd = method.flatFee / 1380; /* approx KRW→USD */
+  } else if (method.flatFee && method.flatFeeCurrency === "USD") {
+    flatUsd = method.flatFee;
+  }
+  /* fixedSurcharge는 보통 USD 또는 SGD. 단순화 위해 USD 처리 */
+  const fixedUsd = method.fixedSurchargeCurrency === "SGD" ? surcharge * 0.74 : surcharge;
+  const feeUsd = baseAmountUsd * percent + fixedUsd + flatUsd;
+  const feePercent = baseAmountUsd > 0 ? feeUsd / baseAmountUsd : 0;
+  const displayText = method.isFree
+    ? "Free (0%)"
+    : `USD ${feeUsd.toFixed(2)} (${(feePercent * 100).toFixed(2)}%)`;
+  return { feeUsd, feePercent, displayText };
+}
+
+/** 권역별 추천 결제수단 (UI 정렬용) */
+export function paymentMethodsForRegion(region: PaymentRegion): PaymentMethodOption[] {
+  const regional = PAYMENT_METHODS.filter(m => m.region === region);
+  const global = PAYMENT_METHODS.filter(m => m.region === "GLOBAL");
+  return [
+    ...regional.sort((a, b) => (b.isRecommended ? 1 : 0) - (a.isRecommended ? 1 : 0)),
+    ...global,
+  ];
+}
+
 export interface InvoiceWithMatch {
   invoiceNo: string;
   period: string;
