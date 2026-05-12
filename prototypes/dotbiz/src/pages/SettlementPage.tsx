@@ -66,7 +66,7 @@ export default function SettlementPage() {
   const isPrepay = effectiveBilling === "PREPAY";
 
   /* Active tab — URL-synced so browser Back returns to the same tab the user was on */
-  const [settlementTab, setSettlementTab] = useTabParam(isPrepay ? "pending" : "invoices");
+  const [settlementTab, setSettlementTab] = useTabParam(isPrepay ? "pending" : "ar-aging");
 
   /* PREPAY: 미결제 예약 (TL 미도래 + 데드라인 임박) */
   const pendingPayments = useMemo(() => {
@@ -336,11 +336,8 @@ export default function SettlementPage() {
         </AlertDescription>
       </Alert>
 
-      {/* ── AR Aging Report (결정 #5) ──
-       * 회계 인식: Cash basis (입금 시점). 그 전까지 모든 invoice는 미수금(AR).
-       * 기간이 길수록 회수 가능성 ↓ → bucket 분류. 90+ 일은 악성 미수금.
-       * Disputed bucket 폐기 (2026-05-08): Invoice 분쟁 기능 자체 삭제로 별도 분류 불필요. */}
-      <ARAgingCard companyId={activeCompany.id} onJumpInvoice={(no) => navigate(`/app/settlement/invoice/${no}`)} />
+      {/* AR Aging Report — 탭으로 이전 (2026-05-08).
+       * 회계 인식: Cash basis. Disputed bucket 폐기로 5 buckets. */}
 
       {/* Header */}
       <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -471,7 +468,8 @@ export default function SettlementPage() {
        * "Backed by" meta line changes. No Deposit / Credit by Company are
        * handled with the same structure (different backing description).
        * ──────────────────────────────────────────────────────────────────── */}
-      {selectedContractId !== "all" && effectiveBilling === "POSTPAY" && effectiveDepositType && (() => {
+      {/* Credit Line — 탭으로 이동 (2026-05-08). 아래 false 가드로 standalone 노드 숨김. 동일 IIFE를 TabsContent에서 재사용. */}
+      {false && (() => {
         const depositType = effectiveDepositType;
         const deposit = effectiveDepositAmount || 0;
         const curr = effectiveCurrency;
@@ -708,15 +706,201 @@ export default function SettlementPage() {
       })()}
 
 
-      {/* Disputes 탭 + Payment Receipts 탭 폐기 (2026-05-08):
-       *  - Invoice Dispute: 송금 보류 빌미 차단을 위해 기능 삭제
-       *  - Payment Receipts: 고객 영수증 업로드 X. 내부 금액 매칭만 운영 */}
+      {/* Tabs 구조 (2026-05-08):
+       *  - AR Aging / Credit Line 신규 탭 (이전 카드에서 이동)
+       *  - Disputes / Payment Receipts 탭 폐기 (Invoice 분쟁 / 영수증 업로드 기능 삭제) */}
       <Tabs value={settlementTab} onValueChange={setSettlementTab}>
         <TabsList className="!h-auto flex-wrap justify-start gap-1">
+          <TabsTrigger value="ar-aging">AR Aging</TabsTrigger>
+          {effectiveBilling === "POSTPAY" && <TabsTrigger value="credit-line">Credit Line</TabsTrigger>}
           {isPrepay && <TabsTrigger value="pending">Pending Payment {visiblePending.length > 0 && <span className="ml-1 text-[10px] bg-red-500 text-white rounded-full px-1.5">{visiblePending.length}</span>}</TabsTrigger>}
           <TabsTrigger value="invoices">Invoices</TabsTrigger>
           <TabsTrigger value="billing">Billing Details</TabsTrigger>
         </TabsList>
+
+        {/* ══════ AR Aging Tab ══════ */}
+        <TabsContent value="ar-aging" className="space-y-4 mt-4">
+          <ARAgingCard companyId={activeCompany.id} onJumpInvoice={(no) => navigate(`/app/settlement/invoice/${no}`)} />
+        </TabsContent>
+
+        {/* ══════ Credit Line Tab (POSTPAY only) ══════ */}
+        {effectiveBilling === "POSTPAY" && (
+          <TabsContent value="credit-line" className="space-y-4 mt-4">
+            {selectedContractId === "all" || !effectiveDepositType ? (
+              <Card className="p-6 text-sm text-muted-foreground text-center">
+                Credit Line 정보를 표시하려면 단일 계약을 선택해 주세요.
+              </Card>
+            ) : (() => {
+              const depositType = effectiveDepositType!;
+              const deposit = effectiveDepositAmount || 0;
+              const curr = effectiveCurrency;
+              const fracDigits = curr === "VND" || curr === "JPY" ? 0 : 2;
+              const fmt = (n: number) => `${curr} ${n.toLocaleString(undefined, { minimumFractionDigits: fracDigits, maximumFractionDigits: fracDigits })}`;
+              const config: Record<string, { ctaLabel: string; ctaToast: { title: string; description: string }; collateralLabel: (amt: string, mult: number) => string }> = {
+                "Floating Deposit": {
+                  ctaLabel: "Top Up Deposit",
+                  ctaToast: { title: "Top-up request sent", description: "Our finance team will share wire instructions within 1 business day." },
+                  collateralLabel: (amt) => `Pre-funded cash · ${amt} deposited`,
+                },
+                "Credit by Company": {
+                  ctaLabel: "Request Credit Increase",
+                  ctaToast: { title: "Credit increase request sent", description: "Your OhMyHotel account manager will review and respond within 2 business days." },
+                  collateralLabel: () => "OhMyHotel-issued credit line · no collateral",
+                },
+                "Guarantee Deposit": {
+                  ctaLabel: "Request Limit Increase",
+                  ctaToast: { title: "Guarantee increase request sent", description: "Our team will draft the contract amendment for your review." },
+                  collateralLabel: (amt, mult) => `Guarantee Deposit · ${amt} × ${mult}× leverage`,
+                },
+                "Guarantee Insurance": {
+                  ctaLabel: "Request Insurance Increase",
+                  ctaToast: { title: "Insurance increase noted", description: "Please contact your insurer to raise the policy limit." },
+                  collateralLabel: (amt, mult) => `Insurer-backed · ${amt} × ${mult}× leverage`,
+                },
+                "Bank Guarantee": {
+                  ctaLabel: "Request Bank Guarantee Increase",
+                  ctaToast: { title: "Bank guarantee increase noted", description: "Please contact your bank to amend the guarantee." },
+                  collateralLabel: (amt, mult) => `Bank-issued Letter of Guarantee · ${amt} × ${mult}× leverage`,
+                },
+                "No Deposit": {
+                  ctaLabel: "Set Up Deposit",
+                  ctaToast: { title: "Deposit setup request sent", description: "Our team will guide you through deposit options." },
+                  collateralLabel: () => "No collateral on file",
+                },
+              };
+              const cfg = config[depositType] || config["Floating Deposit"];
+              const contract = selectedContract;
+              const hasLeverage = !!contract?.creditMultiplier && contract.creditMultiplier > 1;
+              const multiplier = contract?.creditMultiplier || 1;
+              const creditLimit = contract ? getCreditLimit(contract) : deposit;
+              const used = myInvoices
+                .filter(i => i.matchStatus !== "Full" && i.matchStatus !== "Reconciled")
+                .reduce((s, i) => s + (i.total - i.receivedAmount), 0);
+              const available = Math.max(0, creditLimit - used);
+              const usedPct = creditLimit > 0 ? Math.min(100, Math.round((used / creditLimit) * 100)) : 0;
+              const lowThreshold = contract?.creditLowThreshold || 0;
+              const criticalThreshold = contract?.creditCriticalThreshold || 0;
+              const isCritical = criticalThreshold > 0 && available <= criticalThreshold;
+              const isLow = lowThreshold > 0 && available <= lowThreshold && !isCritical;
+              const barColor = isCritical ? "#DC2626" : isLow ? "#FF6000" : usedPct >= 50 ? "#FF8C00" : "#009505";
+
+              if (depositType === "No Deposit" || creditLimit === 0) {
+                return (
+                  <Card className="p-6 border-2 border-amber-300 bg-amber-50/40 dark:bg-amber-950/10">
+                    <div className="flex items-start justify-between gap-4 flex-wrap">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-full flex items-center justify-center bg-amber-100 dark:bg-amber-900/40">
+                          <AlertTriangle className="h-5 w-5 text-amber-600" />
+                        </div>
+                        <div>
+                          <h2 className="text-lg font-bold">Credit Line</h2>
+                          <p className="text-xs text-muted-foreground">{cfg.collateralLabel("", multiplier)}</p>
+                        </div>
+                      </div>
+                      <Button size="sm" className="text-white" style={{ background: "#FF6000" }} onClick={() => toast.success(cfg.ctaToast.title, { description: cfg.ctaToast.description })}>
+                        <CreditCard className="h-3 w-3 mr-1" />{cfg.ctaLabel}
+                      </Button>
+                    </div>
+                    <p className="text-xs text-amber-800 dark:text-amber-200 mt-3">
+                      디포짓 또는 크레딧 라인 없이 운영 중. Floating Deposit, Bank Guarantee, Insurance 설정 시 더 큰 예약 볼륨 가능.
+                    </p>
+                  </Card>
+                );
+              }
+
+              const isFloating = depositType === "Floating Deposit";
+              const handlePrimaryCta = () => {
+                if (isFloating) setTopUpOpen(true);
+                else toast.success(cfg.ctaToast.title, { description: cfg.ctaToast.description });
+              };
+              const collateralSubtitle = cfg.collateralLabel(fmt(deposit), multiplier);
+
+              return (
+                <Card className={`p-6 ${isCritical ? "border-2 border-red-500 bg-red-50/40 dark:bg-red-950/10" : isLow ? "border-2 border-orange-500 bg-orange-50/40 dark:bg-orange-950/10" : "border-2 border-slate-200 dark:border-slate-800"}`}>
+                  <div className="flex items-start justify-between gap-4 flex-wrap mb-3">
+                    <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 rounded-full flex items-center justify-center" style={{ background: barColor + "20" }}>
+                        <CreditCard className="h-5 w-5" style={{ color: barColor }} />
+                      </div>
+                      <div>
+                        <h2 className="text-lg font-bold flex items-center gap-2 flex-wrap">
+                          Credit Line
+                          {hasLeverage && <Badge variant="outline" className="text-[10px]">{multiplier}× leverage</Badge>}
+                        </h2>
+                        <p className="text-xs text-muted-foreground">{collateralSubtitle}</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-3xl font-bold" style={{ color: barColor }}>{usedPct}%</p>
+                      <p className="text-[10px] text-muted-foreground uppercase">used</p>
+                    </div>
+                  </div>
+
+                  <div className="relative h-6 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
+                    <div className="h-full rounded-full transition-all flex items-center justify-end pr-2" style={{ width: `${usedPct}%`, background: barColor }}>
+                      {usedPct > 15 && <span className="text-[10px] font-bold text-white">{fmt(used)}</span>}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
+                    <div className="text-center">
+                      <p className="text-[10px] text-muted-foreground uppercase">Credit Limit</p>
+                      <p className="text-xl font-bold font-mono">{fmt(creditLimit)}</p>
+                      {hasLeverage && <p className="text-[9px] text-muted-foreground">{fmt(deposit)} × {multiplier}</p>}
+                    </div>
+                    <div className="text-center">
+                      <p className="text-[10px] text-muted-foreground uppercase">Used</p>
+                      <p className="text-xl font-bold font-mono" style={{ color: barColor }}>{fmt(used)}</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-[10px] text-muted-foreground uppercase">Available</p>
+                      <p className={`text-xl font-bold font-mono ${isCritical ? "text-red-600" : isLow ? "text-orange-600" : "text-green-600"}`}>{fmt(available)}</p>
+                    </div>
+                    <div className="text-center pt-2">
+                      <Button size="sm" onClick={handlePrimaryCta} className="text-white" style={{ background: "#FF6000" }}>
+                        {cfg.ctaLabel}
+                      </Button>
+                    </div>
+                  </div>
+
+                  {(isCritical || isLow) && (
+                    <Alert className={`mt-3 ${isCritical ? "border-red-300 bg-red-50 dark:bg-red-950/20" : "border-orange-300 bg-orange-50 dark:bg-orange-950/20"}`}>
+                      <AlertTriangle className={`h-4 w-4 ${isCritical ? "text-red-600" : "text-orange-600"}`} />
+                      <AlertTitle className="text-xs">
+                        {isCritical ? `Critical — 가용 한도 ${fmt(criticalThreshold)} 이하` : `Low — 가용 한도 ${fmt(lowThreshold)} 이하`}
+                      </AlertTitle>
+                      <AlertDescription className="text-[11px]">
+                        {isCritical ? "신규 예약이 차단될 수 있습니다. 즉시 디포짓 추가 또는 송금 처리해주세요." : "여유 한도가 줄어들고 있습니다. 디포짓 보강을 검토해주세요."}
+                      </AlertDescription>
+                    </Alert>
+                  )}
+
+                  {myTopUps.length > 0 && (
+                    <div className="mt-4 pt-3 border-t">
+                      <p className="text-xs font-semibold text-muted-foreground mb-2">최근 Top-up 내역</p>
+                      <div className="space-y-1.5">
+                        {myTopUps.slice(0, 3).map(t => {
+                          const statusBg = t.status === "Confirmed" ? "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-200"
+                            : t.status === "Pending" ? "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200"
+                            : t.status === "Manual Review" ? "bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-200"
+                            : "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300";
+                          return (
+                            <div key={t.id} className="flex items-center gap-3 text-xs py-1.5 px-2 rounded hover:bg-muted/50">
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-medium ${statusBg}`}>{t.status}</span>
+                              <span className="font-mono text-[#FF6000]">{t.refCode}</span>
+                              <span className="font-mono">{t.currency} {t.requestedAmount.toLocaleString()}</span>
+                              <span className="text-muted-foreground ml-auto">{t.requestedAt.split(" ")[0]}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </Card>
+              );
+            })()}
+          </TabsContent>
+        )}
 
         {/* ══════ PREPAY Pending Payment Tab ══════ */}
         {isPrepay && (
