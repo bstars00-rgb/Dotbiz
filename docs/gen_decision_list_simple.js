@@ -7,7 +7,7 @@ const wb = xlsx.utils.book_new();
  * ═════════════════════════════════════════════════════════════ */
 const sheet1 = [
   ["DOTBIZ 대표이사 결재 — 옵션 선택 (✓ 표시)", "", "", "", "", "", "", ""],
-  ["5건. 각 항목별 옵션 중 하나에 ✓ 표시 후 회신. (PG 전략 확정: 로컬 PG 추가 도입 X · 기존 Eximbay 유지 · 카드수수료 고객 부담 별도 청구)", "", "", "", "", "", "", ""],
+  ["4건. 각 항목별 옵션 중 하나에 ✓ 표시 후 회신. (PREPAY→POSTPAY 자동 트리거 폐기: Master 신청 + 케이스별 검토로 운영)", "", "", "", "", "", "", ""],
   ["", "", "", "", "", "", "", ""],
   ["#", "항목", "옵션 A", "옵션 B", "옵션 C", "Sage 추천", "CEO 결정 (✓)", "비고"],
 
@@ -21,18 +21,8 @@ const sheet1 = [
     "중국 시장은 Alipay/WeChat 결제가 표준. 홍콩 지사(싱가포르 출자)가 협상·운영 주체. 대중화권 진출 핵심"
   ],
 
-  /* 2 — PREPAY→POSTPAY 전환 트리거 */
-  ["2", "PREPAY→POSTPAY 전환 트리거",
-    "단순 (TTV 1억+만)",
-    "AND 4조건 (기간+건수+TTV+신용)",
-    "Master 신청 시 검토만",
-    "B (AND 4조건)",
-    "",
-    "B: 6개월+ AND 5건/월+ AND TTV 1억+ AND Free Cancel 90%+"
-  ],
-
-  /* 3 — PCI-DSS */
-  ["3", "PCI-DSS 인증 일정",
+  /* 2 — PCI-DSS (was 3) */
+  ["2", "PCI-DSS 인증 일정",
     "2026 Q4 완료 ($30~50K)",
     "2027 H1 완료 (분산 투자)",
     "외부 PG 의존 유지 (인증 X)",
@@ -41,8 +31,8 @@ const sheet1 = [
     "로컬 PG 미도입 + Eximbay 지속 사용 정책상 자체 카드 보유 불필요. 단, Alipay/WeChat 도입 시 재검토"
   ],
 
-  /* 4 — Hotel Boost */
-  ["4", "Hotel Boost 자부담 정책",
+  /* 3 — Hotel Boost (was 4) */
+  ["3", "Hotel Boost 자부담 정책",
     "호텔 100% 자부담 강제",
     "DOTBIZ 50% 흡수 허용",
     "DOTBIZ 100% 흡수 허용",
@@ -51,8 +41,8 @@ const sheet1 = [
     "마진 4% 환경에서 DOTBIZ 흡수는 역마진 위험"
   ],
 
-  /* 5 — KPI */
-  ["5", "마진 모니터링 KPI 대시보드",
+  /* 4 — KPI (was 5) */
+  ["4", "마진 모니터링 KPI 대시보드",
     "5종 통합 (Net Margin / 결제수단 / 통화 / AR / 분쟁)",
     "3종 핵심 (Net Margin / 통화 / AR)",
     "현재 보고서 유지",
@@ -119,6 +109,7 @@ const sheet2 = [
   ["🤝 디포짓 / 신용", "디포짓 종류", "6종 (Credit / Floating / Guarantee / Insurance / Bank Guarantee / No Deposit)"],
   ["🤝 디포짓 / 신용", "No Deposit 조건", "정량 3 + 정성 2 + 대표이사 승인"],
   ["🤝 디포짓 / 신용", "디포짓 6종 통합 검토", "장기적 4종 통합 (Insurance + Bank Guarantee)"],
+  ["🤝 디포짓 / 신용", "PREPAY→POSTPAY 전환", "Master 신청 + 케이스별 검토 (자동 트리거 없음)"],
 
   ["⚖️ 분쟁", "자동 인정", "없음 (모든 분쟁 수동 검토)"],
   ["⚖️ 분쟁", "결재선", "$1K Master / $10K 양인 / $50K EllisOP / $50K+ 대표이사"],
@@ -148,6 +139,6 @@ ws2['!cols'] = [
 ];
 xlsx.utils.book_append_sheet(wb, ws2, '이미 결정됨');
 
-const outPath = 'C:/Users/LENOVO/Desktop/Dotbiz/docs/Settlement_CEO_DecisionList_Simple_2026-05-08_v4.xlsx';
+const outPath = 'C:/Users/LENOVO/Desktop/Dotbiz/docs/Settlement_CEO_DecisionList_Simple_2026-05-08_v5.xlsx';
 xlsx.writeFile(wb, outPath);
 console.log('Generated:', outPath);

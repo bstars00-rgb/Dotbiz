@@ -1808,4 +1808,13 @@ export const POLICY_CHANGELOG: PolicyChange[] = [
     after: "로컬 PG 추가 도입 X. 기본 전략은 예약량 ↑ → 해외 송금 유도. 선결제 PG는 기존 Eximbay 유지 (계약/입금 주체 = 싱가포르 본사). 카드수수료는 판매가와 별도로 고객 청구. 예외: 중국 Alipay/WeChat (홍콩 지사 싱가포르 출자 후, 대표이사 승인 사항).",
     reason: "1) 계약/입금 주체는 항상 싱가포르 — 로컬 PG 다각화 시 지사별 수금/내부 정산 복잡도 증가. 2) Eximbay 다통화 정산 기능으로 충분. 3) 사업 확장 범위 제어 — 로컬 PG 협상·통합 비용 > 절감 이익. 4) 중국 시장만 예외 (Alipay/WeChat 표준 + 홍콩 지사 출자 + 대표이사 결재 사항).",
   },
+  {
+    changedAt: "2026-05-08",
+    changedBy: "CEO Scope Decision",
+    category: "Settlement",
+    field: "PREPAY → POSTPAY 자동 전환 트리거 폐기",
+    before: "자동 트리거 임계값 결재 안건 (4조건 AND 등)",
+    after: "자동 트리거 도입 X. Master 신청 + EllisOP 케이스별 검토로 운영. 4단계 Migration Path는 가이드라인으로만 유지.",
+    reason: "자동 시스템 구축 비용 > 운영 효과. PREPAY → POSTPAY 전환은 일반적으로 영업 협의가 동반되는 사안이므로 자동 알고리즘보다 케이스별 협상이 합리적. 사업 확장 범위 제어.",
+  },
 ];
