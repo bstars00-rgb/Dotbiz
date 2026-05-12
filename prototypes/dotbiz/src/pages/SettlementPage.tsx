@@ -708,25 +708,14 @@ export default function SettlementPage() {
       })()}
 
 
+      {/* Disputes 탭 + Payment Receipts 탭 폐기 (2026-05-08):
+       *  - Invoice Dispute: 송금 보류 빌미 차단을 위해 기능 삭제
+       *  - Payment Receipts: 고객 영수증 업로드 X. 내부 금액 매칭만 운영 */}
       <Tabs value={settlementTab} onValueChange={setSettlementTab}>
         <TabsList className="!h-auto flex-wrap justify-start gap-1">
           {isPrepay && <TabsTrigger value="pending">Pending Payment {visiblePending.length > 0 && <span className="ml-1 text-[10px] bg-red-500 text-white rounded-full px-1.5">{visiblePending.length}</span>}</TabsTrigger>}
           <TabsTrigger value="invoices">Invoices</TabsTrigger>
           <TabsTrigger value="billing">Billing Details</TabsTrigger>
-          <TabsTrigger value="disputes">
-            Disputes
-            {(() => {
-              const open = disputesForCompany(activeCompany.id).filter(d => d.status === "Open" || d.status === "UnderReview").length;
-              return open > 0 ? <span className="ml-1 text-[10px] bg-amber-500 text-white rounded-full px-1.5">{open}</span> : null;
-            })()}
-          </TabsTrigger>
-          <TabsTrigger value="receipts">
-            Payment Receipts
-            {(() => {
-              const pending = paymentReceipts.filter(r => r.customerCompanyId === activeCompany.id && r.status === "Pending-Match").length;
-              return pending > 0 ? <span className="ml-1 text-[10px] bg-blue-500 text-white rounded-full px-1.5">{pending}</span> : null;
-            })()}
-          </TabsTrigger>
         </TabsList>
 
         {/* ══════ PREPAY Pending Payment Tab ══════ */}
@@ -1167,45 +1156,13 @@ export default function SettlementPage() {
           </Table>
         </TabsContent>
 
-        {/* ══════ Disputes Tab — 결정 #1 (Accounting 분쟁 제기) ══════ */}
-        <TabsContent value="disputes" className="space-y-4 mt-4">
-          <DisputesSection
-            companyId={activeCompany.id}
-            currentUserEmail={user?.email || ""}
-            isAccounting={isAccounting}
-            onOpenDispute={() => setRaiseDisputeOpen(true)}
-            onJumpToTicket={(tid) => navigate(`/app/tickets?id=${encodeURIComponent(tid)}`)}
-          />
-        </TabsContent>
-
-        {/* ══════ Payment Receipts Tab — 결정 #1 (송금 증빙) ══════ */}
-        <TabsContent value="receipts" className="space-y-4 mt-4">
-          <ReceiptsSection
-            companyId={activeCompany.id}
-            isAccounting={isAccounting}
-            onUploadReceipt={() => setUploadReceiptOpen(true)}
-          />
-        </TabsContent>
+        {/* Disputes / Payment Receipts 탭 삭제 (2026-05-08):
+         *  - Invoice Dispute 기능 폐기 → 송금 보류 빌미 차단
+         *  - Payment Receipt 고객 업로드 X → 내부 금액 매칭만 운영 */}
 
       </Tabs>
 
-      {/* Dispute 제기 다이얼로그 */}
-      <RaiseDisputeDialog
-        open={raiseDisputeOpen}
-        onOpenChange={setRaiseDisputeOpen}
-        companyId={activeCompany.id}
-        currentUserEmail={user?.email || ""}
-        availableInvoices={myInvoices.map(i => i.invoiceNo)}
-      />
-
-      {/* Receipt 업로드 다이얼로그 */}
-      <UploadReceiptDialog
-        open={uploadReceiptOpen}
-        onOpenChange={setUploadReceiptOpen}
-        companyId={activeCompany.id}
-        currentUserEmail={user?.email || ""}
-        availableInvoices={myInvoices.map(i => i.invoiceNo)}
-      />
+      {/* Dispute / Receipt 다이얼로그 — 기능 삭제로 미사용 */}
 
       {/* Invoice Preview (A4 + 5 languages) */}
       <InvoicePreviewDialog open={!!previewInvoice} onOpenChange={(o) => !o && setPreviewInvoice(null)} invoice={previewInvoice} />

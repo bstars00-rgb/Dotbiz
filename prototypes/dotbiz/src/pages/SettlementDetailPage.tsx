@@ -181,17 +181,8 @@ export default function SettlementDetailPage() {
         </p>
       </Card>
 
-      {/* ─────────── Dispute Guidance (customer view) ─────────── */}
-      {linkedBookings.length > 0 && (
-        <Alert className="border-blue-200 bg-blue-50 dark:bg-blue-900/10">
-          <TicketIcon className="h-4 w-4 text-blue-600" />
-          <AlertTitle>Need to dispute a booking?</AlertTitle>
-          <AlertDescription className="text-xs">
-            To raise a concern about any line item, please <Button variant="link" size="sm" className="h-auto p-0 underline" onClick={() => navigate("/app/tickets")}>open a support ticket</Button>.
-            Our team will review and, if valid, flag the booking as disputed on this invoice.
-          </AlertDescription>
-        </Alert>
-      )}
+      {/* Invoice Dispute 기능 폐기 (2026-05-08): 인보이스 분쟁 제기는 송금 보류 빌미가 됨 → 기능 삭제.
+       * 예약 자체 이의 (cancel 요청 등)는 BookingsPage 또는 일반 티켓 트랙. */}
 
       {/* ─────────── Linked Bookings ─────────── */}
       <Card className="p-5">
