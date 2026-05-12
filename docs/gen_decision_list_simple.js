@@ -7,7 +7,7 @@ const wb = xlsx.utils.book_new();
  * ═════════════════════════════════════════════════════════════ */
 const sheet1 = [
   ["DOTBIZ 대표이사 결재 — 옵션 선택 (✓ 표시)", "", "", "", "", "", "", ""],
-  ["8건. 각 항목별 옵션 중 하나에 ✓ 표시 후 회신.", "", "", "", "", "", "", ""],
+  ["6건. 각 항목별 옵션 중 하나에 ✓ 표시 후 회신. (2026-05-08: Trade Credit Insurance + Pre-funded Wallet 도입 X 결정으로 #4·#5 제거)", "", "", "", "", "", "", ""],
   ["", "", "", "", "", "", "", ""],
   ["#", "항목", "옵션 A", "옵션 B", "옵션 C", "Sage 추천", "CEO 결정 (✓)", "비고"],
 
@@ -41,28 +41,8 @@ const sheet1 = [
     "B: 6개월+ AND 5건/월+ AND TTV 1억+ AND Free Cancel 90%+"
   ],
 
-  /* 4 */
-  ["4", "Trade Credit Insurance 도입 여부",
-    "도입 (영업팀 견적 착수)",
-    "PoC 1개사 (대형 No Deposit 대상)",
-    "도입 보류 (현재 6종 디포짓 유지)",
-    "B (PoC 후 확대)",
-    "",
-    "마켓 리서치 결과: 0.1~0.5% (Atradius/Coface). 호텔업 사례 직접 확인 미진행"
-  ],
-
-  /* 5 */
-  ["5", "Pre-funded Wallet 도입 여부",
-    "도입 (Phase 1 인센티브 모델)",
-    "PoC 1~2개 고객사 시범",
-    "도입 보류 (Floating Deposit 유지)",
-    "B (PoC 후 결정)",
-    "",
-    "마일리지 충전 유사 모델. 시장 검증 없음 → 시범 운영 후 비율 결정"
-  ],
-
-  /* 6 */
-  ["6", "PCI-DSS 인증 일정",
+  /* 4 (was 6) — PCI-DSS */
+  ["4", "PCI-DSS 인증 일정",
     "2026 Q4 완료 ($30~50K)",
     "2027 H1 완료 (분산 투자)",
     "외부 PG 의존 유지 (인증 X)",
@@ -71,8 +51,8 @@ const sheet1 = [
     "C 선택 시 카드 정보 직접 보유 불가, PG 의존도 ↑"
   ],
 
-  /* 7 */
-  ["7", "Hotel Boost 자부담 정책",
+  /* 5 (was 7) — Hotel Boost */
+  ["5", "Hotel Boost 자부담 정책",
     "호텔 100% 자부담 강제",
     "DOTBIZ 50% 흡수 허용",
     "DOTBIZ 100% 흡수 허용",
@@ -81,8 +61,8 @@ const sheet1 = [
     "마진 4% 환경에서 DOTBIZ 흡수는 역마진 위험"
   ],
 
-  /* 8 */
-  ["8", "마진 모니터링 KPI 대시보드",
+  /* 6 (was 8) — KPI */
+  ["6", "마진 모니터링 KPI 대시보드",
     "5종 통합 (Net Margin / 결제수단 / 통화 / AR / 분쟁)",
     "3종 핵심 (Net Margin / 통화 / AR)",
     "현재 보고서 유지",
@@ -177,6 +157,6 @@ ws2['!cols'] = [
 ];
 xlsx.utils.book_append_sheet(wb, ws2, '이미 결정됨');
 
-const outPath = 'C:/Users/LENOVO/Desktop/Dotbiz/docs/Settlement_CEO_DecisionList_Simple_2026-05-08_v2.xlsx';
+const outPath = 'C:/Users/LENOVO/Desktop/Dotbiz/docs/Settlement_CEO_DecisionList_Simple_2026-05-08_v3.xlsx';
 xlsx.writeFile(wb, outPath);
 console.log('Generated:', outPath);

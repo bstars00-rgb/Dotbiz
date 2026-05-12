@@ -1790,4 +1790,13 @@ export const POLICY_CHANGELOG: PolicyChange[] = [
     after: "단계별 전환 경로 명시: Stage 0 PREPAY (진입) → Stage 1 POSTPAY + Floating Deposit (3~6개월, TTV 1억+) → Stage 2 Bank Guarantee (24개월, TTV 10억+) → Stage 3 No Deposit (대표이사 승인). 자동 전환 제안 트리거 정의.",
     reason: "PREPAY는 매 예약 결제로 거래량 한계 + 매출 부담. POSTPAY 전환 시 신용 기반으로 거래량 증가 + 운영 효율 ↑. 고객 신뢰 형성 단계별 디포짓 → 보증서 → 무담보 진화 경로로 자연스러운 매출 확대 유도.",
   },
+  {
+    changedAt: "2026-05-08",
+    changedBy: "CEO Scope Decision",
+    category: "Settlement",
+    field: "Trade Credit Insurance + Pre-funded Wallet 도입 X",
+    before: "마켓 리서치에서 검토 후보로 제안됨",
+    after: "둘 다 도입하지 않음. 결재 자료에서 완전 제거. No Deposit은 현재 6종 디포짓 + 대표이사 승인 체계 유지. 운영자금 확보는 기존 Floating Deposit으로 충분.",
+    reason: "사업 확장 범위 제어. 너무 많은 신규 기능 도입 시 수익 구조에 무리. 핵심 BM (PREPAY → POSTPAY 전환 + 디포짓 6종)에 집중. 시장 검증 없는 신규 모델보다 검증된 모델 운영 효율 극대화 우선.",
+  },
 ];
