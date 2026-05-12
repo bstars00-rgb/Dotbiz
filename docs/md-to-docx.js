@@ -15,7 +15,7 @@ const {
 } = require('docx');
 
 const FILES = [
-  'Market_Research_PG_Models_2026-05-08.md',
+  'Payment_Strategy_v3_2026-05-08.md',
 ];
 
 /* ── 마크다운 인라인 파싱 (bold, code, italic) ── */

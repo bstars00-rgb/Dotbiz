@@ -1744,4 +1744,13 @@ export const POLICY_CHANGELOG: PolicyChange[] = [
     after: "웹 리서치 실측 확보: 한국 가상계좌 건당 250원(0.025%) / 한국 PG 카드 2.1~3.3% / Stripe 일본 3.6%+국제1.5% / Stripe 싱가포르 3.4%+S$0.50 / Eximbay 0.2~5% / Alipay 국제카드 3% / Trade Credit Insurance 0.1~0.5% / WebBeds Net-21 + Floating Deposit/Bank Guarantee 강제 / Ratehawk Net rate + Pay By Link",
     reason: "추정에서 실측으로. 한국 가상계좌 PG 대비 ~150배 저렴 확인. Stripe 일본 3.6%로 마진 4% 잠식 확정. Trade Credit Insurance 0.5% 이하로 No Deposit 대체 합리성 확인. Hokodo 폐업(2025-11) → Billie/Mondu/Resolve 대안 검토 필요.",
   },
+  {
+    changedAt: "2026-05-08",
+    changedBy: "CEO Business Structure",
+    category: "Settlement",
+    field: "결제 전략 v3 — 권역별 + 본사·지사 구조",
+    before: "PG 모델 단일 분석 (계약/입금 주체 미반영)",
+    after: "본사 SG / 지사 KR·JP·VN(+HK 예정) / 4개 세일즈 권역 (KR·대중화·동남아·SG+MY) / Model C 하이브리드 수금: 현지 지사 수금 후 SG 본사 송금. 권역별 결제 수단 매트릭스 확정. 평균 결제 수수료 1.0% 달성 가능.",
+    reason: "DOTBIZ 실제 비즈니스 구조 반영. 계약/입금 주체 SG라는 점이 결제 모델 핵심 제약. 현지 지사 활용 시 가상계좌 0.025%, Alipay 1~2%, PayNow 0%, VNPay 1.5~2.5% 활용. 마진 4% 환경에서 Net +1.4% 확보.",
+  },
 ];
