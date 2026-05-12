@@ -1828,6 +1828,15 @@ export const POLICY_CHANGELOG: PolicyChange[] = [
   },
   {
     changedAt: "2026-05-08",
+    changedBy: "CEO Product Direction",
+    category: "Product",
+    field: "Hotel Boost 자부담 — DOTBIZ Extranet 기능으로 전환",
+    before: "Hotel Boost 자부담 정책 결재 안건 (호텔 100% / DOTBIZ 50% 흡수 / 100% 흡수)",
+    after: "정책 결재 아님. DOTBIZ Extranet (Phase 2+ 신규 기능)에서 호텔이 직접 설정. 호텔이 자기 마케팅 예산으로 Boost 배율 + 자부담 100% 자율 설정. Booking Extranet / Expedia EPC / Hotelbeds MaxiRoom 벤치마크.",
+    reason: "Hotel Boost 자부담 100%는 정책이 아니라 기능 영역. 호텔이 직접 자기 마케팅 예산을 활용해 ELS 보너스 캠페인을 운영할 수 있는 구조가 본질. DOTBIZ Extranet 신설로 호텔 자율성 ↑ + DOTBIZ 운영 부담 ↓.",
+  },
+  {
+    changedAt: "2026-05-08",
     changedBy: "CEO PG Strategy",
     category: "Settlement",
     field: "PG 전략 — 로컬 PG 추가 도입 X (전면 정정)",
