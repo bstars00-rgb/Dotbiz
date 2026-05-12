@@ -1753,4 +1753,23 @@ export const POLICY_CHANGELOG: PolicyChange[] = [
     after: "본사 SG / 지사 KR·JP·VN(+HK 예정) / 4개 세일즈 권역 (KR·대중화·동남아·SG+MY) / Model C 하이브리드 수금: 현지 지사 수금 후 SG 본사 송금. 권역별 결제 수단 매트릭스 확정. 평균 결제 수수료 1.0% 달성 가능.",
     reason: "DOTBIZ 실제 비즈니스 구조 반영. 계약/입금 주체 SG라는 점이 결제 모델 핵심 제약. 현지 지사 활용 시 가상계좌 0.025%, Alipay 1~2%, PayNow 0%, VNPay 1.5~2.5% 활용. 마진 4% 환경에서 Net +1.4% 확보.",
   },
+  /* ──────────────── 2026-05-08 PG 수수료 정책 전면 변경 — 고객 100% 부담 ──────────────── */
+  {
+    changedAt: "2026-05-08",
+    changedBy: "CEO Final Decision",
+    category: "Settlement",
+    field: "PG 수수료 부담 주체 — 정책 전면 변경",
+    before: "DOTBIZ 부담 + 마진에 반영 (이전 1단계 결재) / Tier별 차등 흡수 (이전 2단계 Sage 권장)",
+    after: "고객 100% 부담 (DOTBIZ 흡수 0%). 표시 방식: Option C Hybrid (Booking-style) — 검색·리스트는 호텔 정가 단일가, 결제 단계에서 결제수단 선택 시 PG 수수료 자동 표시, 인보이스 라인 분리.",
+    reason: "마진 3.5~4% 환경에서 DOTBIZ가 PG 흡수 시 역마진 위험 (글로벌 PG 3.5~4% / Stripe 일본 3.6% / Eximbay 최대 5%). 고객 100% 부담으로 마진 사수 + 결제수단 선택 자유 부여 (송금 0% / QR 0~2% / 카드 2~3% 등). Option A(판매가 포함)는 결제수단별 수수료 차이 크고 송금 고객 손해 발생하여 부적합. Option C가 가격 비교·UX·회계 모두 최적.",
+  },
+  {
+    changedAt: "2026-05-08",
+    changedBy: "CEO Final Decision",
+    category: "Settlement",
+    field: "이전 PG 부담 결재 무효화",
+    before: "2026-05-07 #1 'PG 수수료 DOTBIZ 부담' / 2026-05-08 #9 'Tier별 차등 흡수' / 2026-05-08 #11 'PG 흡수 모델 Tier별'",
+    after: "위 3건 모두 무효. PG 수수료는 100% 고객 부담 + Option C Hybrid 표시. POLICY_CHANGELOG 영구 기록으로 변경 이력 보존.",
+    reason: "마진 가정 7% → 3.5~4% 실측 반영 후 정책 재설계. 흡수 모델은 어떤 변형이든 마진 잠식 불가피. 시장 벤치마크(TBO·Booking·Expedia 모두 고객 부담) 부합.",
+  },
 ];
