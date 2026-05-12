@@ -317,24 +317,7 @@ export default function SettlementPage() {
 
   return (
     <div className="p-6 space-y-4">
-      {/* ── 정책 배너 (결정 #3) ──
-       * 고객사는 billing 데이터를 임의로 수정할 수 없음. 이상 발견 시 이의제기만.
-       * Adjustment(조정 라인)는 ELLIS만 발행. */}
-      <Alert className="border-blue-200 bg-blue-50 dark:bg-blue-950/20">
-        <AlertTitle className="text-sm flex items-center gap-2">
-          🔒 Settlement 데이터 정책
-        </AlertTitle>
-        <AlertDescription className="text-xs space-y-0.5">
-          <p>
-            <strong>읽기 전용:</strong> 고객사(Master/Accounting)는 billing/invoice를 임의로 수정할 수 없습니다.
-            이상이 있다면 DOTBIZ 영업 담당자에게 문의해주세요. (Invoice 분쟁 제기 기능은 운영 X)
-          </p>
-          <p>
-            <strong>Adjustment(조정 라인):</strong> DOTBIZ가 검토 후 발행합니다.
-            호텔 클레임 / 계약 변경 등 출처가 모든 라인에 명시됩니다.
-          </p>
-        </AlertDescription>
-      </Alert>
+      {/* 'Settlement 데이터 정책' 안내 배너 폐기 (2026-05-08): 내부 문건 성격으로 사용자 화면에 부적합. */}
 
       {/* AR Aging Report — 탭으로 이전 (2026-05-08).
        * 회계 인식: Cash basis. Disputed bucket 폐기로 5 buckets. */}
